@@ -7,6 +7,14 @@ class MemoryCredentials implements AgentCredentialRepository {
   async insert(record: NewAgentCredential): Promise<void> {
     this.records.set(record.credentialId, { ...record, revokedAt: null, tenantStatus: "active", developerStatus: "active", agentStatus: "active" });
   }
+  async rotate(record: NewAgentCredential): Promise<void> {
+    for (const existing of this.records.values()) {
+      if (existing.tenantId === record.tenantId && existing.agentId === record.agentId && existing.revokedAt === null) {
+        existing.revokedAt = record.createdAt;
+      }
+    }
+    await this.insert(record);
+  }
   async findById(id: string): Promise<AgentCredentialRecord | null> { return this.records.get(id) ?? null; }
   async revoke(id: string, tenant: string, at: Date): Promise<void> {
     const record = this.records.get(id);
