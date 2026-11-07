@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
-import { auditEvents, connectedAccounts, credentials, executions } from "./schema.js";
+import { auditEvents, connectedAccounts, credentials, executions, users } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
 /** Tenant-scoped account credential lookup and secret-free execution audit. */
@@ -18,7 +18,10 @@ export class PostgresExecutionRepository {
         credentialRef: credentials.id, credentialId: credentials.credentialId,
         recordVersion: credentials.recordVersion, origin: connectedAccounts.origin,
         credentialStatus: credentials.status, accountStatus: connectedAccounts.status
-      }).from(connectedAccounts).innerJoin(credentials, and(
+      }).from(connectedAccounts).innerJoin(users, and(
+        eq(connectedAccounts.tenantId, users.tenantId),
+        eq(connectedAccounts.userId, users.id)
+      )).innerJoin(credentials, and(
         eq(credentials.tenantId, connectedAccounts.tenantId),
         eq(credentials.accountId, connectedAccounts.id)
       )).where(and(
@@ -26,6 +29,7 @@ export class PostgresExecutionRepository {
         eq(connectedAccounts.id, input.accountId),
         eq(connectedAccounts.userId, input.userId),
         eq(connectedAccounts.status, "active"),
+        eq(users.status, "active"),
         eq(credentials.credentialType, "website_login"),
         eq(credentials.status, "active"),
         isNull(credentials.revokedAt)
