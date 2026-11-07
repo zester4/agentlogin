@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { CredentialRecordStore, StoredCredential } from "@agentlogin/vault";
 import type { Database } from "./client.js";
-import { connectedAccounts, credentials } from "./schema.js";
+import { auditEvents, connectedAccounts, credentials } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
 /**
