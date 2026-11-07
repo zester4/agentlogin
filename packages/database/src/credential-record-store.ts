@@ -27,6 +27,12 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
       throw new TypeError("Invalid encrypted credential record.");
     }
     await withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
+      const [account] = await tx.select({ id: connectedAccounts.id }).from(connectedAccounts).where(and(
+        eq(connectedAccounts.tenantId, this.authenticatedTenantId),
+        eq(connectedAccounts.id, context.accountId),
+        eq(connectedAccounts.status, "active")
+      )).for("update").limit(1);
+      if (!account) throw new Error("Connected account is not active.");
       await tx.insert(credentials).values({
         id: record.credentialRef, tenantId: this.authenticatedTenantId,
         accountId: context.accountId, credentialId: context.credentialId,
