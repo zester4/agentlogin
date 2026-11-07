@@ -10,6 +10,16 @@ export type LoginCredentialReference = {
 export interface LoginAccountRepository {
   findLoginCredential(input: { tenantId: string; accountId: string; userId: string }): Promise<LoginCredentialReference | null>;
 }
+export type CredentialLeaseBinding = {
+  tenantId: string; userId: string; agentId: string; grantId: string;
+  accountId: string; credentialRef: string; credentialId: string;
+  recordVersion: number; origin: string; executionId: string; expiresAt: Date;
+};
+export type CredentialLease = { leaseId: string; token: string; expiresAt: Date };
+export interface CredentialLeaseIssuer {
+  issue(input: CredentialLeaseBinding): Promise<CredentialLease>;
+  revoke(leaseId: string): Promise<void>;
+}
 export interface ExecutionAuditRepository {
   append(input: {
     executionId: string; tenantId: string; agentId: string; grantId: string;
@@ -23,6 +33,7 @@ export class ExecutionCoordinator {
   constructor(
     private readonly grants: Pick<GrantLifecycleService, "authorize">,
     private readonly accounts: LoginAccountRepository,
+    private readonly leases: CredentialLeaseIssuer,
     private readonly browser: IsolatedBrowserProvider,
     private readonly audit: ExecutionAuditRepository,
     private readonly now: () => Date = () => new Date(),
@@ -66,18 +77,38 @@ export class ExecutionCoordinator {
       return this.failure(input, executionId, startedAt, "account_unavailable");
     }
 
+    const deadline = new Date(startedAt.getTime() + timeoutMs);
+    let lease: CredentialLease;
+    try {
+      lease = await this.leases.issue({
+        tenantId: input.principal.tenantId, userId: input.principal.userId,
+        agentId: input.principal.agentId, grantId: input.grantId,
+        accountId: input.accountId, credentialRef: account.credentialRef,
+        credentialId: account.credentialId, recordVersion: account.recordVersion,
+        origin: input.origin, executionId, expiresAt: deadline
+      });
+      if (!lease.leaseId || !lease.token || lease.expiresAt.getTime() > deadline.getTime() ||
+          lease.expiresAt.getTime() <= this.now().getTime()) {
+        throw new Error("Credential lease issuer returned an invalid lease.");
+      }
+    } catch {
+      return this.failure(input, executionId, startedAt, "provider_unavailable");
+    }
+
     let outcome: Awaited<ReturnType<IsolatedBrowserProvider["executeLogin"]>>;
     try {
       outcome = await this.browser.executeLogin({
         executionId, tenantId: input.principal.tenantId, userId: input.principal.userId,
         agentId: input.principal.agentId, grantId: input.grantId,
         accountRef: input.accountId, expectedOrigin: input.origin,
-        credentialRef: account.credentialRef, credentialId: account.credentialId,
+        credentialLease: lease, credentialId: account.credentialId,
         recordVersion: account.recordVersion, ...(input.taskId ? { taskId: input.taskId } : {}),
-        deadline: new Date(startedAt.getTime() + timeoutMs)
+        deadline
       });
     } catch {
       outcome = { status: "login_failed", reasonCode: "site_unavailable" };
+    } finally {
+      await this.leases.revoke(lease.leaseId).catch(() => undefined);
     }
 
     const completedAt = this.now();
@@ -107,8 +138,6 @@ export class ExecutionCoordinator {
       return { status: "login_failed", execution_id: executionId, reason_code: "audit_unavailable" };
     }
 
-    // Challenge sessions remain isolated and short-lived for a secure user
-    // handoff. Success and failure sessions are always destroyed.
     if (safeResult.status === "login_succeeded" || safeResult.status === "login_failed") {
       await this.browser.terminate(executionId).catch(() => undefined);
     }
