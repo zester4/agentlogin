@@ -20,6 +20,11 @@ export async function connectedAccountRoutes(app: FastifyInstance, options: { da
       return reply.code(400).send({ error: { code: "invalid_connected_account", message: "The account enrollment request is invalid." } });
     }
     const url = new URL(parsed.data.origin);
+    const localRequest = process.env.NODE_ENV !== "production" &&
+      (request.hostname === "localhost" || request.hostname === "127.0.0.1");
+    if (request.protocol !== "https" && !localRequest) {
+      return reply.code(400).send({ error: { code: "https_required", message: "Credential enrollment must use HTTPS." } });
+    }
     const localHttp = process.env.NODE_ENV !== "production" && url.protocol === "http:" &&
       (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]");
     if (url.protocol !== "https:" && !localHttp) {
