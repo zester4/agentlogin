@@ -110,3 +110,4 @@ export function authorizeGrant(c: AuthorizationContext): AuthorizationDecision {
   }
   return { allowed: true };
 }
+export * from "./lifecycle.js";
