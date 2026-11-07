@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { CredentialRecordStore, StoredCredential } from "@agentlogin/vault";
 import type { Database } from "./client.js";
-import { credentials } from "./schema.js";
+import { connectedAccounts, credentials } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
 /**
@@ -51,7 +51,7 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
         eq(credentials.id, credentialRef), eq(credentials.tenantId, this.authenticatedTenantId),
         eq(credentials.credentialId, credentialId)
       )).limit(1);
-      if (!row || row.status !== "active" || row.revokedAt !== null || !row.iv || !row.authTag || !row.credentialId ||
+      if (!row || row.status !== "active" || row.accountStatus !== "active" || row.revokedAt !== null || !row.iv || !row.authTag || !row.credentialId ||
           !["website_login", "oauth_token", "api_key"].includes(row.credentialType)) return null;
       return {
         credentialRef: row.id,
