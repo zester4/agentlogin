@@ -9,6 +9,7 @@ import { onboardingRoutes } from "./routes/onboarding.js";
 import { userRoutes } from "./routes/user.js";
 import { developerRoutes } from "./routes/developers.js";
 import { connectedAccountRoutes } from "./routes/connected-accounts.js";
+import { grantRoutes } from "./routes/grants.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
@@ -32,6 +33,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     app.register(userRoutes);
     app.register(developerRoutes, { database: auth.database });
     app.register(connectedAccountRoutes, { database: auth.database });
+    app.register(grantRoutes, { database: auth.database });
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
   app.setErrorHandler((error, request, reply) => {
