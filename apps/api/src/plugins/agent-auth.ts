@@ -14,10 +14,10 @@ export function decodeAgentSigningKey(encoded: string | undefined): Buffer | nul
   return key.byteLength === 32 && key.toString("base64url") === encoded ? key : null;
 }
 
-export async function agentAuthenticationPlugin(
+export function agentAuthenticationPlugin(
   app: FastifyInstance,
   options: { database: Database; signingKey: Uint8Array | null }
-): Promise<void> {
+): void {
   app.decorateRequest("agentPrincipal", null);
   app.decorate("authenticateAgent", async (request, reply) => {
     if (!options.signingKey) {
