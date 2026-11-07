@@ -11,7 +11,9 @@ class MemoryGrants implements GrantLifecycleRepository {
   async createPending(input: Parameters<GrantLifecycleRepository["createPending"]>[0]) {
     const approvalId = input.id + "_approval";
     this.record = {
-      ...input, approvalId, revokedAt: null, approvedAt: null, approvalDecision: "pending"
+      ...input, approvalId, revokedAt: null, approvedAt: null, approvalDecision: "pending",
+      tenantStatus: "active", userStatus: "active", agentStatus: "active",
+      developerStatus: "active", accountStatus: "active"
     };
     return { grantId: input.id, approvalId };
   }
