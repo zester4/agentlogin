@@ -13,7 +13,7 @@ export type GrantRecord = NewGrantRecord & {
   approvalDecision: string | null;
 };
 export type NewApprovalRecord = {
-  id: string; requestedBy: string; createdAt: Date;
+  requestedBy: string; createdAt: Date;
 };
 export type ApprovalDecision = "approved" | "denied";
 
@@ -35,16 +35,12 @@ export class PostgresGrantRepository {
 
   async hasActiveDelegation(input: { userId: string; agentId: string; accountId: string; scopes: string[] }): Promise<boolean> {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
-      const rows = await tx.select({ id: delegations.id }).from(delegations).where(and(
+      const [row] = await tx.select({ scopes: delegations.scopes }).from(delegations).where(and(
         eq(delegations.tenantId, this.tenantId),
         eq(delegations.userId, input.userId),
         eq(delegations.agentId, input.agentId),
         eq(delegations.accountId, input.accountId),
         eq(delegations.status, "active")
-      )).limit(1);
-      if (!rows[0]) return false;
-      const [row] = await tx.select({ scopes: delegations.scopes }).from(delegations).where(and(
-        eq(delegations.tenantId, this.tenantId), eq(delegations.id, rows[0].id)
       )).limit(1);
       return Boolean(row && input.scopes.every((scope) => row.scopes.includes(scope)));
     });
