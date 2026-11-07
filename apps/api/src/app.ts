@@ -16,7 +16,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
       redact: {
-        paths: ["req.headers.authorization", "req.headers.cookie", "*.password", "*.token", "*.secret", "*.credential"],
+        paths: ["req.headers.authorization", "req.headers.cookie", "req.body.password", "req.body.username", "*.password", "*.token", "*.secret", "*.credential"],
         censor: "[REDACTED]"
       }
     },
