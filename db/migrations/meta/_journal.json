@@ -29,6 +29,13 @@
       "when": 1794089600000,
       "tag": "0003_agent_credential_developer_binding",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794089700000,
+      "tag": "0004_delegation_uniqueness",
+      "breakpoints": true
     }
   ]
 }
