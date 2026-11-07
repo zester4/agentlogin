@@ -50,6 +50,12 @@ export async function connectedAccountRoutes(app: FastifyInstance, options: { da
     const plaintext = Buffer.from(JSON.stringify({
       username: parsed.data.username, password: parsed.data.password
     }), "utf8");
+    // Remove the raw values from Fastify's request object as early as possible.
+    const requestBody = request.body as Record<string, unknown>;
+    requestBody.username = "[REDACTED]";
+    requestBody.password = "[REDACTED]";
+    parsed.data.username = "";
+    parsed.data.password = "";
     try {
       const vault = new EncryptedCredentialVault(
         new PostgresCredentialRecordStore(options.database, request.userPrincipal.tenantId),
