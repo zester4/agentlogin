@@ -56,6 +56,7 @@ export const agents = pgTable("agents", {
   createdAt: createdAt(),
 }, (t) => [
   unique("agents_tenant_id_unique").on(t.tenantId, t.id),
+  unique("agents_tenant_developer_id_unique").on(t.tenantId, t.developerId, t.id),
   foreignKey({ name: "agents_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
   tenantPolicy(t.tenantId),
 ]).enableRLS();
@@ -162,6 +163,7 @@ export const agentCredentials = pgTable("agent_credentials", {
   check("agent_credentials_expiry_after_issue", sql.raw("expires_at > created_at")),
   foreignKey({ name: "agent_credentials_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
   foreignKey({ name: "agent_credentials_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
+  foreignKey({ name: "agent_credentials_tenant_developer_agent_fk", columns: [t.tenantId, t.developerId, t.agentId], foreignColumns: [agents.tenantId, agents.developerId, agents.id] }),
   index("agent_credentials_active_lookup").on(t.id, t.expiresAt).where(sql`${t.revokedAt} IS NULL`),
   tenantPolicy(t.tenantId),
 ]).enableRLS();
