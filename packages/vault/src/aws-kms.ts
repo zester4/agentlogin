@@ -41,10 +41,10 @@ export class AwsKmsProvider implements KeyManagementProvider {
       Plaintext: dek,
       EncryptionContext: encryptionContext(context)
     }));
-    if (!result.CiphertextBlob || result.CiphertextBlob.byteLength === 0) {
+    if (!result.CiphertextBlob || result.CiphertextBlob.byteLength === 0 || !result.KeyId) {
       throw new Error("KMS did not return a wrapped data key.");
     }
-    return { wrappedDek: new Uint8Array(result.CiphertextBlob), keyVersion: this.keyId };
+    return { wrappedDek: new Uint8Array(result.CiphertextBlob), keyVersion: result.KeyId };
   }
 
   async unwrapKey(wrappedDek: Uint8Array, keyVersion: string, context: CredentialContext): Promise<Uint8Array> {
