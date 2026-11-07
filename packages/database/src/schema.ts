@@ -95,6 +95,7 @@ export const delegations = pgTable("delegations", {
   userId: text("user_id").notNull(), agentId: text("agent_id").notNull(), accountId: text("account_id").notNull(),
   scopes: text("scopes").array().notNull(), status: text("status").notNull().default("active"), createdAt: createdAt(),
 }, (t) => [
+  unique("delegations_tenant_user_agent_account_unique").on(t.tenantId, t.userId, t.agentId, t.accountId),
   foreignKey({ name: "delegations_tenant_user_fk", columns: [t.tenantId, t.userId], foreignColumns: [users.tenantId, users.id] }),
   foreignKey({ name: "delegations_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
   foreignKey({ name: "delegations_tenant_account_fk", columns: [t.tenantId, t.accountId], foreignColumns: [connectedAccounts.tenantId, connectedAccounts.id] }),
