@@ -167,6 +167,6 @@ export const agentCredentials = pgTable("agent_credentials", {
 ]).enableRLS();
 
 export const schema = {
-  tenants, users, developers, agents, connectedAccounts, credentials, delegations,
+  tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
   grants, approvals, executions, auditEvents, agentCredentials,
 };
