@@ -14,20 +14,26 @@ describe("AwsKmsProvider", () => {
       KeyId: "arn:aws:kms:us-east-1:123456789012:key/abc"
     });
     const provider = new AwsKmsProvider("alias/agentlogin", "us-east-1", { send } as unknown as KMSClient);
-    const result = await provider.wrapKey(Buffer.alloc(32, 9), context);
+    const sourceDek = Buffer.alloc(32, 9);
+    const result = await provider.wrapKey(sourceDek, context);
+    expect(sourceDek.every((byte) => byte === 9)).toBe(true);
     expect(result.keyVersion).toBe("arn:aws:kms:us-east-1:123456789012:key/abc");
     expect(Buffer.from(result.wrappedDek).toString()).toBe("wrapped-key");
     const command = send.mock.calls[0]![0] as EncryptCommand;
+    expect((command.input.Plaintext as Uint8Array).every((byte) => byte === 0)).toBe(true);
     expect(command.input.EncryptionContext).toEqual({
       tenant_id: "ten_1", account_id: "acc_1", credential_id: "cred_1", record_version: "2", purpose: "website_login"
     });
   });
 
   it("unwraps only with the exact saved key version and matching context", async () => {
-    const send = vi.fn().mockResolvedValue({ Plaintext: Buffer.alloc(32, 4) });
+    const plaintext = Buffer.alloc(32, 4);
+    const send = vi.fn().mockResolvedValue({ Plaintext: plaintext });
     const provider = new AwsKmsProvider("alias/agentlogin", "us-east-1", { send } as unknown as KMSClient);
     const key = await provider.unwrapKey(Buffer.from("wrapped"), "arn:aws:kms:us-east-1:123456789012:key/abc", context);
     expect(key).toHaveLength(32);
+    expect(key.every((byte) => byte === 4)).toBe(true);
+    expect(plaintext.every((byte) => byte === 0)).toBe(true);
     const command = send.mock.calls[0]![0] as DecryptCommand;
     expect(command.input.KeyId).toBe("arn:aws:kms:us-east-1:123456789012:key/abc");
     expect(command.input.EncryptionContext?.tenant_id).toBe("ten_1");
