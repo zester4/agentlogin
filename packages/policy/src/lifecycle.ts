@@ -80,9 +80,10 @@ export class GrantLifecycleService {
     if (grant.revokedAt || grant.expiresAt.getTime() <= this.now().getTime()) {
       throw new GrantLifecycleError("approval_not_found", "The grant is no longer eligible for approval.");
     }
-    if (!grant.approvalId || grant.approvalId !== input.approvalId || grant.approvalDecision !== "pending") {
-      throw new GrantLifecycleError("approval_not_found", "The approval is no longer pending.");
+    if (!grant.approvalId || grant.approvalId !== input.approvalId) {
+      throw new GrantLifecycleError("approval_not_found", "The approval was not found.");
     }
+    if (grant.approvalDecision !== "pending") return false;
     return this.repository.decide({ approvalId: input.approvalId, userId: input.principal.userId, decision: input.decision, decidedAt: this.now() });
   }
 
