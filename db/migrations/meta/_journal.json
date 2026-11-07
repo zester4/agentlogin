@@ -8,6 +8,13 @@
       "when": 1794087874639,
       "tag": "0000_fat_eternity",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794089400000,
+      "tag": "0001_credential_envelope_metadata",
+      "breakpoints": true
     }
   ]
 }
