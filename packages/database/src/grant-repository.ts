@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { approvals, auditEvents, agents, connectedAccounts, delegations, developers, grants, tenants, users } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
@@ -116,32 +116,6 @@ export class PostgresGrantRepository {
         metadata: { approval_ref: input.approvalId }
       });
       return true;
-    });
-  }
-
-  async listPendingForUser(userId: string, now: Date = new Date()) {
-    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
-      return tx.select({
-        grantId: grants.id, approvalId: approvals.id, agentId: grants.agentId,
-        agentName: agents.name, accountId: grants.accountId,
-        accountLabel: connectedAccounts.displayLabel, origin: grants.origin,
-        scopes: grants.scopes, taskId: grants.taskId, expiresAt: grants.expiresAt,
-        requestedAt: grants.issuedAt
-      }).from(grants)
-        .innerJoin(approvals, and(
-          eq(grants.tenantId, approvals.tenantId), eq(grants.approvalId, approvals.id)
-        ))
-        .innerJoin(agents, and(
-          eq(grants.tenantId, agents.tenantId), eq(grants.agentId, agents.id)
-        ))
-        .innerJoin(connectedAccounts, and(
-          eq(grants.tenantId, connectedAccounts.tenantId), eq(grants.accountId, connectedAccounts.id)
-        ))
-        .where(and(
-          eq(grants.tenantId, this.tenantId), eq(grants.userId, userId),
-          eq(approvals.decision, "pending"), isNull(grants.revokedAt)
-        ))
-        .limit(100);
     });
   }
 
