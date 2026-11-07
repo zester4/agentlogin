@@ -1,8 +1,8 @@
 export type LoginExecutionRequest = {
   executionId: string; tenantId: string; userId: string; agentId: string;
   grantId: string; accountRef: string; expectedOrigin: string;
-  credentialRef: string; credentialId: string; recordVersion: number;
-  taskId?: string; deadline: Date;
+  credentialLease: { leaseId: string; token: string; expiresAt: Date };
+  credentialId: string; recordVersion: number; taskId?: string; deadline: Date;
 };
 export type LoginExecutionOutcome =
   | {status:"login_succeeded"}
