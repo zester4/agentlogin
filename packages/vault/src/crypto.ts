@@ -109,6 +109,36 @@ export class EncryptedCredentialVault implements CredentialVault {
     return { credentialRef, version: context.recordVersion };
   }
 
+  async rotate(
+    previousCredentialRef: string,
+    previousContext: CredentialContext,
+    nextContext: CredentialContext,
+    plaintext: Uint8Array
+  ): Promise<{ credentialRef: string; version: number }> {
+    assertContext(previousContext);
+    assertContext(nextContext);
+    if (previousContext.tenantId !== nextContext.tenantId ||
+        previousContext.accountId !== nextContext.accountId ||
+        previousContext.purpose !== nextContext.purpose ||
+        nextContext.credentialId === previousContext.credentialId ||
+        nextContext.recordVersion !== previousContext.recordVersion + 1) {
+      throw new TypeError("Credential rotation must preserve account context and increment the version.");
+    }
+    const previous = await this.records.find(
+      previousCredentialRef, previousContext.tenantId, previousContext.credentialId
+    );
+    if (!previous || previous.revokedAt !== null || !sameContext(previous.context, previousContext)) {
+      throw new CredentialDecryptionError();
+    }
+    const envelope = await encryptCredential(plaintext, nextContext, this.keyManagement);
+    const credentialRef = this.createReference();
+    const record: StoredCredential = {
+      credentialRef, context: { ...nextContext }, envelope, revokedAt: null
+    };
+    await this.records.rotate(previousCredentialRef, previousContext, record, this.now());
+    return { credentialRef, version: nextContext.recordVersion };
+  }
+
   async withDecryptedCredential<T>(
     credentialRef: string, context: CredentialContext, operation: (secret: Uint8Array) => Promise<T>
   ): Promise<T> {
