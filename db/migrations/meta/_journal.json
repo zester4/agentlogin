@@ -22,6 +22,13 @@
       "when": 1794089500000,
       "tag": "0002_developer_memberships",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794089600000,
+      "tag": "0003_agent_credential_developer_binding",
+      "breakpoints": true
     }
   ]
 }
