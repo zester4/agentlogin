@@ -68,8 +68,11 @@ export class ExecutionCoordinator {
     let outcome: Awaited<ReturnType<IsolatedBrowserProvider["executeLogin"]>>;
     try {
       outcome = await this.browser.executeLogin({
-        executionId, grantId: input.grantId, accountRef: input.accountId,
-        expectedOrigin: input.origin, credentialRef: account.credentialRef,
+        executionId, tenantId: input.principal.tenantId, userId: input.principal.userId,
+        agentId: input.principal.agentId, grantId: input.grantId,
+        accountRef: input.accountId, expectedOrigin: input.origin,
+        credentialRef: account.credentialRef, credentialId: account.credentialId,
+        recordVersion: account.recordVersion, taskId: input.taskId,
         deadline: new Date(startedAt.getTime() + timeoutMs)
       });
     } catch {
