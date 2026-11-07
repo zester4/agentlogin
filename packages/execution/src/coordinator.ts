@@ -4,11 +4,8 @@ import type { GrantLifecycleService, GrantRequestPrincipal } from "@agentlogin/p
 import type { IsolatedBrowserProvider } from "./index.js";
 
 export type LoginCredentialReference = {
-  credentialRef: string;
-  credentialId: string;
-  recordVersion: number;
-  origin: string;
-  status: "active" | "revoked" | "disabled";
+  credentialRef: string; credentialId: string; recordVersion: number;
+  origin: string; status: "active" | "revoked" | "disabled";
 };
 export interface LoginAccountRepository {
   findLoginCredential(input: { tenantId: string; accountId: string; userId: string }): Promise<LoginCredentialReference | null>;
@@ -33,36 +30,40 @@ export class ExecutionCoordinator {
   ) {}
 
   async login(input: {
-    principal: AgentExecutionPrincipal;
-    grantId: string;
-    accountId: string;
-    origin: string;
-    taskId?: string;
-    scope?: GrantScope;
-    expectedPolicyVersion: number;
-    timeoutMs?: number;
+    principal: AgentExecutionPrincipal; grantId: string; accountId: string;
+    origin: string; taskId?: string; scope?: GrantScope;
+    expectedPolicyVersion: number; timeoutMs?: number;
   }): Promise<ExecutionResult> {
     const startedAt = this.now();
     const executionId = this.newId();
     const scope = input.scope ?? "autofill_login";
     const timeoutMs = input.timeoutMs ?? 60_000;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 120_000) {
-      return { status: "login_failed", execution_id: executionId, reason_code: "invalid_execution_policy" };
+      return this.failure(input, executionId, startedAt, "invalid_execution_policy");
     }
 
-    const decision = await this.grants.authorize({
-      principal: input.principal, grantId: input.grantId, accountId: input.accountId,
-      origin: input.origin, scope, expectedPolicyVersion: input.expectedPolicyVersion
-    });
-    if (!decision.allowed) {
-      return { status: "login_failed", execution_id: executionId, reason_code: decision.reason };
+    let decision;
+    try {
+      decision = await this.grants.authorize({
+        principal: input.principal, grantId: input.grantId, accountId: input.accountId,
+        origin: input.origin, scope, expectedPolicyVersion: input.expectedPolicyVersion
+      });
+    } catch {
+      return this.failure(input, executionId, startedAt, "provider_unavailable");
     }
+    if (!decision.allowed) return this.failure(input, executionId, startedAt, decision.reason);
 
-    const account = await this.accounts.findLoginCredential({
-      tenantId: input.principal.tenantId, accountId: input.accountId, userId: input.principal.userId
-    });
-    if (!account || account.status !== "active" || account.origin !== input.origin) {
-      return { status: "login_failed", execution_id: executionId, reason_code: "account_unavailable" };
+    let account: LoginCredentialReference | null;
+    try {
+      account = await this.accounts.findLoginCredential({
+        tenantId: input.principal.tenantId, accountId: input.accountId, userId: input.principal.userId
+      });
+    } catch {
+      return this.failure(input, executionId, startedAt, "account_unavailable");
+    }
+    if (!account || account.status !== "active" || account.origin !== input.origin ||
+        !account.credentialRef || !account.credentialId || !Number.isSafeInteger(account.recordVersion) || account.recordVersion < 1) {
+      return this.failure(input, executionId, startedAt, "account_unavailable");
     }
 
     let outcome: Awaited<ReturnType<IsolatedBrowserProvider["executeLogin"]>>;
@@ -88,8 +89,6 @@ export class ExecutionCoordinator {
           ? { status: "user_action_required" as const, execution_id: executionId, action_id: outcome.actionRef }
           : { status: "login_failed" as const, execution_id: executionId, reason_code: outcome.reasonCode };
 
-    // Strict schema parsing is the agent-facing output boundary. Unknown
-    // provider fields (including accidental secret-bearing fields) are rejected.
     const parsed = ExecutionResultSchema.safeParse(mapped);
     const safeResult: ExecutionResult = parsed.success
       ? parsed.data
@@ -104,15 +103,33 @@ export class ExecutionCoordinator {
         startedAt, completedAt
       });
     } catch {
-      // Fail closed: if an execution cannot be audited, revoke the session
-      // rather than returning a success result that has no audit trail.
       await this.browser.terminate(executionId).catch(() => undefined);
       return { status: "login_failed", execution_id: executionId, reason_code: "audit_unavailable" };
     }
 
+    // Challenge sessions remain isolated and short-lived for a secure user
+    // handoff. Success and failure sessions are always destroyed.
     if (safeResult.status === "login_succeeded" || safeResult.status === "login_failed") {
       await this.browser.terminate(executionId).catch(() => undefined);
     }
     return safeResult;
+  }
+
+  private async failure(
+    input: { principal: AgentExecutionPrincipal; grantId: string; accountId: string; origin: string },
+    executionId: string, startedAt: Date,
+    reasonCode: ExecutionResult extends { status: "login_failed"; reason_code: infer C } ? C : never
+  ): Promise<ExecutionResult> {
+    const completedAt = this.now();
+    try {
+      await this.audit.append({
+        executionId, tenantId: input.principal.tenantId, agentId: input.principal.agentId,
+        grantId: input.grantId, accountId: input.accountId, origin: input.origin,
+        status: "login_failed", reasonCode, startedAt, completedAt
+      });
+    } catch {
+      return { status: "login_failed", execution_id: executionId, reason_code: "audit_unavailable" };
+    }
+    return { status: "login_failed", execution_id: executionId, reason_code: reasonCode };
   }
 }
