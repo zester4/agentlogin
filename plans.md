@@ -327,7 +327,7 @@ Acceptance:
 - CI runs formatting, lint, type checks, and baseline tests.
 
 ### Milestone 1 — Identity, tenant isolation, developer onboarding
-**Status: NOT STARTED**
+**Status: IN PROGRESS**
 
 Deliverables:
 - developer account/project model;
@@ -435,6 +435,27 @@ Acceptance:
 - revocation and deletion verified end-to-end;
 - security invariants have automated coverage where practical;
 - private-beta scope and limitations explicit.
+
+## 8A. Verified implementation evidence — 7 November 2026
+
+The following foundations are present in the repository and deployed environment. These do not constitute completion of the milestones below.
+
+- Fastify API scaffold, database-aware readiness route, and Railway deployment.
+- Neon PostgreSQL with Drizzle schema and generated baseline migration.
+- Twelve tenant-owned tables with RLS enabled and FORCE ROW LEVEL SECURITY verified on all twelve.
+- Separate runtime and migration database roles; both inspected roles are non-superuser and have BYPASSRLS disabled.
+- Envelope-encryption primitives and a KMS provider interface; production KMS adapter is not selected or deployed.
+- Opaque agent credential issuance/verification service with hashed token storage and lifecycle checks.
+- Tenant-scoped Postgres agent-credential repository adapter added in the current implementation branch. It binds each repository instance to a verified tenant context and uses transaction-local RLS context for every operation.
+- Repository adapter intentionally does not perform global credential-ID resolution. A safe bootstrap authentication lookup must be designed before a live agent-authentication endpoint is exposed.
+
+Current gaps before Milestone 1 can be called done:
+- No production user/developer identity provider or authenticated user session flow.
+- No trusted tenant-resolution/bootstrap authentication path for agent credentials.
+- No API authentication middleware wired to the repository and identity service.
+- No production agent registration/onboarding and credential rotation endpoints.
+- No actual tenant-isolation integration test executed against Neon using the runtime role.
+- No grant/approval lifecycle or browser execution implementation.
 
 ## 9. Test strategy
 
