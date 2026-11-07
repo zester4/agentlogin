@@ -113,6 +113,6 @@ export class GrantLifecycleService {
     const grant = await this.repository.find(grantId);
     if (!grant || grant.tenantId !== principal.tenantId) throw new GrantLifecycleError("grant_not_found", "The grant was not found.");
     if (grant.userId !== principal.userId) throw new GrantLifecycleError("not_owner", "Only the account owner may revoke this grant.");
-    return this.repository.revoke(grantId, this.now(), input.userId);
+    return this.repository.revoke(grantId, this.now(), principal.userId);
   }
 }
