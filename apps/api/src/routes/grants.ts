@@ -9,6 +9,29 @@ const ApprovalBody = z.object({
 }).strict();
 
 export async function grantRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
+  app.get("/v1/grants/pending", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const repository = new PostgresGrantRepository(options.database, request.userPrincipal.tenantId);
+    const pending = await repository.listPendingForUser(request.userPrincipal.userId);
+    return reply.send({ pending });
+  });
+
+  app.get("/v1/grants/:grantId", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const grantId = (request.params as { grantId: string }).grantId;
+    const grant = await new PostgresGrantRepository(options.database, request.userPrincipal.tenantId).find(grantId);
+    if (!grant || grant.userId !== request.userPrincipal.userId) {
+      return reply.code(404).send({ error: { code: "grant_not_found", message: "The grant was not found." } });
+    }
+    return reply.send({
+      grant_id: grant.id, agent_id: grant.agentId, account_id: grant.accountId,
+      origin: grant.origin, scopes: grant.scopes, task_id: grant.taskId,
+      policy_version: grant.policyVersion, issued_at: grant.issuedAt.toISOString(),
+      expires_at: grant.expiresAt.toISOString(), revoked: grant.revokedAt !== null,
+      approval: { approval_id: grant.approvalId, decision: grant.approvalDecision, decided_at: grant.approvedAt?.toISOString() ?? null }
+    });
+  });
+
   app.post("/v1/users/:userId/grants", { preHandler: app.authenticateAgent }, async (request, reply) => {
     const agent = request.agentPrincipal;
     if (!agent) return reply.code(401).send({ error: { code: "unauthorized", message: "Agent authentication required." } });

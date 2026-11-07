@@ -17,9 +17,9 @@ export async function onboardingRoutes(app: FastifyInstance, options: { database
       const result = await new PostgresOnboardingRepository(options.database).onboard({
         tenantId: request.oidcIdentity.tenantId,
         authSubject: request.oidcIdentity.authSubject,
-        userName: request.oidcIdentity.displayName,
-        tenantName: parsed.data.tenant_name,
-        developerName: parsed.data.developer_name
+        ...(request.oidcIdentity.displayName ? { userName: request.oidcIdentity.displayName } : {}),
+        ...(parsed.data.tenant_name ? { tenantName: parsed.data.tenant_name } : {}),
+        ...(parsed.data.developer_name ? { developerName: parsed.data.developer_name } : {})
       });
       return reply.code(200).send({
         status: "onboarded", tenant_id: result.tenantId,

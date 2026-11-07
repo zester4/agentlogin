@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { approvals, auditEvents, agents, connectedAccounts, delegations, developers, grants, tenants, users } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
@@ -139,7 +139,9 @@ export class PostgresGrantRepository {
         ))
         .where(and(
           eq(grants.tenantId, this.tenantId), eq(grants.userId, userId),
-          eq(approvals.decision, "pending"), isNull(grants.revokedAt)
+          eq(approvals.decision, "pending"), gt(grants.expiresAt, now),
+          eq(agents.status, "active"), eq(connectedAccounts.status, "active"),
+          isNull(grants.revokedAt)
         ))
         .limit(100);
     });

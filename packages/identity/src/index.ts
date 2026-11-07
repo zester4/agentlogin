@@ -28,6 +28,12 @@ const MAX_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 function hashSecret(secret: string): Buffer {
   return createHash("sha256").update(secret, "utf8").digest();
 }
+function decodeCanonicalBase64Url(value: string): Buffer | null {
+  try {
+    const decoded = Buffer.from(value, "base64url");
+    return decoded.toString("base64url") === value ? decoded : null;
+  } catch { return null; }
+}
 function encodeTenant(tenantId: string): string {
   return Buffer.from(tenantId, "utf8").toString("base64url");
 }
@@ -102,13 +108,18 @@ export class AgentCredentialService {
     if (!match) throw new AgentAuthenticationError();
     const [, credentialId, tenantClaim, secret, suppliedSignature] = match;
     if (!credentialId || !tenantClaim || !secret || !suppliedSignature) throw new AgentAuthenticationError();
+    const credentialIdBytes = decodeCanonicalBase64Url(credentialId);
+    const secretBytes = decodeCanonicalBase64Url(secret);
+    const signatureBytes = decodeCanonicalBase64Url(suppliedSignature);
+    if (credentialIdBytes?.byteLength !== 16 || secretBytes?.byteLength !== 32 ||
+        signatureBytes?.byteLength !== 32) throw new AgentAuthenticationError();
 
     // Verify the tenant claim before any database access. This prevents an
     // attacker-controlled tenant prefix from selecting another RLS context.
     const tenantId = decodeTenant(tenantClaim);
     if (!tenantId) throw new AgentAuthenticationError();
     const expectedSignature = signature(this.signingKey, credentialId, tenantClaim);
-    const receivedSignature = Buffer.from(suppliedSignature, "base64url");
+    const receivedSignature = signatureBytes;
     if (receivedSignature.byteLength !== expectedSignature.byteLength ||
         !timingSafeEqual(receivedSignature, expectedSignature)) throw new AgentAuthenticationError();
 
