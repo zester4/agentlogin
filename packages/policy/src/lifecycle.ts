@@ -17,7 +17,7 @@ export interface GrantLifecycleRepository {
   }): Promise<{ grantId: string; approvalId: string }>;
   find(grantId: string): Promise<GrantLifecycleRecord | null>;
   decide(input: { approvalId: string; userId: string; decision: "approved" | "denied"; decidedAt: Date }): Promise<boolean>;
-  revoke(grantId: string, revokedAt: Date): Promise<boolean>;
+  revoke(grantId: string, revokedAt: Date, revokedBy: string): Promise<boolean>;
 }
 export type GrantRequestPrincipal = { tenantId: string; userId: string; agentId: string };
 
