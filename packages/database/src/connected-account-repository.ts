@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
-import { auditEvents, connectedAccounts } from "./schema.js";
+import { auditEvents, connectedAccounts, credentials, delegations, grants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
 function newId(): string { return "acct_" + randomBytes(18).toString("base64url"); }
@@ -26,6 +26,37 @@ export class PostgresConnectedAccountRepository {
       });
     });
     return { accountId };
+  }
+
+  async disconnect(accountId: string, userId: string, at: Date = new Date()): Promise<boolean> {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      const rows = await tx.update(connectedAccounts).set({ status: "disabled" }).where(and(
+        eq(connectedAccounts.tenantId, this.tenantId),
+        eq(connectedAccounts.id, accountId),
+        eq(connectedAccounts.userId, userId),
+        eq(connectedAccounts.status, "active")
+      )).returning({ id: connectedAccounts.id });
+      if (!rows[0]) return false;
+      await tx.update(credentials).set({ status: "revoked", revokedAt: at }).where(and(
+        eq(credentials.tenantId, this.tenantId), eq(credentials.accountId, accountId),
+        eq(credentials.status, "active")
+      ));
+      await tx.update(delegations).set({ status: "revoked" }).where(and(
+        eq(delegations.tenantId, this.tenantId), eq(delegations.accountId, accountId),
+        eq(delegations.status, "active")
+      ));
+      await tx.update(grants).set({ revokedAt: at }).where(and(
+        eq(grants.tenantId, this.tenantId), eq(grants.accountId, accountId),
+        isNull(grants.revokedAt)
+      ));
+      await tx.insert(auditEvents).values({
+        id: accountId + "_disconnected_" + at.getTime(), tenantId: this.tenantId,
+        actorType: "user", actorId: userId, eventType: "connected_account.disconnected",
+        resourceRef: accountId, decision: "revoked",
+        metadata: { credentials_revoked: true, delegations_revoked: true, grants_revoked: true }
+      });
+      return true;
+    });
   }
 
   async disable(accountId: string, userId: string): Promise<void> {
