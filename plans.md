@@ -541,3 +541,40 @@ Do not start by building a broad browser automation product. The differentiator 
 A developer connects AgentLogin to an agent system. A user securely connects a website account and delegates a narrowly scoped login capability. The agent requests access and receives the opaque grant object. AgentLogin performs login inside its isolated execution environment. The agent receives a useful, sanitized result—but cannot obtain the user's password, tokens, cookies, or session secrets.
 
 That end-to-end proof, with adversarial tests demonstrating the secret boundary, is the first meaningful product milestone.
+
+## 8B. Security and lifecycle implementation update — 7 November 2026
+
+The following implementation work is present on the current review branch. It is not considered live until the branch passes CI, merges, and its Railway deployment and migrations are verified.
+
+| Area | Implemented in code | Not yet complete / external dependency |
+|---|---|---|
+| 1. Agent identity bootstrap | Opaque agent tokens now carry an HMAC-SHA256-authenticated tenant claim. The API verifies the signature before constructing a tenant-bound repository; the secret remains SHA-256 hashed in PostgreSQL. | Key IDs/key-ring rotation and migration of any tokens issued in the previous unsigned format. |
+| 2. API authentication | Fastify agent auth middleware and a protected identity endpoint. Generic OIDC JWT verification validates issuer, audience, JWKS signature, allowed algorithms, token age, and a signed tenant claim. | Configure a real OIDC issuer, audience, JWKS URL, and trusted tenant claim. Production rate limiting, abuse controls, and operational monitoring still need hardening. |
+| 3. User/developer onboarding | OIDC identity-to-user resolution under RLS; first-user workspace/developer onboarding; developer membership model; authenticated developer and agent creation routes. | No OIDC provider is selected/configured. Invitations, multi-user organization management, passkeys, account recovery, and billing are not implemented. |
+| 4. Agent credential lifecycle | One-time token issuance, atomic rotate-and-revoke of previous credentials in a tenant transaction, individual revocation, status/expiry checks. | Runtime-role integration tests against Neon and an operational recovery flow for lost one-time tokens. |
+| 5. Grants and approvals | Tenant-scoped PostgreSQL grant/approval repository, active delegation check, pending approval creation, owner-only approve/deny, expiry/revocation checks, exact account/origin/scope/policy authorization, and secret-free audit writes. | HTTP request/approval routes and end-to-end user-to-agent flow are not yet wired. The user identity provider and connected-account enrollment flow must be configured first. |
+| 6. Credential vault and KMS | Credential context now binds tenant, connected account, credential ID, version, and purpose in AES-GCM AAD. PostgreSQL record store persists ciphertext, IV, tag, wrapped DEK, key version, and revocation state. AWS KMS adapter wraps/unwraps DEKs with encryption context and records the immutable KMS key ARN. | No AWS KMS key, region, IAM role/credentials, or production vault service wiring is configured. Do not store real website credentials yet. |
+| 7. Isolated login execution | Provider-neutral execution coordinator checks the grant before account lookup, binds worker request to tenant/user/agent/account/origin/credential version, audits denials and outcomes, sanitizes the agent-facing result, and destroys completed/failed sessions. | No concrete isolated browser worker/provider, credential-broker integration inside that worker, secure MFA handoff/resume UI, or browser-origin/redirect/SSRF adversarial integration suite is deployed. |
+
+### Required runtime configuration
+
+- `AGENT_TOKEN_SIGNING_KEY`: Railway secret, canonical base64url encoding of 32 cryptographically random bytes. It must remain stable across deploys. Do not rotate by replacing it without a key-ID/key-ring migration.
+- `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`: configure only after choosing an OIDC provider and ensuring the tenant claim is issued by that trusted provider. The tenant claim is never accepted from an ordinary request header or body.
+- `AWS_REGION`, `AWS_KMS_KEY_ID`: configure after creating a dedicated KMS key and least-privilege runtime IAM access. The API needs data-key wrap/unwrap permissions only; key administration belongs to a separate operator role.
+
+### Migration and rollout gates
+
+The current review branch adds migrations for credential envelope metadata and developer memberships, and updates the FORCE RLS migration script to include the new membership table. These migrations must not be treated as applied to Neon until the branch is merged and the Railway pre-deploy migration completes successfully. Verify RLS and FORCE RLS on all thirteen tenant-owned tables after rollout.
+
+The signed agent token format is intentionally incompatible with the previous unsigned format. Re-issue credentials through the authenticated rotation flow before relying on the new middleware. Never log or copy a token into a support ticket.
+
+### Release blockers before real credentials
+
+1. Configure and verify OIDC, then test first-user onboarding and owner/admin authorization using a real test tenant.
+2. Run cross-tenant and membership integration tests against Neon using the runtime role (not the database owner).
+3. Create a dedicated AWS KMS key, configure workload credentials, and run encrypt/decrypt, wrong-context, key-rotation, and revocation tests.
+4. Implement a concrete isolated browser worker with per-execution profiles, origin/redirect enforcement before autofill, SSRF/private-network blocking, no CDP exposure, and MFA handoff/resume.
+5. Wire account enrollment and grant/approval HTTP routes; prove the full end-to-end flow using synthetic accounts.
+6. Run independent security review and secret-leak tests across logs, traces, errors, screenshots, DOM, artifacts, and worker IPC.
+
+No production website password, OAuth token, cookie, or API key should be entered until those gates are passed.
