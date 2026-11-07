@@ -23,9 +23,10 @@ See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for implemented fou
 - packages/identity — opaque agent credential issue/authentication primitives
 - packages/policy — fail-closed grant authorization primitives
 - packages/vault — AES-GCM envelope encryption and callback-scoped vault boundary
+- packages/database — Neon Postgres + Drizzle schema, pooled client, RLS transaction context and typed queries
 - packages/execution — provider-neutral isolated execution contracts
 - packages/sdk — TypeScript client
-- db/migrations — PostgreSQL schema, agent credentials and tenant RLS
+- db/migrations — generated Drizzle SQL migrations and metadata
 
 ## Quick start
 
@@ -40,6 +41,18 @@ pnpm dev
 ~~~
 
 API liveness: http://localhost:4000/health. Readiness intentionally returns 503 until persistence and security dependencies are configured.
+
+## Database workflow
+
+Set DATABASE_URL to the pooled Neon URL for application traffic and DATABASE_URL_UNPOOLED to the direct (non-pooler) URL for migrations. Never commit either value.
+
+```bash
+pnpm db:generate
+# Review and commit generated SQL + db/migrations/meta snapshots.
+pnpm db:migrate
+```
+
+The TypeScript schema in packages/database/src/schema.ts is canonical. Do not use drizzle-kit push against production. See docs/DATABASE.md.
 
 ## Checks
 
@@ -62,6 +75,6 @@ pnpm build
 
 ## Architecture and contribution
 
-Read [AGENT.md](./AGENT.md), [plans.md](./plans.md), [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), [docs/SECURITY.md](./docs/SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md) and the [architecture decision records](./docs/adr/).
+Read [AGENT.md](./AGENT.md), [plans.md](./plans.md), [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), [docs/SECURITY.md](./docs/SECURITY.md), [docs/DATABASE.md](./docs/DATABASE.md), [CONTRIBUTING.md](./CONTRIBUTING.md) and the [architecture decision records](./docs/adr/).
 
 Licensed under [Apache License 2.0](./LICENSE). Copyright 2026 Seyyid Annan.
