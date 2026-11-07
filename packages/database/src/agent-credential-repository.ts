@@ -136,6 +136,7 @@ export class PostgresAgentCredentialRepository {
             and(
               eq(agentCredentials.tenantId, agents.tenantId),
               eq(agentCredentials.agentId, agents.id),
+              eq(agentCredentials.developerId, agents.developerId),
             ),
           )
           .where(eq(agentCredentials.id, credentialId))
