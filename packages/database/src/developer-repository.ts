@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
-import { agents, developerMemberships, developers } from "./schema.js";
+import { agentCredentials, agents, developerMemberships, developers } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
 function newId(prefix: string): string { return prefix + "_" + randomBytes(18).toString("base64url"); }
@@ -53,9 +53,13 @@ export class PostgresDeveloperRepository {
         .from(agents).innerJoin(developerMemberships, and(
           eq(agents.tenantId, developerMemberships.tenantId),
           eq(agents.developerId, developerMemberships.developerId)
+        )).innerJoin(developers, and(
+          eq(agents.tenantId, developers.tenantId),
+          eq(agents.developerId, developers.id)
         )).where(and(
           eq(agents.tenantId, this.tenantId), eq(agents.id, agentId),
-          eq(agents.status, "active"), eq(developerMemberships.userId, userId),
+          eq(agents.status, "active"), eq(developers.status, "active"),
+          eq(developerMemberships.userId, userId),
           eq(developerMemberships.status, "active")
         )).limit(1);
       return row && ["owner", "admin"].includes(row.role) ? { developerId: row.developerId } : null;
@@ -64,24 +68,18 @@ export class PostgresDeveloperRepository {
 
   async suspendAgent(agentId: string): Promise<void> {
     await withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      const now = new Date();
       await tx.update(agents).set({ status: "suspended" }).where(and(
         eq(agents.tenantId, this.tenantId), eq(agents.id, agentId)
+      ));
+      await tx.update(agentCredentials).set({ revokedAt: now }).where(and(
+        eq(agentCredentials.tenantId, this.tenantId),
+        eq(agentCredentials.agentId, agentId), isNull(agentCredentials.revokedAt)
       ));
     });
   }
 
   async canManageAgent(userId: string, agentId: string): Promise<boolean> {
-    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
-      const [row] = await tx.select({ role: developerMemberships.role })
-        .from(agents).innerJoin(developerMemberships, and(
-          eq(agents.tenantId, developerMemberships.tenantId),
-          eq(agents.developerId, developerMemberships.developerId)
-        )).where(and(
-          eq(agents.tenantId, this.tenantId), eq(agents.id, agentId),
-          eq(agents.status, "active"), eq(developerMemberships.userId, userId),
-          eq(developerMemberships.status, "active")
-        )).limit(1);
-      return Boolean(row && ["owner", "admin"].includes(row.role));
-    });
+    return Boolean(await this.getManagedAgent(userId, agentId));
   }
 }
