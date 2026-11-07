@@ -8,7 +8,7 @@ async function main(): Promise<void> {
   }
 
   const tables = [
-    "tenants", "users", "developers", "agents", "connected_accounts",
+    "tenants", "users", "developers", "developer_memberships", "agents", "connected_accounts",
     "credentials", "delegations", "grants", "approvals", "executions",
     "audit_events", "agent_credentials",
   ] as const;
