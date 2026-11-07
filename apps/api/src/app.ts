@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 import type { Database } from "@agentlogin/database";
 import { healthRoutes } from "./routes/health.js";
 import { agentRoutes } from "./routes/agent.js";
-import { agentAuthenticationPlugin, decodeAgentSigningKey } from "./plugins/agent-auth.js";
+import { agentAuthenticationPlugin } from "./plugins/agent-auth.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
