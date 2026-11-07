@@ -46,8 +46,12 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
         credentialId: credentials.credentialId, credentialType: credentials.credentialType,
         ciphertext: credentials.ciphertext, iv: credentials.iv, authTag: credentials.authTag,
         wrappedDek: credentials.wrappedDek, keyVersion: credentials.keyVersion,
-        recordVersion: credentials.recordVersion, status: credentials.status, revokedAt: credentials.revokedAt
-      }).from(credentials).where(and(
+        recordVersion: credentials.recordVersion, status: credentials.status, revokedAt: credentials.revokedAt,
+        accountStatus: connectedAccounts.status
+      }).from(credentials).innerJoin(connectedAccounts, and(
+        eq(credentials.tenantId, connectedAccounts.tenantId),
+        eq(credentials.accountId, connectedAccounts.id)
+      )).where(and(
         eq(credentials.id, credentialRef), eq(credentials.tenantId, this.authenticatedTenantId),
         eq(credentials.credentialId, credentialId)
       )).limit(1);
@@ -66,7 +70,7 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
           authTag: new Uint8Array(row.authTag), wrappedDek: new Uint8Array(row.wrappedDek),
           keyVersion: row.keyVersion
         },
-        revokedAt: row.revokedAt ?? (row.status === "revoked" ? new Date(0) : null)
+        revokedAt: row.revokedAt
       };
     });
   }
