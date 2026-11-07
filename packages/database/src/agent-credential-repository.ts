@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import {
   agentCredentials,
@@ -77,6 +77,23 @@ export class PostgresAgentCredentialRepository {
         });
       },
     );
+  }
+
+  async rotate(record: NewPersistedAgentCredential): Promise<void> {
+    if (record.tenantId !== this.authenticatedTenantId) throw new Error("Tenant context mismatch.");
+    await withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
+      await tx.update(agentCredentials).set({ revokedAt: record.createdAt }).where(and(
+        eq(agentCredentials.tenantId, this.authenticatedTenantId),
+        eq(agentCredentials.agentId, record.agentId),
+        isNull(agentCredentials.revokedAt)
+      ));
+      await tx.insert(agentCredentials).values({
+        id: record.credentialId, tenantId: record.tenantId,
+        developerId: record.developerId, agentId: record.agentId,
+        tokenHash: Buffer.from(record.tokenHash), createdAt: record.createdAt,
+        expiresAt: record.expiresAt
+      });
+    });
   }
 
   async findById(
