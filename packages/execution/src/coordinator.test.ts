@@ -15,18 +15,24 @@ function setup(options: { allowed?: boolean; accountOrigin?: string; outcome?: a
     credentialRef: "secret-ref-internal", credentialId: "cred_1", recordVersion: 1,
     origin: options.accountOrigin ?? input.origin, status: "active"
   });
+  const issue = vi.fn().mockResolvedValue({
+    leaseId: "lease_opaque", token: "one-time-worker-token",
+    expiresAt: new Date("2026-11-07T12:01:00Z")
+  });
+  const revokeLease = vi.fn().mockResolvedValue(undefined);
   const executeLogin = vi.fn().mockResolvedValue(options.outcome ?? { status: "login_succeeded" });
   const terminate = vi.fn().mockResolvedValue(undefined);
   const append = vi.fn().mockImplementation(async () => { if (options.auditFails) throw new Error("audit unavailable"); });
   const coordinator = new ExecutionCoordinator(
     { authorize } as any,
     { findLoginCredential } as any,
+    { issue, revoke: revokeLease },
     { executeLogin, terminate, healthCheck: vi.fn() } as unknown as IsolatedBrowserProvider,
     { append } as any,
     () => new Date("2026-11-07T12:00:00Z"),
     () => "exe_fixed"
   );
-  return { coordinator, authorize, findLoginCredential, executeLogin, terminate, append };
+  return { coordinator, authorize, findLoginCredential, issue, revokeLease, executeLogin, terminate, append };
 }
 
 describe("ExecutionCoordinator", () => {
@@ -50,10 +56,12 @@ describe("ExecutionCoordinator", () => {
     const result = await s.coordinator.login(input);
     expect(result).toEqual({ status: "login_succeeded", execution_id: "exe_fixed" });
     expect(s.executeLogin).toHaveBeenCalledWith(expect.objectContaining({
-      tenantId: "ten_1", userId: "usr_1", agentId: "agt_1", credentialRef: "secret-ref-internal",
+      tenantId: "ten_1", userId: "usr_1", agentId: "agt_1",
+      credentialLease: { leaseId: "lease_opaque", token: "one-time-worker-token", expiresAt: new Date("2026-11-07T12:01:00Z") },
       expectedOrigin: input.origin, grantId: "grt_1"
     }));
     expect(s.terminate).toHaveBeenCalledWith("exe_fixed");
+    expect(s.revokeLease).toHaveBeenCalledWith("lease_opaque");
   });
 
   it("preserves an isolated session for MFA handoff without exposing credentials", async () => {
