@@ -7,6 +7,7 @@ import { agentAuthenticationPlugin } from "./plugins/agent-auth.js";
 import { userAuthenticationPlugin } from "./plugins/user-auth.js";
 import { onboardingRoutes } from "./routes/onboarding.js";
 import { userRoutes } from "./routes/user.js";
+import { developerRoutes } from "./routes/developers.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
@@ -28,6 +29,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     app.register(agentRoutes);
     app.register(onboardingRoutes, { database: auth.database });
     app.register(userRoutes);
+    app.register(developerRoutes, { database: auth.database });
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
   app.setErrorHandler((error, request, reply) => {
