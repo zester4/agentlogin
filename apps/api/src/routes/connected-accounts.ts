@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { PostgresConnectedAccountRepository, PostgresCredentialRecordStore } from "@agentlogin/database";
+import { PostgresConnectedAccountRepository, PostgresCredentialRecordStore, PostgresExecutionRepository } from "@agentlogin/database";
 import { AwsKmsProvider, EncryptedCredentialVault } from "@agentlogin/vault";
 import { OriginSchema } from "@agentlogin/contracts";
 
