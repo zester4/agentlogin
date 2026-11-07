@@ -110,7 +110,7 @@ export class PostgresGrantRepository {
     });
   }
 
-  async revoke(grantId: string, revokedAt: Date): Promise<boolean> {
+  async revoke(grantId: string, revokedAt: Date, revokedBy: string): Promise<boolean> {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
       const rows = await tx.update(grants).set({ revokedAt }).where(and(
         eq(grants.tenantId, this.tenantId), eq(grants.id, grantId), isNull(grants.revokedAt)
@@ -119,7 +119,7 @@ export class PostgresGrantRepository {
       if (!row) return false;
       await tx.insert(auditEvents).values({
         id: grantId + "_revoked_" + revokedAt.getTime(), tenantId: this.tenantId,
-        actorType: "user", actorId: "system", eventType: "grant.revoked",
+        actorType: "user", actorId: revokedBy, eventType: "grant.revoked",
         resourceRef: grantId, decision: "revoked",
         metadata: { agent_ref: row.agentId, account_ref: row.accountId }
       });
