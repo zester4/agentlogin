@@ -82,6 +82,15 @@ export async function connectedAccountRoutes(app: FastifyInstance, options: { da
     }
   });
 
+  app.post("/v1/connected-accounts/:accountId/revoke", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const accountId = (request.params as { accountId: string }).accountId;
+    const disconnected = await new PostgresConnectedAccountRepository(options.database, request.userPrincipal.tenantId)
+      .disconnect(accountId, request.userPrincipal.userId);
+    if (!disconnected) return reply.code(404).send({ error: { code: "connected_account_not_found", message: "The connected account was not found." } });
+    return reply.send({ status: "disconnected", account_id: accountId });
+  });
+
   app.post("/v1/connected-accounts/:accountId/credentials/rotate", { preHandler: app.authenticateUser }, async (request, reply) => {
     const parsed = CredentialRotationBody.safeParse(request.body);
     if (!parsed.success || !request.userPrincipal) {
