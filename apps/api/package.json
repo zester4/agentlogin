@@ -16,7 +16,8 @@
     "@agentlogin/database": "workspace:*",
     "fastify": "^5.6.1",
     "pg": "^8.16.3",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "@agentlogin/identity": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",
