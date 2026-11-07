@@ -4,7 +4,7 @@ import type { CredentialContext, CredentialRecordStore, KeyManagementProvider, S
 import { CredentialDecryptionError, EncryptedCredentialVault } from "./crypto.js";
 
 const context: CredentialContext = {
-  tenantId: "ten_test", credentialId: "cred_record_1", recordVersion: 1, purpose: "website_login"
+  tenantId: "ten_test", accountId: "acct_test", credentialId: "cred_record_1", recordVersion: 1, purpose: "website_login"
 };
 
 class TestKeyManagement implements KeyManagementProvider {
