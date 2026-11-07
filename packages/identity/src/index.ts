@@ -48,10 +48,12 @@ function signature(key: Uint8Array, credentialId: string, tenantClaim: string): 
  * a database query. Keep the key stable across deploys; rotate with an explicit
  * key-id/key-ring migration rather than replacing it in place.
  */
+export type AgentCredentialRepositoryResolver = (verifiedTenantId: string) => AgentCredentialRepository;
+
 export class AgentCredentialService {
   private readonly signingKey: Buffer;
   constructor(
-    private readonly repository: AgentCredentialRepository,
+    private readonly repository: AgentCredentialRepository | AgentCredentialRepositoryResolver,
     signingKey: Uint8Array,
     private readonly now: () => Date = () => new Date()
   ) {
@@ -66,12 +68,13 @@ export class AgentCredentialService {
         !input.developerId || !input.agentId || !Number.isFinite(ttl) || ttl <= 0 || ttl > MAX_TTL_MS) {
       throw new TypeError("Invalid agent credential issuance request.");
     }
+    const repository = this.repositoryFor(input.tenantId);
     const credentialId = randomBytes(16).toString("base64url");
     const tenantClaim = encodeTenant(input.tenantId);
     const secret = randomBytes(32).toString("base64url");
     const sig = signature(this.signingKey, credentialId, tenantClaim).toString("base64url");
     const token = `${TOKEN_PREFIX}_${credentialId}.${tenantClaim}.${secret}.${sig}`;
-    await this.repository.insert({
+    await repository.insert({
       credentialId, tenantId: input.tenantId, developerId: input.developerId,
       agentId: input.agentId, tokenHash: hashSecret(secret), createdAt: now, expiresAt: input.expiresAt
     });
@@ -97,7 +100,7 @@ export class AgentCredentialService {
     // The injected repository must be bound to this verified tenant. A
     // per-request repository factory should construct it only after this
     // signature check; this single-tenant service enforces that binding.
-    const record = await this.repository.findById(credentialId);
+    const record = await this.repositoryFor(tenantId).findById(credentialId);
     if (!record || record.tenantId !== tenantId || record.revokedAt !== null ||
         record.expiresAt.getTime() <= this.now().getTime() ||
         record.tenantStatus !== "active" || record.developerStatus !== "active" || record.agentStatus !== "active") {
@@ -113,6 +116,15 @@ export class AgentCredentialService {
 
   async revoke(credentialId: string, tenantId: string): Promise<void> {
     if (!credentialId || !tenantId) throw new TypeError("Credential and tenant references are required.");
-    await this.repository.revoke(credentialId, tenantId, this.now());
+    await this.repositoryFor(tenantId).revoke(credentialId, tenantId, this.now());
+  }
+
+  private repositoryFor(verifiedTenantId: string): AgentCredentialRepository {
+    // Resolver invocation happens only with a server-trusted tenant ID:
+    // issuance input must already be authorized; authentication reaches here
+    // only after signature verification.
+    return typeof this.repository === "function"
+      ? this.repository(verifiedTenantId)
+      : this.repository;
   }
 }
