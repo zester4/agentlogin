@@ -1,7 +1,8 @@
 import Fastify from "fastify";
+import type { Pool } from "pg";
 import { healthRoutes } from "./routes/health.js";
 
-export function buildApp() {
+export function buildApp(pool?: Pool) {
   const app = Fastify({
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
@@ -21,7 +22,12 @@ export function buildApp() {
     requestIdHeader: "x-request-id"
   });
 
-  app.register(healthRoutes);
+  app.register(healthRoutes, { pool });
+  if (pool) {
+    app.addHook("onClose", async () => {
+      await pool.end();
+    });
+  }
   app.setErrorHandler((error, request, reply) => {
     const safeError = error instanceof Error ? error : new Error("Unknown error");
     request.log.error(
