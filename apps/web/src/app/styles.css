@@ -1,0 +1,13 @@
+* { box-sizing: border-box; }
+:root { color-scheme: dark; --bg: #0b0d10; --panel: #13171c; --line: #252b33; --text: #f4f6f8; --muted: #9aa4af; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.shell { max-width: 1120px; min-height: 100vh; margin: auto; padding: 32px 6vw; display: flex; flex-direction: column; }
+header, footer { display: flex; align-items: center; justify-content: space-between; }
+.wordmark { font-weight: 750; letter-spacing: -.04em; font-size: 1.2rem; }
+.status, .eyebrow { color: var(--muted); font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; }
+.hero { margin: auto 0; max-width: 720px; padding: 100px 0; }
+h1 { font-size: clamp(3.8rem, 9vw, 7rem); line-height: .96; letter-spacing: -.075em; margin: 24px 0; }
+.lead { color: #bdc5ce; font-size: clamp(1.1rem, 2vw, 1.35rem); line-height: 1.6; max-width: 590px; }
+.notice { display: grid; gap: 8px; margin-top: 52px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); max-width: 560px; }
+.notice span, footer { color: var(--muted); line-height: 1.6; font-size: .9rem; }
+footer { border-top: 1px solid var(--line); padding-top: 22px; }
