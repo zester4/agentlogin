@@ -28,7 +28,7 @@ function verifierFromEnvironment(): OidcVerifier | null {
     const issuerUrl = new URL(issuer);
     const jwks = new URL(jwksUrl);
     if (issuerUrl.protocol !== "https:" || jwks.protocol !== "https:") return null;
-    return { issuer: issuerUrl.toString().replace(/\/$/, ""), audience, tenantClaim, jwks: createRemoteJWKSet(jwks) };
+    return { issuer: issuerUrl.toString(), audience, tenantClaim, jwks: createRemoteJWKSet(jwks) };
   } catch { return null; }
 }
 function identityFromPayload(payload: JWTPayload, tenantClaim: string): OidcIdentity | null {
@@ -59,7 +59,7 @@ export function userAuthenticationPlugin(app: FastifyInstance, options: { databa
     try {
       const { payload } = await jwtVerify(authorization.slice(7), verifier.jwks, {
         issuer: verifier.issuer, audience: verifier.audience,
-        algorithms: ["RS256", "ES256"], clockTolerance: 5
+        algorithms: ["RS256", "ES256"], clockTolerance: 5, maxTokenAge: "15m"
       });
       const identity = identityFromPayload(payload, verifier.tenantClaim);
       if (!identity) {
