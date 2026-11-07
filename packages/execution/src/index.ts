@@ -13,3 +13,4 @@ export interface IsolatedBrowserProvider {
 }
 // Provider must isolate profiles/storage/downloads, enforce origin+redirect policy, scrub outputs,
 // deny unsafe network targets, and expose no CDP/profile/cookie/session data to agents.
+export * from "./coordinator.js";
