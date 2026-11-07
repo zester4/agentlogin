@@ -17,8 +17,10 @@ Last reviewed: 2026-11-07. This document records code that exists on the impleme
 
 ## Immediate next milestones
 
-1. Implement PostgreSQL repositories and transaction-scoped tenant context; test RLS with the actual non-owner runtime role.
-2. Wire opaque agent authentication into Fastify request context and protect agent routes.
+1. Provision/select a Neon project and configure least-privilege runtime and migration roles.
+2. Generate and review the first Drizzle baseline migration; verify RLS policies and FORCE RLS against real Postgres.
+3. Implement PostgreSQL repositories and transaction-scoped tenant context; test RLS with the actual non-owner runtime role.
+4. Wire opaque agent authentication into Fastify request context and protect agent routes.
 5. Implement developer/user authentication and secure credential enrollment.
 6. Select and implement a production KMS adapter; define key policies, rotation, rewrapping and incident response.
 7. Implement durable credential storage and audited decrypt authorization.
