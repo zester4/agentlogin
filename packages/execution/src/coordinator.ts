@@ -42,7 +42,7 @@ export class ExecutionCoordinator {
       return this.failure(input, executionId, startedAt, "invalid_execution_policy");
     }
 
-    let decision;
+    let decision: Awaited<ReturnType<GrantLifecycleService["authorize"]>>;
     try {
       decision = await this.grants.authorize({
         principal: input.principal, grantId: input.grantId, accountId: input.accountId,
@@ -118,7 +118,7 @@ export class ExecutionCoordinator {
   private async failure(
     input: { principal: AgentExecutionPrincipal; grantId: string; accountId: string; origin: string },
     executionId: string, startedAt: Date,
-    reasonCode: ExecutionResult extends { status: "login_failed"; reason_code: infer C } ? C : never
+    reasonCode: Extract<ExecutionResult, { status: "login_failed" }>["reason_code"]
   ): Promise<ExecutionResult> {
     const completedAt = this.now();
     try {
