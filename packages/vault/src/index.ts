@@ -28,3 +28,4 @@ export interface CredentialVault {
   revoke(credentialRef: string, context: CredentialContext): Promise<void>;
 }
 export * from "./aws-kms.js";
+export * from "./crypto.js";
