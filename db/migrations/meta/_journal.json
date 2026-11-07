@@ -15,6 +15,13 @@
       "when": 1794089400000,
       "tag": "0001_credential_envelope_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794089500000,
+      "tag": "0002_developer_memberships",
+      "breakpoints": true
     }
   ]
 }
