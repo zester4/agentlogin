@@ -78,7 +78,7 @@ export class ExecutionCoordinator {
     }
 
     const deadline = new Date(startedAt.getTime() + timeoutMs);
-    let lease: CredentialLease;
+    let lease: CredentialLease | undefined;
     try {
       lease = await this.leases.issue({
         tenantId: input.principal.tenantId, userId: input.principal.userId,
@@ -92,8 +92,10 @@ export class ExecutionCoordinator {
         throw new Error("Credential lease issuer returned an invalid lease.");
       }
     } catch {
+      if (lease?.leaseId) await this.leases.revoke(lease.leaseId).catch(() => undefined);
       return this.failure(input, executionId, startedAt, "provider_unavailable");
     }
+    if (!lease) return this.failure(input, executionId, startedAt, "provider_unavailable");
 
     let outcome: Awaited<ReturnType<IsolatedBrowserProvider["executeLogin"]>>;
     try {
