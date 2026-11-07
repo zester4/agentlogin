@@ -6,3 +6,4 @@ export * from "./agent-credential-repository.js";
 export type { TenantTransaction } from "./types.js";
 export * from "./grant-repository.js";
 export * from "./credential-record-store.js";
+export * from "./execution-repository.js";
