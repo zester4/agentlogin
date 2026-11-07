@@ -47,6 +47,29 @@ export class PostgresDeveloperRepository {
     return { agentId };
   }
 
+  async getManagedAgent(userId: string, agentId: string): Promise<{ developerId: string } | null> {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      const [row] = await tx.select({ developerId: agents.developerId, role: developerMemberships.role })
+        .from(agents).innerJoin(developerMemberships, and(
+          eq(agents.tenantId, developerMemberships.tenantId),
+          eq(agents.developerId, developerMemberships.developerId)
+        )).where(and(
+          eq(agents.tenantId, this.tenantId), eq(agents.id, agentId),
+          eq(agents.status, "active"), eq(developerMemberships.userId, userId),
+          eq(developerMemberships.status, "active")
+        )).limit(1);
+      return row && ["owner", "admin"].includes(row.role) ? { developerId: row.developerId } : null;
+    });
+  }
+
+  async suspendAgent(agentId: string): Promise<void> {
+    await withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      await tx.update(agents).set({ status: "suspended" }).where(and(
+        eq(agents.tenantId, this.tenantId), eq(agents.id, agentId)
+      ));
+    });
+  }
+
   async canManageAgent(userId: string, agentId: string): Promise<boolean> {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
       const [row] = await tx.select({ role: developerMemberships.role })
