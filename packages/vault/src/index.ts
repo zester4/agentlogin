@@ -3,7 +3,7 @@ export type CiphertextEnvelope = {
   authTag: Uint8Array; wrappedDek: Uint8Array; keyVersion: string; aadVersion: 1;
 };
 export type CredentialContext = {
-  tenantId: string; credentialId: string; recordVersion: number;
+  tenantId: string; accountId: string; credentialId: string; recordVersion: number;
   purpose: "website_login" | "oauth_token" | "api_key";
 };
 export type WrappedDataKey = { wrappedDek: Uint8Array; keyVersion: string };
@@ -16,12 +16,15 @@ export type StoredCredential = {
 };
 export interface CredentialRecordStore {
   insert(record: StoredCredential): Promise<void>;
+  rotate(previousCredentialRef: string, previousContext: CredentialContext, record: StoredCredential, revokedAt: Date): Promise<void>;
   find(credentialRef: string, tenantId: string, credentialId: string): Promise<StoredCredential | null>;
   revoke(credentialRef: string, tenantId: string, credentialId: string, revokedAt: Date): Promise<void>;
 }
 // Callers must not retain, copy, log, serialize, or return the callback's plaintext buffer.
 export interface CredentialVault {
   store(context: CredentialContext, plaintext: Uint8Array): Promise<{ credentialRef: string; version: number }>;
+  rotate(previousCredentialRef: string, previousContext: CredentialContext, nextContext: CredentialContext, plaintext: Uint8Array): Promise<{ credentialRef: string; version: number }>;
   withDecryptedCredential<T>(credentialRef: string, context: CredentialContext, operation: (secret: Uint8Array) => Promise<T>): Promise<T>;
   revoke(credentialRef: string, context: CredentialContext): Promise<void>;
 }
+export * from "./aws-kms.js";

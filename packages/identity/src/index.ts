@@ -11,6 +11,7 @@ export type NewAgentCredential = Pick<AgentCredentialRecord,
   "credentialId" | "tenantId" | "developerId" | "agentId" | "tokenHash" | "createdAt" | "expiresAt">;
 export interface AgentCredentialRepository {
   insert(record: NewAgentCredential): Promise<void>;
+  rotate?(record: NewAgentCredential): Promise<void>;
   findById(credentialId: string): Promise<AgentCredentialRecord | null>;
   revoke(credentialId: string, tenantId: string, revokedAt: Date): Promise<void>;
 }
@@ -62,6 +63,14 @@ export class AgentCredentialService {
   }
 
   async issue(input: { tenantId: string; developerId: string; agentId: string; expiresAt: Date }): Promise<IssuedAgentCredential> {
+    return this.issueCredential(input, false);
+  }
+
+  async rotate(input: { tenantId: string; developerId: string; agentId: string; expiresAt: Date }): Promise<IssuedAgentCredential> {
+    return this.issueCredential(input, true);
+  }
+
+  private async issueCredential(input: { tenantId: string; developerId: string; agentId: string; expiresAt: Date }, rotate: boolean): Promise<IssuedAgentCredential> {
     const now = this.now();
     const ttl = input.expiresAt.getTime() - now.getTime();
     if (!input.tenantId || input.tenantId.trim() !== input.tenantId || input.tenantId.length > 200 ||
@@ -74,10 +83,16 @@ export class AgentCredentialService {
     const secret = randomBytes(32).toString("base64url");
     const sig = signature(this.signingKey, credentialId, tenantClaim).toString("base64url");
     const token = `${TOKEN_PREFIX}_${credentialId}.${tenantClaim}.${secret}.${sig}`;
-    await repository.insert({
+    const record = {
       credentialId, tenantId: input.tenantId, developerId: input.developerId,
       agentId: input.agentId, tokenHash: hashSecret(secret), createdAt: now, expiresAt: input.expiresAt
-    });
+    };
+    if (rotate) {
+      if (!repository.rotate) throw new Error("Atomic credential rotation is not supported by this repository.");
+      await repository.rotate(record);
+    } else {
+      await repository.insert(record);
+    }
     return { credentialId, token, expiresAt: input.expiresAt.toISOString() };
   }
 

@@ -15,11 +15,18 @@ export const GrantRequestSchema = z.object({
   account_id: z.string().min(1), origin: OriginSchema, scopes: z.array(GrantScopeSchema).min(1),
   task_id: z.string().min(1).max(200).optional(), requested_ttl_seconds: z.number().int().min(30).max(900).default(300)
 }).strict();
+export const ExecutionFailureCodeSchema = z.enum([
+  "tenant_mismatch", "user_mismatch", "agent_mismatch", "account_mismatch",
+  "origin_mismatch", "scope_denied", "policy_version_mismatch", "expired",
+  "revoked", "not_approved", "account_unavailable", "invalid_execution_policy",
+  "provider_unavailable", "audit_unavailable", "site_unavailable",
+  "invalid_credentials", "unsupported_flow", "challenge_detected"
+]);
 export const ExecutionResultSchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("login_succeeded"), execution_id: z.string() }),
-  z.object({ status: z.literal("mfa_required"), execution_id: z.string(), handoff_id: z.string() }),
-  z.object({ status: z.literal("user_action_required"), execution_id: z.string(), action_id: z.string() }),
-  z.object({ status: z.literal("login_failed"), execution_id: z.string(), reason_code: z.string() })
+  z.object({ status: z.literal("login_succeeded"), execution_id: z.string().min(1) }).strict(),
+  z.object({ status: z.literal("mfa_required"), execution_id: z.string().min(1), handoff_id: z.string().min(1) }).strict(),
+  z.object({ status: z.literal("user_action_required"), execution_id: z.string().min(1), action_id: z.string().min(1) }).strict(),
+  z.object({ status: z.literal("login_failed"), execution_id: z.string().min(1), reason_code: ExecutionFailureCodeSchema }).strict()
 ]);
 export type ApprovedGrant = z.infer<typeof ApprovedGrantSchema>;
 export type GrantRequest = z.infer<typeof GrantRequestSchema>;

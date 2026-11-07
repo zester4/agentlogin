@@ -11,7 +11,7 @@ export class CredentialDecryptionError extends Error {
 }
 
 function assertContext(context: CredentialContext): void {
-  if (!context.tenantId || !context.credentialId ||
+  if (!context.tenantId || !context.accountId || !context.credentialId ||
       !Number.isSafeInteger(context.recordVersion) || context.recordVersion < 1 ||
       !["website_login", "oauth_token", "api_key"].includes(context.purpose)) {
     throw new TypeError("Invalid credential encryption context.");
@@ -22,7 +22,7 @@ function associatedData(context: CredentialContext): Buffer {
   assertContext(context);
   return Buffer.from(JSON.stringify([
     "agentlogin-credential", AAD_VERSION, context.tenantId,
-    context.credentialId, context.recordVersion, context.purpose
+    context.accountId, context.credentialId, context.recordVersion, context.purpose
   ]), "utf8");
 }
 
@@ -107,6 +107,36 @@ export class EncryptedCredentialVault implements CredentialVault {
     };
     await this.records.insert(record);
     return { credentialRef, version: context.recordVersion };
+  }
+
+  async rotate(
+    previousCredentialRef: string,
+    previousContext: CredentialContext,
+    nextContext: CredentialContext,
+    plaintext: Uint8Array
+  ): Promise<{ credentialRef: string; version: number }> {
+    assertContext(previousContext);
+    assertContext(nextContext);
+    if (previousContext.tenantId !== nextContext.tenantId ||
+        previousContext.accountId !== nextContext.accountId ||
+        previousContext.purpose !== nextContext.purpose ||
+        nextContext.credentialId === previousContext.credentialId ||
+        nextContext.recordVersion !== previousContext.recordVersion + 1) {
+      throw new TypeError("Credential rotation must preserve account context and increment the version.");
+    }
+    const previous = await this.records.find(
+      previousCredentialRef, previousContext.tenantId, previousContext.credentialId
+    );
+    if (!previous || previous.revokedAt !== null || !sameContext(previous.context, previousContext)) {
+      throw new CredentialDecryptionError();
+    }
+    const envelope = await encryptCredential(plaintext, nextContext, this.keyManagement);
+    const credentialRef = this.createReference();
+    const record: StoredCredential = {
+      credentialRef, context: { ...nextContext }, envelope, revokedAt: null
+    };
+    await this.records.rotate(previousCredentialRef, previousContext, record, this.now());
+    return { credentialRef, version: nextContext.recordVersion };
   }
 
   async withDecryptedCredential<T>(

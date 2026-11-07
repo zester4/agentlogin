@@ -3,14 +3,22 @@ import type { Pool } from "pg";
 import type { Database } from "@agentlogin/database";
 import { healthRoutes } from "./routes/health.js";
 import { agentRoutes } from "./routes/agent.js";
-import { agentAuthenticationPlugin, decodeAgentSigningKey } from "./plugins/agent-auth.js";
+import { agentAuthenticationPlugin } from "./plugins/agent-auth.js";
+import { userAuthenticationPlugin } from "./plugins/user-auth.js";
+import { onboardingRoutes } from "./routes/onboarding.js";
+import { userRoutes } from "./routes/user.js";
+import { developerRoutes } from "./routes/developers.js";
+import { connectedAccountRoutes } from "./routes/connected-accounts.js";
+import { grantRoutes } from "./routes/grants.js";
+import { delegationRoutes } from "./routes/delegations.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
+    trustProxy: true,
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
       redact: {
-        paths: ["req.headers.authorization", "req.headers.cookie", "*.password", "*.token", "*.secret", "*.credential"],
+        paths: ["req.headers.authorization", "req.headers.cookie", "req.body.password", "req.body.username", "*.password", "*.token", "*.secret", "*.credential"],
         censor: "[REDACTED]"
       }
     },
@@ -21,7 +29,14 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
   app.register(healthRoutes, { pool });
   if (auth) {
     agentAuthenticationPlugin(app, auth);
+    userAuthenticationPlugin(app, { database: auth.database });
     app.register(agentRoutes);
+    app.register(onboardingRoutes, { database: auth.database });
+    app.register(userRoutes);
+    app.register(developerRoutes, { database: auth.database });
+    app.register(connectedAccountRoutes, { database: auth.database });
+    app.register(grantRoutes, { database: auth.database });
+    app.register(delegationRoutes, { database: auth.database });
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
   app.setErrorHandler((error, request, reply) => {

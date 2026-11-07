@@ -11,5 +11,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentlogin/contracts": "workspace:*",
+    "@agentlogin/policy": "workspace:*"
   }
 }

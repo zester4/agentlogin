@@ -4,7 +4,7 @@ import type { CredentialContext, CredentialRecordStore, KeyManagementProvider, S
 import { CredentialDecryptionError, EncryptedCredentialVault } from "./crypto.js";
 
 const context: CredentialContext = {
-  tenantId: "ten_test", credentialId: "cred_record_1", recordVersion: 1, purpose: "website_login"
+  tenantId: "ten_test", accountId: "acct_test", credentialId: "cred_record_1", recordVersion: 1, purpose: "website_login"
 };
 
 class TestKeyManagement implements KeyManagementProvider {
@@ -29,6 +29,12 @@ class TestKeyManagement implements KeyManagementProvider {
 class MemoryRecords implements CredentialRecordStore {
   readonly records = new Map<string, StoredCredential>();
   async insert(record: StoredCredential): Promise<void> { this.records.set(record.credentialRef, record); }
+  async rotate(ref: string, previousContext: CredentialContext, record: StoredCredential, at: Date): Promise<void> {
+    const previous = await this.find(ref, previousContext.tenantId, previousContext.credentialId);
+    if (!previous || previous.revokedAt !== null) throw new Error("Previous credential is unavailable.");
+    previous.revokedAt = at;
+    await this.insert(record);
+  }
   async find(ref: string, tenant: string, id: string): Promise<StoredCredential | null> {
     const record = this.records.get(ref);
     return record?.context.tenantId === tenant && record.context.credentialId === id ? record : null;
@@ -54,6 +60,23 @@ describe("encrypted credential vault", () => {
     });
     expect(result).toBe("synthetic-password-123");
     expect(callbackBuffer?.every((byte) => byte === 0)).toBe(true);
+  });
+
+  it("rotates encrypted records and revokes the previous version atomically", async () => {
+    const records = new MemoryRecords();
+    const vault = new EncryptedCredentialVault(records, new TestKeyManagement(), (() => {
+      let n = 0; return () => "cred_ref_" + (++n);
+    })());
+    const oldContext = context;
+    const old = await vault.store(oldContext, Buffer.from("old-password"));
+    const nextContext: CredentialContext = {
+      ...oldContext, credentialId: "cred_record_2", recordVersion: 2
+    };
+    const rotated = await vault.rotate(old.credentialRef, oldContext, nextContext, Buffer.from("new-password"));
+    await expect(vault.withDecryptedCredential(old.credentialRef, oldContext, async () => "bad"))
+      .rejects.toBeInstanceOf(CredentialDecryptionError);
+    await expect(vault.withDecryptedCredential(rotated.credentialRef, nextContext, async (secret) => Buffer.from(secret).toString("utf8")))
+      .resolves.toBe("new-password");
   });
 
   it("rejects cross-tenant reads", async () => {

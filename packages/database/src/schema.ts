@@ -37,6 +37,18 @@ export const developers = pgTable("developers", {
   name: text("name").notNull(), status: text("status").notNull().default("active"), createdAt: createdAt(),
 }, (t) => [unique("developers_tenant_id_unique").on(t.tenantId, t.id), tenantPolicy(t.tenantId)]).enableRLS();
 
+export const developerMemberships = pgTable("developer_memberships", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull(),
+  userId: text("user_id").notNull(), developerId: text("developer_id").notNull(),
+  role: text("role").notNull(), status: text("status").notNull().default("active"),
+  createdAt: createdAt(),
+}, (t) => [
+  unique("developer_memberships_tenant_user_developer_unique").on(t.tenantId, t.userId, t.developerId),
+  foreignKey({ name: "developer_memberships_tenant_user_fk", columns: [t.tenantId, t.userId], foreignColumns: [users.tenantId, users.id] }),
+  foreignKey({ name: "developer_memberships_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
 export const agents = pgTable("agents", {
   id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
   developerId: text("developer_id").notNull(), name: text("name").notNull(),
@@ -44,6 +56,7 @@ export const agents = pgTable("agents", {
   createdAt: createdAt(),
 }, (t) => [
   unique("agents_tenant_id_unique").on(t.tenantId, t.id),
+  unique("agents_tenant_developer_id_unique").on(t.tenantId, t.developerId, t.id),
   foreignKey({ name: "agents_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
   tenantPolicy(t.tenantId),
 ]).enableRLS();
@@ -61,12 +74,18 @@ export const connectedAccounts = pgTable("connected_accounts", {
 
 export const credentials = pgTable("credentials", {
   id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
-  accountId: text("account_id").notNull(), credentialType: text("credential_type").notNull(),
-  ciphertext: bytea("ciphertext").notNull(), wrappedDek: bytea("wrapped_dek").notNull(),
-  keyVersion: text("key_version").notNull(), recordVersion: integer("record_version").notNull().default(1),
-  status: text("status").notNull().default("active"), createdAt: createdAt(),
+  accountId: text("account_id").notNull(), credentialId: text("credential_id"),
+  credentialType: text("credential_type").notNull(),
+  ciphertext: bytea("ciphertext").notNull(), iv: bytea("iv"), authTag: bytea("auth_tag"),
+  wrappedDek: bytea("wrapped_dek").notNull(), keyVersion: text("key_version").notNull(),
+  recordVersion: integer("record_version").notNull().default(1),
+  status: text("status").notNull().default("active"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }), createdAt: createdAt(),
 }, (t) => [
   unique("credentials_tenant_id_unique").on(t.tenantId, t.id),
+  unique("credentials_tenant_credential_id_unique").on(t.tenantId, t.credentialId),
+  check("credentials_iv_length", sql.raw("iv IS NULL OR octet_length(iv) = 12")),
+  check("credentials_auth_tag_length", sql.raw("auth_tag IS NULL OR octet_length(auth_tag) = 16")),
   foreignKey({ name: "credentials_tenant_account_fk", columns: [t.tenantId, t.accountId], foreignColumns: [connectedAccounts.tenantId, connectedAccounts.id] }),
   tenantPolicy(t.tenantId),
 ]).enableRLS();
@@ -76,6 +95,7 @@ export const delegations = pgTable("delegations", {
   userId: text("user_id").notNull(), agentId: text("agent_id").notNull(), accountId: text("account_id").notNull(),
   scopes: text("scopes").array().notNull(), status: text("status").notNull().default("active"), createdAt: createdAt(),
 }, (t) => [
+  unique("delegations_tenant_user_agent_account_unique").on(t.tenantId, t.userId, t.agentId, t.accountId),
   foreignKey({ name: "delegations_tenant_user_fk", columns: [t.tenantId, t.userId], foreignColumns: [users.tenantId, users.id] }),
   foreignKey({ name: "delegations_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
   foreignKey({ name: "delegations_tenant_account_fk", columns: [t.tenantId, t.accountId], foreignColumns: [connectedAccounts.tenantId, connectedAccounts.id] }),
@@ -144,11 +164,12 @@ export const agentCredentials = pgTable("agent_credentials", {
   check("agent_credentials_expiry_after_issue", sql.raw("expires_at > created_at")),
   foreignKey({ name: "agent_credentials_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
   foreignKey({ name: "agent_credentials_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
+  foreignKey({ name: "agent_credentials_tenant_developer_agent_fk", columns: [t.tenantId, t.developerId, t.agentId], foreignColumns: [agents.tenantId, agents.developerId, agents.id] }),
   index("agent_credentials_active_lookup").on(t.id, t.expiresAt).where(sql`${t.revokedAt} IS NULL`),
   tenantPolicy(t.tenantId),
 ]).enableRLS();
 
 export const schema = {
-  tenants, users, developers, agents, connectedAccounts, credentials, delegations,
+  tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
   grants, approvals, executions, auditEvents, agentCredentials,
 };
