@@ -73,7 +73,7 @@ export class ExecutionCoordinator {
         agentId: input.principal.agentId, grantId: input.grantId,
         accountRef: input.accountId, expectedOrigin: input.origin,
         credentialRef: account.credentialRef, credentialId: account.credentialId,
-        recordVersion: account.recordVersion, taskId: input.taskId,
+        recordVersion: account.recordVersion, ...(input.taskId ? { taskId: input.taskId } : {}),
         deadline: new Date(startedAt.getTime() + timeoutMs)
       });
     } catch {
