@@ -46,6 +46,12 @@ export class GrantLifecycleService {
     const request = parsed.data;
     const origin = OriginSchema.safeParse(request.origin);
     if (!origin.success) throw new GrantLifecycleError("invalid_grant", "A normalized HTTPS origin is required.");
+    const parsedOrigin = new URL(origin.data);
+    const localDevelopmentOrigin = parsedOrigin.protocol === "http:" &&
+      (parsedOrigin.hostname === "localhost" || parsedOrigin.hostname === "127.0.0.1" || parsedOrigin.hostname === "[::1]");
+    if (parsedOrigin.protocol !== "https:" && !localDevelopmentOrigin) {
+      throw new GrantLifecycleError("invalid_grant", "A normalized HTTPS origin is required.");
+    }
     if (!principal.tenantId || !principal.userId || !principal.agentId) {
       throw new GrantLifecycleError("invalid_grant", "An authenticated user and agent context is required.");
     }
@@ -71,6 +77,9 @@ export class GrantLifecycleService {
     const grant = await this.repository.find(input.grantId);
     if (!grant || grant.tenantId !== input.principal.tenantId) throw new GrantLifecycleError("grant_not_found", "The grant was not found.");
     if (grant.userId !== input.principal.userId) throw new GrantLifecycleError("not_owner", "Only the account owner may decide this approval.");
+    if (grant.revokedAt || grant.expiresAt.getTime() <= this.now().getTime()) {
+      throw new GrantLifecycleError("approval_not_found", "The grant is no longer eligible for approval.");
+    }
     if (!grant.approvalId || grant.approvalId !== input.approvalId || grant.approvalDecision !== "pending") {
       throw new GrantLifecycleError("approval_not_found", "The approval is no longer pending.");
     }
@@ -83,7 +92,7 @@ export class GrantLifecycleService {
     expectedPolicyVersion: number;
   }): Promise<AuthorizationDecision> {
     const grant = await this.repository.find(input.grantId);
-    if (!grant) return { allowed: false, reason: "tenant_mismatch" };
+    if (!grant) return { allowed: false, reason: "scope_denied" };
     return authorizeGrant({
       tenantId: input.principal.tenantId, userId: input.principal.userId,
       authenticatedAgentId: input.principal.agentId, expectedPolicyVersion: input.expectedPolicyVersion,
@@ -103,6 +112,6 @@ export class GrantLifecycleService {
     const grant = await this.repository.find(grantId);
     if (!grant || grant.tenantId !== principal.tenantId) throw new GrantLifecycleError("grant_not_found", "The grant was not found.");
     if (grant.userId !== principal.userId) throw new GrantLifecycleError("not_owner", "Only the account owner may revoke this grant.");
-    return this.repository.revoke(grantId, this.now());
+    return this.repository.revoke(grantId, this.now(), input.userId);
   }
 }
