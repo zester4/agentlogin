@@ -30,20 +30,38 @@ export class PostgresDelegationRepository {
           eq(tenants.status, "active")
         )).limit(1);
       if (!allowed) throw new Error("The user, agent, and connected account are not all active in this tenant.");
-      const delegationId = newId();
-      const inserted = await tx.insert(delegations).values({
-        id: delegationId, tenantId: this.tenantId, userId: input.userId,
-        agentId: input.agentId, accountId: input.accountId,
-        scopes: input.scopes, status: "active"
-      }).onConflictDoNothing().returning({ id: delegations.id });
-      if (!inserted[0]) {
-        const [existing] = await tx.select({ id: delegations.id }).from(delegations).where(and(
+      const [existing] = await tx.select({ id: delegations.id, status: delegations.status })
+        .from(delegations).where(and(
           eq(delegations.tenantId, this.tenantId), eq(delegations.userId, input.userId),
-          eq(delegations.agentId, input.agentId), eq(delegations.accountId, input.accountId),
-          eq(delegations.status, "active")
+          eq(delegations.agentId, input.agentId), eq(delegations.accountId, input.accountId)
         )).limit(1);
-        if (existing) return { delegationId: existing.id, created: false };
-        throw new Error("An inactive delegation already exists; revoke or replace it explicitly.");
+      if (existing?.status === "active") return { delegationId: existing.id, created: false };
+      const delegationId = existing?.id ?? newId();
+      if (existing) {
+        await tx.update(delegations).set({ status: "active", scopes: input.scopes }).where(and(
+          eq(delegations.tenantId, this.tenantId), eq(delegations.id, existing.id),
+          eq(delegations.status, "revoked")
+        ));
+      } else {
+        const inserted = await tx.insert(delegations).values({
+          id: delegationId, tenantId: this.tenantId, userId: input.userId,
+          agentId: input.agentId, accountId: input.accountId,
+          scopes: input.scopes, status: "active"
+        }).onConflictDoNothing().returning({ id: delegations.id });
+        if (!inserted[0]) {
+          const [raced] = await tx.select({ id: delegations.id, status: delegations.status })
+            .from(delegations).where(and(
+              eq(delegations.tenantId, this.tenantId), eq(delegations.userId, input.userId),
+              eq(delegations.agentId, input.agentId), eq(delegations.accountId, input.accountId)
+            )).limit(1);
+          if (!raced) throw new Error("Delegation could not be created.");
+          if (raced.status === "active") return { delegationId: raced.id, created: false };
+          await tx.update(delegations).set({ status: "active", scopes: input.scopes }).where(and(
+            eq(delegations.tenantId, this.tenantId), eq(delegations.id, raced.id),
+            eq(delegations.status, "revoked")
+          ));
+          return { delegationId: raced.id, created: true };
+        }
       }
       await tx.insert(auditEvents).values({
         id: delegationId + "_created", tenantId: this.tenantId,
