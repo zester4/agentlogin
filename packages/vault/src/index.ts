@@ -25,3 +25,4 @@ export interface CredentialVault {
   withDecryptedCredential<T>(credentialRef: string, context: CredentialContext, operation: (secret: Uint8Array) => Promise<T>): Promise<T>;
   revoke(credentialRef: string, context: CredentialContext): Promise<void>;
 }
+export * from "./aws-kms.js";
