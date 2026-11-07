@@ -13,6 +13,12 @@ const AccountBody = z.object({
   password: z.string().min(1).max(4096)
 }).strict();
 
+
+const CredentialRotationBody = z.object({
+  username: z.string().min(1).max(320),
+  password: z.string().min(1).max(4096)
+}).strict();
+
 export async function connectedAccountRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
   app.post("/v1/connected-accounts", { preHandler: app.authenticateUser }, async (request, reply) => {
     const parsed = AccountBody.safeParse(request.body);
@@ -71,6 +77,62 @@ export async function connectedAccountRoutes(app: FastifyInstance, options: { da
     } catch {
       await accountRepository.disable(accountId, request.userPrincipal.userId).catch(() => undefined);
       return reply.code(503).send({ error: { code: "credential_enrollment_failed", message: "The credential could not be encrypted and stored; the account was disabled." } });
+    } finally {
+      plaintext.fill(0);
+    }
+  });
+
+  app.post("/v1/connected-accounts/:accountId/credentials/rotate", { preHandler: app.authenticateUser }, async (request, reply) => {
+    const parsed = CredentialRotationBody.safeParse(request.body);
+    if (!parsed.success || !request.userPrincipal) {
+      return reply.code(400).send({ error: { code: "invalid_credential_rotation", message: "The credential rotation request is invalid." } });
+    }
+    const localRequest = process.env.NODE_ENV !== "production" &&
+      (request.hostname === "localhost" || request.hostname === "127.0.0.1");
+    if (request.protocol !== "https" && !localRequest) {
+      return reply.code(400).send({ error: { code: "https_required", message: "Credential rotation must use HTTPS." } });
+    }
+    const keyId = process.env.AWS_KMS_KEY_ID;
+    const region = process.env.AWS_REGION;
+    if (!keyId || !region) {
+      return reply.code(503).send({ error: { code: "credential_vault_unavailable", message: "Production credential encryption is not configured." } });
+    }
+    const accountId = (request.params as { accountId: string }).accountId;
+    const current = await new PostgresExecutionRepository(options.database, request.userPrincipal.tenantId)
+      .findLoginCredential({
+        tenantId: request.userPrincipal.tenantId, accountId, userId: request.userPrincipal.userId
+      });
+    if (!current || current.status !== "active") {
+      return reply.code(404).send({ error: { code: "connected_account_not_found", message: "The connected account was not found." } });
+    }
+
+    const body = request.body as Record<string, unknown>;
+    body.username = "[REDACTED]";
+    body.password = "[REDACTED]";
+    const plaintext = Buffer.from(JSON.stringify({
+      username: parsed.data.username, password: parsed.data.password
+    }), "utf8");
+    parsed.data.username = "";
+    parsed.data.password = "";
+    const previousContext = {
+      tenantId: request.userPrincipal.tenantId, accountId,
+      credentialId: current.credentialId, recordVersion: current.recordVersion,
+      purpose: "website_login" as const
+    };
+    const nextContext = {
+      ...previousContext,
+      credentialId: "vcred_" + randomBytes(18).toString("base64url"),
+      recordVersion: current.recordVersion + 1
+    };
+    try {
+      const vault = new EncryptedCredentialVault(
+        new PostgresCredentialRecordStore(options.database, request.userPrincipal.tenantId),
+        new AwsKmsProvider(keyId, region)
+      );
+      const rotated = await vault.rotate(current.credentialRef, previousContext, nextContext, plaintext);
+      return reply.send({ account_id: accountId, status: "credential_rotated", version: rotated.version });
+    } catch {
+      return reply.code(503).send({ error: { code: "credential_rotation_failed", message: "The credential could not be rotated; the previous version remains active." } });
     } finally {
       plaintext.fill(0);
     }
