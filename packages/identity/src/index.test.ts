@@ -83,6 +83,15 @@ describe("opaque agent credentials", () => {
     await expect(service.authenticate(issued.token)).rejects.toBeInstanceOf(AgentAuthenticationError);
   });
 
+  it("atomically revokes previous credentials when rotating an agent token", async () => {
+    const repo = new MemoryCredentials();
+    const service = new AgentCredentialService(repo, key, now);
+    const first = await service.issue({ tenantId: "ten_1", developerId: "dev_1", agentId: "agt_1", expiresAt: new Date("2026-11-08T12:00:00Z") });
+    const second = await service.rotate({ tenantId: "ten_1", developerId: "dev_1", agentId: "agt_1", expiresAt: new Date("2026-11-08T12:00:00Z") });
+    await expect(service.authenticate(first.token)).rejects.toBeInstanceOf(AgentAuthenticationError);
+    await expect(service.authenticate(second.token)).resolves.toMatchObject({ agentId: "agt_1" });
+  });
+
   it("requires a 256-bit signing key", () => {
     expect(() => new AgentCredentialService(new MemoryCredentials(), Buffer.alloc(31), now)).toThrow("32 bytes");
   });
