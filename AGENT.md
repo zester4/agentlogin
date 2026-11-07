@@ -225,3 +225,24 @@ Tests must demonstrate:
 - Record significant architectural choices and rationale.
 - Do not turn provisional suggestions into settled decisions without evidence or explicit approval.
 - Prefer precise language over marketing claims.
+
+## Current identity and credential lifecycle implementation
+
+The current API implementation uses two separate authentication paths:
+
+- **Agent authentication:** `Authorization: Bearer al_agent_...` with an HMAC-signed tenant claim. Verify the signature before constructing a tenant-scoped repository. The database stores only a SHA-256 hash of the random token secret. Never accept tenant ID from an unsigned header or body.
+- **User authentication:** OIDC access token verified against configured issuer, audience, HTTPS JWKS URL, allowed asymmetric algorithms, expiry/token age, and a trusted tenant claim. Required settings are `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, and `OIDC_TENANT_CLAIM`. Do not accept a caller-supplied tenant ID.
+
+The `AGENT_TOKEN_SIGNING_KEY` must be a stable, cryptographically random 256-bit secret encoded as canonical base64url. Do not rotate it in place. Implement a key-ID/key-ring migration before supporting overlapping keys. Existing unsigned-format agent credentials are not compatible with the signed format and must be rotated/re-issued.
+
+Authenticated developer owners/admins may create agents, rotate credentials, and revoke credentials. Agent credential tokens are displayed once and only their hashes are persisted. Rotation revokes prior active credentials atomically with insertion of the replacement.
+
+Grant requests require a matching active user-to-agent-to-account delegation. The initial policy is deliberately conservative: every grant request enters pending approval. Approval is a separate user action. Grant authorization binds tenant, user, agent, account, exact origin, scope, policy version, expiry, approval, and revocation.
+
+Credential encryption context must bind tenant, account, credential ID, record version, and purpose. Production KMS must be configured with a dedicated key and least-privilege workload identity. Never substitute the synthetic test KMS in production.
+
+The execution coordinator is not a browser implementation. Do not expose login execution until a concrete isolated worker has been implemented and adversarially tested. A worker must enforce exact origin and every redirect before autofill, block private-network/metadata targets, isolate profiles and sessions, keep CDP/debugging inaccessible, sanitize all outputs, and implement user-mediated MFA handoff.
+
+### Local/production configuration
+
+See `.env.example`. Do not commit production values. Railway currently needs an OIDC provider configuration and AWS KMS key/identity before user onboarding or real credential storage can work. Treat missing configuration as unavailable and fail closed.
