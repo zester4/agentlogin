@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
-  bytea, foreignKey, index, integer, jsonb, pgPolicy, pgTable, text,
-  timestamp, unique,
+  bytea, check, foreignKey, index, integer, jsonb, pgPolicy, pgTable, text,
+  timestamp, unique, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
-const tenantPolicy = (tenantId: ReturnType<typeof text>) =>
+const tenantPolicy = (tenantId: AnyPgColumn) =>
   pgPolicy("tenant_isolation", {
     as: "permissive", for: "all", to: "public",
     using: sql`${tenantId} = current_setting('app.tenant_id', true)`,
@@ -89,6 +89,8 @@ export const grants = pgTable("grants", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   revokedAt: timestamp("revoked_at", { withTimezone: true }), createdAt: createdAt(),
 }, (t) => [
+  unique("grants_tenant_id_unique").on(t.tenantId, t.id),
+  check("grants_expiry_after_issue", sql.raw("expires_at > issued_at")),
   foreignKey({ name: "grants_tenant_user_fk", columns: [t.tenantId, t.userId], foreignColumns: [users.tenantId, users.id] }),
   foreignKey({ name: "grants_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
   foreignKey({ name: "grants_tenant_account_fk", columns: [t.tenantId, t.accountId], foreignColumns: [connectedAccounts.tenantId, connectedAccounts.id] }),
@@ -128,7 +130,7 @@ export const auditEvents = pgTable("audit_events", {
 ]).enableRLS();
 
 export const agentCredentials = pgTable("agent_credentials", {
-  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull(),
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
   developerId: text("developer_id").notNull(), agentId: text("agent_id").notNull(),
   tokenHash: bytea("token_hash").notNull().unique(), createdAt: createdAt(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -136,6 +138,8 @@ export const agentCredentials = pgTable("agent_credentials", {
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
 }, (t) => [
   unique("agent_credentials_tenant_id_unique").on(t.tenantId, t.id),
+  check("agent_credentials_token_hash_length", sql.raw("octet_length(token_hash) = 32")),
+  check("agent_credentials_expiry_after_issue", sql.raw("expires_at > created_at")),
   foreignKey({ name: "agent_credentials_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
   foreignKey({ name: "agent_credentials_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
   index("agent_credentials_active_lookup").on(t.id, t.expiresAt).where(sql`${t.revokedAt} IS NULL`),
