@@ -3,7 +3,7 @@ export type CiphertextEnvelope = {
   authTag: Uint8Array; wrappedDek: Uint8Array; keyVersion: string; aadVersion: 1;
 };
 export type CredentialContext = {
-  tenantId: string; credentialId: string; recordVersion: number;
+  tenantId: string; accountId: string; credentialId: string; recordVersion: number;
   purpose: "website_login" | "oauth_token" | "api_key";
 };
 export type WrappedDataKey = { wrappedDek: Uint8Array; keyVersion: string };
