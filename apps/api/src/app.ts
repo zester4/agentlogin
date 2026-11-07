@@ -14,6 +14,7 @@ import { delegationRoutes } from "./routes/delegations.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
+    trustProxy: true,
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
       redact: {
