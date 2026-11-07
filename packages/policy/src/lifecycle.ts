@@ -7,6 +7,8 @@ export type GrantLifecycleRecord = {
   origin: string; scopes: string[]; taskId: string | null; policyVersion: number;
   issuedAt: Date; expiresAt: Date; revokedAt: Date | null; approvalId: string | null;
   approvedAt: Date | null; approvalDecision: string | null;
+  tenantStatus: string; userStatus: string; agentStatus: string;
+  developerStatus: string; accountStatus: string;
 };
 export interface GrantLifecycleRepository {
   hasActiveDelegation(input: { userId: string; agentId: string; accountId: string; origin: string; scopes: string[] }): Promise<boolean>;
@@ -77,7 +79,10 @@ export class GrantLifecycleService {
     const grant = await this.repository.find(input.grantId);
     if (!grant || grant.tenantId !== input.principal.tenantId) throw new GrantLifecycleError("grant_not_found", "The grant was not found.");
     if (grant.userId !== input.principal.userId) throw new GrantLifecycleError("not_owner", "Only the account owner may decide this approval.");
-    if (grant.revokedAt || grant.expiresAt.getTime() <= this.now().getTime()) {
+    if (grant.tenantStatus !== "active" || grant.userStatus !== "active" ||
+        grant.agentStatus !== "active" || grant.developerStatus !== "active" ||
+        grant.accountStatus !== "active" || grant.revokedAt ||
+        grant.expiresAt.getTime() <= this.now().getTime()) {
       throw new GrantLifecycleError("approval_not_found", "The grant is no longer eligible for approval.");
     }
     if (!grant.approvalId || grant.approvalId !== input.approvalId) {
@@ -94,6 +99,10 @@ export class GrantLifecycleService {
   }): Promise<AuthorizationDecision> {
     const grant = await this.repository.find(input.grantId);
     if (!grant) return { allowed: false, reason: "scope_denied" };
+    if (grant.tenantStatus !== "active") return { allowed: false, reason: "tenant_mismatch" };
+    if (grant.userStatus !== "active") return { allowed: false, reason: "user_mismatch" };
+    if (grant.agentStatus !== "active" || grant.developerStatus !== "active") return { allowed: false, reason: "agent_mismatch" };
+    if (grant.accountStatus !== "active") return { allowed: false, reason: "account_mismatch" };
     return authorizeGrant({
       tenantId: input.principal.tenantId, userId: input.principal.userId,
       authenticatedAgentId: input.principal.agentId, expectedPolicyVersion: input.expectedPolicyVersion,
