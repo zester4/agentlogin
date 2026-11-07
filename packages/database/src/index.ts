@@ -9,3 +9,4 @@ export * from "./credential-record-store.js";
 export * from "./execution-repository.js";
 export * from "./user-repository.js";
 export * from "./developer-repository.js";
+export * from "./connected-account-repository.js";
