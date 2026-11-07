@@ -60,12 +60,18 @@ export class PostgresDelegationRepository {
             eq(delegations.tenantId, this.tenantId), eq(delegations.id, raced.id),
             eq(delegations.status, "revoked")
           ));
+          await tx.insert(auditEvents).values({
+            id: raced.id + "_reactivated_" + Date.now(), tenantId: this.tenantId,
+            actorType: "user", actorId: input.userId, eventType: "delegation.reactivated",
+            resourceRef: raced.id, decision: "allowed",
+            metadata: { agent_ref: input.agentId, account_ref: input.accountId, scopes: input.scopes }
+          });
           return { delegationId: raced.id, created: true };
         }
       }
       await tx.insert(auditEvents).values({
-        id: delegationId + "_created", tenantId: this.tenantId,
-        actorType: "user", actorId: input.userId, eventType: "delegation.created",
+        id: delegationId + (existing ? "_reactivated_" + Date.now() : "_created"), tenantId: this.tenantId,
+        actorType: "user", actorId: input.userId, eventType: existing ? "delegation.reactivated" : "delegation.created",
         resourceRef: delegationId, decision: "allowed",
         metadata: { agent_ref: input.agentId, account_ref: input.accountId, scopes: input.scopes }
       });
