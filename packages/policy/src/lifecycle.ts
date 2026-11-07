@@ -9,7 +9,7 @@ export type GrantLifecycleRecord = {
   approvedAt: Date | null; approvalDecision: string | null;
 };
 export interface GrantLifecycleRepository {
-  hasActiveDelegation(input: { userId: string; agentId: string; accountId: string; scopes: string[] }): Promise<boolean>;
+  hasActiveDelegation(input: { userId: string; agentId: string; accountId: string; origin: string; scopes: string[] }): Promise<boolean>;
   createPending(input: {
     id: string; tenantId: string; userId: string; agentId: string; accountId: string;
     origin: string; scopes: string[]; taskId: string | null; policyVersion: number;
@@ -57,7 +57,7 @@ export class GrantLifecycleService {
     }
     const delegated = await this.repository.hasActiveDelegation({
       userId: principal.userId, agentId: principal.agentId,
-      accountId: request.account_id, scopes: request.scopes
+      accountId: request.account_id, origin: origin.data, scopes: request.scopes
     });
     if (!delegated) throw new GrantLifecycleError("delegation_required", "The user has not delegated this account and scope to this agent.");
 
