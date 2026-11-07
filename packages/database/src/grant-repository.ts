@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
-import { approvals, auditEvents, delegations, grants } from "./schema.js";
+import { approvals, auditEvents, agents, connectedAccounts, delegations, developers, grants, tenants, users } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
 export type NewGrantRecord = {
@@ -33,15 +33,40 @@ export class PostgresGrantRepository {
     requireTenant(tenantId);
   }
 
-  async hasActiveDelegation(input: { userId: string; agentId: string; accountId: string; scopes: string[] }): Promise<boolean> {
+  async hasActiveDelegation(input: { userId: string; agentId: string; accountId: string; origin: string; scopes: string[] }): Promise<boolean> {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
-      const [row] = await tx.select({ scopes: delegations.scopes }).from(delegations).where(and(
-        eq(delegations.tenantId, this.tenantId),
-        eq(delegations.userId, input.userId),
-        eq(delegations.agentId, input.agentId),
-        eq(delegations.accountId, input.accountId),
-        eq(delegations.status, "active")
-      )).limit(1);
+      const [row] = await tx.select({ scopes: delegations.scopes }).from(delegations)
+        .innerJoin(connectedAccounts, and(
+          eq(delegations.tenantId, connectedAccounts.tenantId),
+          eq(delegations.accountId, connectedAccounts.id),
+          eq(delegations.userId, connectedAccounts.userId)
+        ))
+        .innerJoin(agents, and(
+          eq(delegations.tenantId, agents.tenantId),
+          eq(delegations.agentId, agents.id)
+        ))
+        .innerJoin(developers, and(
+          eq(agents.tenantId, developers.tenantId),
+          eq(agents.developerId, developers.id)
+        ))
+        .innerJoin(users, and(
+          eq(delegations.tenantId, users.tenantId),
+          eq(delegations.userId, users.id)
+        ))
+        .innerJoin(tenants, eq(delegations.tenantId, tenants.id))
+        .where(and(
+          eq(delegations.tenantId, this.tenantId),
+          eq(delegations.userId, input.userId),
+          eq(delegations.agentId, input.agentId),
+          eq(delegations.accountId, input.accountId),
+          eq(connectedAccounts.origin, input.origin),
+          eq(delegations.status, "active"),
+          eq(connectedAccounts.status, "active"),
+          eq(agents.status, "active"),
+          eq(developers.status, "active"),
+          eq(users.status, "active"),
+          eq(tenants.status, "active")
+        )).limit(1);
       return Boolean(row && input.scopes.every((scope) => row.scopes.includes(scope)));
     });
   }
