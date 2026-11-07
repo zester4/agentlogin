@@ -37,6 +37,18 @@ export const developers = pgTable("developers", {
   name: text("name").notNull(), status: text("status").notNull().default("active"), createdAt: createdAt(),
 }, (t) => [unique("developers_tenant_id_unique").on(t.tenantId, t.id), tenantPolicy(t.tenantId)]).enableRLS();
 
+export const developerMemberships = pgTable("developer_memberships", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull(),
+  userId: text("user_id").notNull(), developerId: text("developer_id").notNull(),
+  role: text("role").notNull(), status: text("status").notNull().default("active"),
+  createdAt: createdAt(),
+}, (t) => [
+  unique("developer_memberships_tenant_user_developer_unique").on(t.tenantId, t.userId, t.developerId),
+  foreignKey({ name: "developer_memberships_tenant_user_fk", columns: [t.tenantId, t.userId], foreignColumns: [users.tenantId, users.id] }),
+  foreignKey({ name: "developer_memberships_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
 export const agents = pgTable("agents", {
   id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
   developerId: text("developer_id").notNull(), name: text("name").notNull(),
