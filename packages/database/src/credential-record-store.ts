@@ -58,6 +58,12 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
       throw new TypeError("Invalid credential rotation record.");
     }
     await withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
+      const [account] = await tx.select({ id: connectedAccounts.id }).from(connectedAccounts).where(and(
+        eq(connectedAccounts.tenantId, this.authenticatedTenantId),
+        eq(connectedAccounts.id, context.accountId),
+        eq(connectedAccounts.status, "active")
+      )).for("update").limit(1);
+      if (!account) throw new Error("Connected account is not active.");
       const previous = await tx.update(credentials).set({
         status: "revoked", revokedAt
       }).where(and(
