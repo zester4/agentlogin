@@ -11,7 +11,7 @@ export class CredentialDecryptionError extends Error {
 }
 
 function assertContext(context: CredentialContext): void {
-  if (!context.tenantId || !context.credentialId ||
+  if (!context.tenantId || !context.accountId || !context.credentialId ||
       !Number.isSafeInteger(context.recordVersion) || context.recordVersion < 1 ||
       !["website_login", "oauth_token", "api_key"].includes(context.purpose)) {
     throw new TypeError("Invalid credential encryption context.");
@@ -22,7 +22,7 @@ function associatedData(context: CredentialContext): Buffer {
   assertContext(context);
   return Buffer.from(JSON.stringify([
     "agentlogin-credential", AAD_VERSION, context.tenantId,
-    context.credentialId, context.recordVersion, context.purpose
+    context.accountId, context.credentialId, context.recordVersion, context.purpose
   ]), "utf8");
 }
 
