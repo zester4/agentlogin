@@ -14,6 +14,8 @@ export interface IsolatedBrowserProvider {
   terminate(executionId:string):Promise<void>;
   healthCheck():Promise<{available:boolean}>;
 }
-// Provider must isolate profiles/storage/downloads, enforce origin+redirect policy, scrub outputs,
-// deny unsafe network targets, and expose no CDP/profile/cookie/session data to agents.
+// credentialLease is a one-time, execution-scoped capability for the internal credential broker;
+// never resolve a raw credentialRef or expose the lease token to the agent.
+// Provider must isolate profiles/storage/downloads, enforce origin+redirect policy before autofill,
+// scrub outputs, deny unsafe network targets, and expose no CDP/profile/cookie/session data to agents.
 export * from "./coordinator.js";
