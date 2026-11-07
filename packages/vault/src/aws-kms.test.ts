@@ -3,7 +3,7 @@ import { DecryptCommand, EncryptCommand, KMSClient } from "@aws-sdk/client-kms";
 import { AwsKmsProvider } from "./aws-kms.js";
 
 const context = {
-  tenantId: "ten_1", credentialId: "cred_1", recordVersion: 2,
+  tenantId: "ten_1", accountId: "acc_1", credentialId: "cred_1", recordVersion: 2,
   purpose: "website_login" as const
 };
 
@@ -19,7 +19,7 @@ describe("AwsKmsProvider", () => {
     expect(Buffer.from(result.wrappedDek).toString()).toBe("wrapped-key");
     const command = send.mock.calls[0]![0] as EncryptCommand;
     expect(command.input.EncryptionContext).toEqual({
-      tenant_id: "ten_1", credential_id: "cred_1", record_version: "2", purpose: "website_login"
+      tenant_id: "ten_1", account_id: "acc_1", credential_id: "cred_1", record_version: "2", purpose: "website_login"
     });
   });
 
