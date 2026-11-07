@@ -38,6 +38,58 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
     });
   }
 
+  async rotate(
+    previousCredentialRef: string,
+    previousContext: StoredCredential["context"],
+    record: StoredCredential,
+    revokedAt: Date
+  ): Promise<void> {
+    const { context, envelope } = record;
+    if (previousContext.tenantId !== this.authenticatedTenantId ||
+        context.tenantId !== this.authenticatedTenantId ||
+        previousContext.accountId !== context.accountId ||
+        previousContext.purpose !== context.purpose ||
+        previousContext.credentialId === context.credentialId ||
+        context.recordVersion !== previousContext.recordVersion + 1 ||
+        record.revokedAt !== null || envelope.algorithm !== "AES-256-GCM" ||
+        envelope.iv.byteLength !== 12 || envelope.authTag.byteLength !== 16 ||
+        envelope.wrappedDek.byteLength === 0 || envelope.ciphertext.byteLength === 0 ||
+        !envelope.keyVersion || envelope.aadVersion !== 1) {
+      throw new TypeError("Invalid credential rotation record.");
+    }
+    await withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
+      const previous = await tx.update(credentials).set({
+        status: "revoked", revokedAt
+      }).where(and(
+        eq(credentials.id, previousCredentialRef),
+        eq(credentials.tenantId, this.authenticatedTenantId),
+        eq(credentials.accountId, previousContext.accountId),
+        eq(credentials.credentialId, previousContext.credentialId),
+        eq(credentials.recordVersion, previousContext.recordVersion),
+        eq(credentials.status, "active")
+      )).returning({ id: credentials.id });
+      if (!previous[0]) throw new Error("Previous credential is no longer active.");
+      await tx.insert(credentials).values({
+        id: record.credentialRef, tenantId: this.authenticatedTenantId,
+        accountId: context.accountId, credentialId: context.credentialId,
+        credentialType: context.purpose, ciphertext: Buffer.from(envelope.ciphertext),
+        iv: Buffer.from(envelope.iv), authTag: Buffer.from(envelope.authTag),
+        wrappedDek: Buffer.from(envelope.wrappedDek), keyVersion: envelope.keyVersion,
+        recordVersion: context.recordVersion, status: "active", revokedAt: null
+      });
+      await tx.insert(auditEvents).values({
+        id: record.credentialRef + "_rotated", tenantId: this.authenticatedTenantId,
+        actorType: "system", actorId: "credential_vault",
+        eventType: "credential.rotated", resourceRef: record.credentialRef,
+        decision: "rotated",
+        metadata: {
+          account_ref: context.accountId, previous_credential_ref: previousCredentialRef,
+          record_version: context.recordVersion
+        }
+      });
+    });
+  }
+
   async find(credentialRef: string, tenantId: string, credentialId: string): Promise<StoredCredential | null> {
     if (!credentialRef || tenantId !== this.authenticatedTenantId || !credentialId) return null;
     return withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
