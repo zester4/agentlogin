@@ -71,6 +71,18 @@ describe("grant lifecycle", () => {
     await expect(service.authorize({ ...base, accountId: "acc_2" })).resolves.toMatchObject({ allowed: false, reason: "account_mismatch" });
   });
 
+  it("rechecks live entity status on every authorization", async () => {
+    const repo = new MemoryGrants();
+    const service = new GrantLifecycleService(repo, now, () => "fixed-id");
+    const pending = await service.request(principal, request);
+    await service.decide({ principal: { tenantId: "ten_1", userId: "usr_1" }, grantId: pending.grant_id, approvalId: pending.approval_id, decision: "approved" });
+    repo.record!.agentStatus = "suspended";
+    await expect(service.authorize({
+      principal, grantId: pending.grant_id, accountId: "acc_1",
+      origin: request.origin, scope: "autofill_login", expectedPolicyVersion: 1
+    })).resolves.toMatchObject({ allowed: false, reason: "agent_mismatch" });
+  });
+
   it("does not allow approval after grant expiry", async () => {
     const repo = new MemoryGrants();
     const service = new GrantLifecycleService(repo, now, () => "fixed-id");
