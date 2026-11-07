@@ -10,7 +10,8 @@ export type NewGrantRecord = {
 };
 export type GrantRecord = NewGrantRecord & {
   approvalId: string | null; revokedAt: Date | null; approvedAt: Date | null;
-  approvalDecision: string | null;
+  approvalDecision: string | null; tenantStatus: string; userStatus: string;
+  agentStatus: string; developerStatus: string; accountStatus: string;
 };
 export type NewApprovalRecord = {
   requestedBy: string; createdAt: Date;
@@ -127,10 +128,17 @@ export class PostgresGrantRepository {
         scopes: grants.scopes, taskId: grants.taskId, policyVersion: grants.policyVersion,
         issuedAt: grants.issuedAt, expiresAt: grants.expiresAt, revokedAt: grants.revokedAt,
         approvalId: grants.approvalId, approvedAt: approvals.decidedAt,
-        approvalDecision: approvals.decision
-      }).from(grants).leftJoin(approvals, and(
-        eq(grants.tenantId, approvals.tenantId), eq(grants.approvalId, approvals.id)
-      )).where(and(eq(grants.tenantId, this.tenantId), eq(grants.id, grantId))).limit(1);
+        approvalDecision: approvals.decision, tenantStatus: tenants.status,
+        userStatus: users.status, agentStatus: agents.status,
+        developerStatus: developers.status, accountStatus: connectedAccounts.status
+      }).from(grants)
+        .innerJoin(tenants, eq(grants.tenantId, tenants.id))
+        .innerJoin(users, and(eq(grants.tenantId, users.tenantId), eq(grants.userId, users.id)))
+        .innerJoin(agents, and(eq(grants.tenantId, agents.tenantId), eq(grants.agentId, agents.id)))
+        .innerJoin(developers, and(eq(agents.tenantId, developers.tenantId), eq(agents.developerId, developers.id)))
+        .innerJoin(connectedAccounts, and(eq(grants.tenantId, connectedAccounts.tenantId), eq(grants.accountId, connectedAccounts.id)))
+        .leftJoin(approvals, and(eq(grants.tenantId, approvals.tenantId), eq(grants.approvalId, approvals.id)))
+        .where(and(eq(grants.tenantId, this.tenantId), eq(grants.id, grantId))).limit(1);
       return row ?? null;
     });
   }
