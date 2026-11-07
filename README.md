@@ -27,6 +27,7 @@ See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for implemented fou
 - packages/execution — provider-neutral isolated execution contracts
 - packages/sdk — TypeScript client
 - db/migrations — generated Drizzle SQL migrations and metadata
+- db/legacy-migrations — original SQL bootstrap history, retained for audit only
 
 ## Quick start
 
