@@ -19,6 +19,7 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
   async insert(record: StoredCredential): Promise<void> {
     const { context, envelope } = record;
     if (context.tenantId !== this.authenticatedTenantId) throw new Error("Tenant context mismatch.");
+    if (record.revokedAt !== null) throw new TypeError("New credential records must be active.");
     if (!record.credentialRef || !context.accountId || !context.credentialId ||
         envelope.algorithm !== "AES-256-GCM" || envelope.iv.byteLength !== 12 ||
         envelope.authTag.byteLength !== 16 || envelope.wrappedDek.byteLength === 0 ||
@@ -50,7 +51,7 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
         eq(credentials.id, credentialRef), eq(credentials.tenantId, this.authenticatedTenantId),
         eq(credentials.credentialId, credentialId)
       )).limit(1);
-      if (!row || !row.iv || !row.authTag || !row.credentialId ||
+      if (!row || row.status !== "active" || row.revokedAt !== null || !row.iv || !row.authTag || !row.credentialId ||
           !["website_login", "oauth_token", "api_key"].includes(row.credentialType)) return null;
       return {
         credentialRef: row.id,
