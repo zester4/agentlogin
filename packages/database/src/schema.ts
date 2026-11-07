@@ -61,12 +61,18 @@ export const connectedAccounts = pgTable("connected_accounts", {
 
 export const credentials = pgTable("credentials", {
   id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
-  accountId: text("account_id").notNull(), credentialType: text("credential_type").notNull(),
-  ciphertext: bytea("ciphertext").notNull(), wrappedDek: bytea("wrapped_dek").notNull(),
-  keyVersion: text("key_version").notNull(), recordVersion: integer("record_version").notNull().default(1),
-  status: text("status").notNull().default("active"), createdAt: createdAt(),
+  accountId: text("account_id").notNull(), credentialId: text("credential_id"),
+  credentialType: text("credential_type").notNull(),
+  ciphertext: bytea("ciphertext").notNull(), iv: bytea("iv"), authTag: bytea("auth_tag"),
+  wrappedDek: bytea("wrapped_dek").notNull(), keyVersion: text("key_version").notNull(),
+  recordVersion: integer("record_version").notNull().default(1),
+  status: text("status").notNull().default("active"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }), createdAt: createdAt(),
 }, (t) => [
   unique("credentials_tenant_id_unique").on(t.tenantId, t.id),
+  unique("credentials_tenant_credential_id_unique").on(t.tenantId, t.credentialId),
+  check("credentials_iv_length", sql.raw("iv IS NULL OR octet_length(iv) = 12")),
+  check("credentials_auth_tag_length", sql.raw("auth_tag IS NULL OR octet_length(auth_tag) = 16")),
   foreignKey({ name: "credentials_tenant_account_fk", columns: [t.tenantId, t.accountId], foreignColumns: [connectedAccounts.tenantId, connectedAccounts.id] }),
   tenantPolicy(t.tenantId),
 ]).enableRLS();
