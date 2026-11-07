@@ -1,8 +1,10 @@
 import { sql } from "drizzle-orm";
 import {
-  bytea, check, foreignKey, index, integer, jsonb, pgPolicy, pgTable, text,
+  check, customType, foreignKey, index, integer, jsonb, pgPolicy, pgTable, text,
   timestamp, unique, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const tenantPolicy = (tenantId: AnyPgColumn) =>
