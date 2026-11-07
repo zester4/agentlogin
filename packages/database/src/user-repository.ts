@@ -44,7 +44,7 @@ export class PostgresOnboardingRepository {
   async onboard(input: {
     tenantId: string; authSubject: string; userName?: string;
     tenantName?: string; developerName?: string;
-  }): Promise<{ tenantId: string; userId: string; developerId: string; membershipRole: "owner" }> {
+  }): Promise<{ tenantId: string; userId: string; developerId: string; membershipRole: string }> {
     if (!input.tenantId || input.tenantId.trim() !== input.tenantId || input.tenantId.length > 200 ||
         !input.authSubject || input.authSubject.length > 255) {
       throw new TypeError("A verified OIDC tenant and subject are required.");
@@ -67,14 +67,14 @@ export class PostgresOnboardingRepository {
         )).limit(1);
       if (!user || user.status !== "active") throw new Error("User is not active.");
 
-      const [existingMembership] = await tx.select({ developerId: developerMemberships.developerId })
+      const [existingMembership] = await tx.select({ developerId: developerMemberships.developerId, role: developerMemberships.role })
         .from(developerMemberships).where(and(
           eq(developerMemberships.tenantId, input.tenantId),
           eq(developerMemberships.userId, user.id),
           eq(developerMemberships.status, "active")
         )).limit(1);
       if (existingMembership) {
-        return { tenantId: input.tenantId, userId: user.id, developerId: existingMembership.developerId, membershipRole: "owner" };
+        return { tenantId: input.tenantId, userId: user.id, developerId: existingMembership.developerId, membershipRole: existingMembership.role };
       }
 
       const developerId = id("dev");
