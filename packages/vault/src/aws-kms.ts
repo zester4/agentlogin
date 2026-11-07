@@ -7,6 +7,7 @@ function encryptionContext(context: CredentialContext): Record<string, string> {
   }
   return {
     tenant_id: context.tenantId,
+    account_id: context.accountId,
     credential_id: context.credentialId,
     record_version: String(context.recordVersion),
     purpose: context.purpose
