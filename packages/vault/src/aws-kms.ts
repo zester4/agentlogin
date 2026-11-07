@@ -37,15 +37,20 @@ export class AwsKmsProvider implements KeyManagementProvider {
 
   async wrapKey(dek: Uint8Array, context: CredentialContext): Promise<WrappedDataKey> {
     if (dek.byteLength !== 32) throw new TypeError("Credential DEK must be exactly 256 bits.");
-    const result = await this.client.send(new EncryptCommand({
-      KeyId: this.keyId,
-      Plaintext: dek,
-      EncryptionContext: encryptionContext(context)
-    }));
-    if (!result.CiphertextBlob || result.CiphertextBlob.byteLength === 0 || !result.KeyId) {
-      throw new Error("KMS did not return a wrapped data key.");
+    const plaintext = Buffer.from(dek);
+    try {
+      const result = await this.client.send(new EncryptCommand({
+        KeyId: this.keyId,
+        Plaintext: plaintext,
+        EncryptionContext: encryptionContext(context)
+      }));
+      if (!result.CiphertextBlob || result.CiphertextBlob.byteLength === 0 || !result.KeyId) {
+        throw new Error("KMS did not return a wrapped data key.");
+      }
+      return { wrappedDek: new Uint8Array(result.CiphertextBlob), keyVersion: result.KeyId };
+    } finally {
+      plaintext.fill(0);
     }
-    return { wrappedDek: new Uint8Array(result.CiphertextBlob), keyVersion: result.KeyId };
   }
 
   async unwrapKey(wrappedDek: Uint8Array, keyVersion: string, context: CredentialContext): Promise<Uint8Array> {
@@ -59,6 +64,8 @@ export class AwsKmsProvider implements KeyManagementProvider {
       result.Plaintext?.fill(0);
       throw new Error("KMS returned an invalid credential data key.");
     }
-    return new Uint8Array(result.Plaintext);
+    const plaintext = new Uint8Array(result.Plaintext);
+    result.Plaintext.fill(0);
+    return plaintext;
   }
 }
