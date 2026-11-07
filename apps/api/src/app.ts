@@ -20,7 +20,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
 
   app.register(healthRoutes, { pool });
   if (auth) {
-    app.register(agentAuthenticationPlugin, auth);
+    agentAuthenticationPlugin(app, auth);
     app.register(agentRoutes);
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
