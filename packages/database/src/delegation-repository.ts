@@ -88,7 +88,7 @@ export class PostgresDelegationRepository {
       const row = rows[0];
       if (!row) return false;
       await tx.insert(auditEvents).values({
-        id: input.delegationId + "_revoked", tenantId: this.tenantId,
+        id: input.delegationId + "_revoked_" + Date.now() + "_" + randomBytes(4).toString("hex"), tenantId: this.tenantId,
         actorType: "user", actorId: input.userId, eventType: "delegation.revoked",
         resourceRef: input.delegationId, decision: "revoked",
         metadata: { agent_ref: row.agentId, account_ref: row.accountId }
