@@ -41,6 +41,7 @@ describe("ExecutionCoordinator", () => {
     const result = await s.coordinator.login(input);
     expect(result).toEqual({ status: "login_failed", execution_id: "exe_fixed", reason_code: "origin_mismatch" });
     expect(s.executeLogin).not.toHaveBeenCalled();
+    expect(s.issue).not.toHaveBeenCalled();
     expect(s.append).toHaveBeenCalledWith(expect.objectContaining({ status: "login_failed", reasonCode: "origin_mismatch" }));
   });
 
