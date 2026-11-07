@@ -119,6 +119,32 @@ export class PostgresGrantRepository {
     });
   }
 
+  async listPendingForUser(userId: string, now: Date = new Date()) {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      return tx.select({
+        grantId: grants.id, approvalId: approvals.id, agentId: grants.agentId,
+        agentName: agents.name, accountId: grants.accountId,
+        accountLabel: connectedAccounts.displayLabel, origin: grants.origin,
+        scopes: grants.scopes, taskId: grants.taskId, expiresAt: grants.expiresAt,
+        requestedAt: grants.issuedAt
+      }).from(grants)
+        .innerJoin(approvals, and(
+          eq(grants.tenantId, approvals.tenantId), eq(grants.approvalId, approvals.id)
+        ))
+        .innerJoin(agents, and(
+          eq(grants.tenantId, agents.tenantId), eq(grants.agentId, agents.id)
+        ))
+        .innerJoin(connectedAccounts, and(
+          eq(grants.tenantId, connectedAccounts.tenantId), eq(grants.accountId, connectedAccounts.id)
+        ))
+        .where(and(
+          eq(grants.tenantId, this.tenantId), eq(grants.userId, userId),
+          eq(approvals.decision, "pending"), isNull(grants.revokedAt)
+        ))
+        .limit(100);
+    });
+  }
+
   async find(grantId: string): Promise<GrantRecord | null> {
     if (!grantId) return null;
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
