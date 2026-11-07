@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @agentlogin/api --filter @agentlogin/web dev",
     "build": "pnpm -r build",
+    "start": "node scripts/start-api.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm --filter @agentlogin/api --filter @agentlogin/policy --filter @agentlogin/vault --filter @agentlogin/identity --filter @agentlogin/database test",
