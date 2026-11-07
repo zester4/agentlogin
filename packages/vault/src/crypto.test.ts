@@ -74,7 +74,8 @@ describe("encrypted credential vault", () => {
     const records = new MemoryRecords();
     const vault = new EncryptedCredentialVault(records, new TestKeyManagement());
     const stored = await vault.store(context, Buffer.from("synthetic-secret"));
-    records.records.get(stored.credentialRef)!.envelope.ciphertext[0] ^= 1;
+    const ciphertext = records.records.get(stored.credentialRef)!.envelope.ciphertext;
+    ciphertext[0] = ciphertext[0]! ^ 1;
     await expect(vault.withDecryptedCredential(stored.credentialRef, context, async () => "no"))
       .rejects.toBeInstanceOf(CredentialDecryptionError);
   });

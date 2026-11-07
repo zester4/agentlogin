@@ -40,10 +40,11 @@ export async function encryptCredential(
   if (plaintext.byteLength === 0) throw new TypeError("Credential plaintext must not be empty.");
   const dek = randomBytes(KEY_BYTES);
   const iv = randomBytes(IV_BYTES);
+  const input = Buffer.from(plaintext);
   try {
     const cipher = createCipheriv("aes-256-gcm", dek, iv, { authTagLength: TAG_BYTES });
     cipher.setAAD(associatedData(context));
-    const ciphertext = Buffer.concat([cipher.update(Buffer.from(plaintext)), cipher.final()]);
+    const ciphertext = Buffer.concat([cipher.update(input), cipher.final()]);
     const wrapped = await keyManagement.wrapKey(new Uint8Array(dek), context);
     if (!wrapped.wrappedDek.byteLength || !wrapped.keyVersion) {
       throw new Error("Key management provider returned an invalid wrapped key.");
@@ -56,6 +57,7 @@ export async function encryptCredential(
     };
   } finally {
     dek.fill(0);
+    input.fill(0);
   }
 }
 
@@ -63,11 +65,13 @@ async function decryptCredential(
   envelope: CiphertextEnvelope, context: CredentialContext, keyManagement: KeyManagementProvider
 ): Promise<Buffer> {
   let dek: Uint8Array | undefined;
+  let keyBuffer: Buffer | undefined;
   try {
     assertEnvelope(envelope);
     dek = await keyManagement.unwrapKey(envelope.wrappedDek, envelope.keyVersion, context);
     if (dek.byteLength !== KEY_BYTES) throw new Error("Invalid data-encryption key length.");
-    const decipher = createDecipheriv("aes-256-gcm", Buffer.from(dek), Buffer.from(envelope.iv), {
+    keyBuffer = Buffer.from(dek);
+    const decipher = createDecipheriv("aes-256-gcm", keyBuffer, Buffer.from(envelope.iv), {
       authTagLength: TAG_BYTES
     });
     decipher.setAAD(associatedData(context));
@@ -77,6 +81,7 @@ async function decryptCredential(
     throw new CredentialDecryptionError();
   } finally {
     dek?.fill(0);
+    keyBuffer?.fill(0);
   }
 }
 
