@@ -249,5 +249,6 @@ export const webhookDeliveryAttempts = pgTable("webhook_delivery_attempts", {
 
 export const schema = {
   tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
-  grants, approvals, executions, auditEvents, agentCredentials,\n  webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts,
+  grants, approvals, executions, auditEvents, agentCredentials,
+  webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts,
 };
