@@ -104,8 +104,12 @@ async function loadDelivery(item: QueueItem): Promise<ClaimedDelivery | null> {
       await client.query(
         `UPDATE webhook_deliveries
             SET status = 'cancelled', lease_token = NULL, lease_expires_at = NULL, updated_at = now()
-          WHERE tenant_id = $1 AND id = $2 AND status IN ('pending', 'leased')`,
-        [item.tenant_id, item.delivery_id]
+          WHERE tenant_id = $1 AND id = $2 AND status IN ('pending', 'leased')
+            AND EXISTS (
+              SELECT 1 FROM webhook_delivery_queue
+               WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3
+            )`,
+        [item.tenant_id, item.delivery_id, item.lease_token]
       );
       await client.query(
         "DELETE FROM webhook_delivery_queue WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3",
@@ -201,9 +205,10 @@ async function deliver(item: QueueItem): Promise<void> {
     aadVersion: 1
   };
   let secret: Buffer | undefined;
+  let body: Buffer | undefined;
   try {
     secret = await decryptCredential(envelope, context, kms);
-    const body = Buffer.from(JSON.stringify({
+    body = Buffer.from(JSON.stringify({
       id: delivery.event_id,
       type: delivery.event_type,
       occurred_at: new Date(delivery.occurred_at).toISOString(),
@@ -221,7 +226,6 @@ async function deliver(item: QueueItem): Promise<void> {
       item, delivery, result.outcome, result.statusCode, result.latencyMs,
       `HTTP ${result.statusCode}`, null
     );
-    body.fill(0);
   } catch (error) {
     const timedOut = error instanceof Error && error.message.toLowerCase().includes("timed out");
     const destinationRejected = error instanceof Error &&
@@ -232,6 +236,7 @@ async function deliver(item: QueueItem): Promise<void> {
       null, 0, null, destinationRejected ? "destination_rejected" : "delivery_transport_error"
     );
   } finally {
+    body?.fill(0);
     secret?.fill(0);
   }
 }
