@@ -17,6 +17,13 @@ CREATE TABLE "webhook_delivery_queue" (
 CREATE INDEX "webhook_delivery_queue_due"
   ON "webhook_delivery_queue" ("available_at","lease_expires_at","created_at");
 --> statement-breakpoint
+-- Backfill any pending deliveries created before this queue existed.
+INSERT INTO "webhook_delivery_queue" ("id", "tenant_id", "delivery_id")
+SELECT "id", "tenant_id", "id"
+  FROM "webhook_deliveries"
+ WHERE "status" IN ('pending', 'leased')
+ON CONFLICT ("tenant_id", "delivery_id") DO NOTHING;
+--> statement-breakpoint
 -- This table is a deliberately minimal cross-tenant work index: it contains
 -- only opaque tenant/delivery identifiers and lease metadata, never payloads,
 -- endpoint URLs, signing keys, or event data. Tenant-owned data remains FORCE
