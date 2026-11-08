@@ -117,8 +117,9 @@ Do not put Auth0 Client Secret or AUTH0_SECRET on the API service. Do not expose
 1. Redeploy the web and API services after setting variables.
 2. Sign out of AgentLogin, then sign in again so Auth0 issues a fresh access token with the API audience and Organization context.
 3. Open the dashboard's **Connected Accounts** or **Approvals** page. The dashboard uses server-side Auth0 token retrieval and calls the API from the Next.js server; the bearer token is not returned to browser JavaScript.
-4. A successful response from `GET /v1/user/me` should contain `authenticated: true`, a tenant ID equal to the configured Auth0 Organization ID, and the authenticated user ID. Do not paste access tokens into jwt.io or share them in chat.
-5. If the API returns `user_not_onboarded`, complete the AgentLogin workspace onboarding flow for that Organization. If it returns `user_auth_unavailable`, verify the four `OIDC_*` API variables. If it returns `unauthorized`, check the issuer, audience, signature algorithm, Organization selection, and Post-Login Action deployment.
+4. The Connected Accounts and Approvals dashboard pages first call `POST /v1/onboarding` server-side with an empty JSON body. The API derives the tenant and user from the verified token; the onboarding repository is idempotent and reuses an existing active membership. The access token remains on the Next.js server.
+5. A successful response from `GET /v1/user/me` should contain `authenticated: true`, a tenant ID equal to the configured Auth0 Organization ID, and the authenticated user ID. Do not paste access tokens into jwt.io or share them in chat.
+6. If calling the API directly and the user has not been onboarded, call `POST /v1/onboarding` with the same verified user access token and an empty JSON body. If the API returns `user_auth_unavailable`, verify the four `OIDC_*` API variables. If it returns `unauthorized`, check the issuer, audience, signature algorithm, Organization selection, and Post-Login Action deployment.
 
 ## Security notes
 
