@@ -33,7 +33,7 @@ REVOKE ALL ON TABLE "webhook_delivery_queue" FROM PUBLIC;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'agentlogin_runtime') THEN
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "webhook_delivery_queue" TO agentlogin_runtime;
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE webhook_delivery_queue TO agentlogin_runtime';
   END IF;
 END
 $$;
