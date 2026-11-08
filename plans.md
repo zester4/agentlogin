@@ -4,6 +4,41 @@
 >
 > AgentLogin is independent. It is not part of Chusky and must not depend on Chusky or Chusky's browser. AgentLogin owns its browser-execution abstraction and selects its own provider.
 
+## 0. Current repository snapshot and architecture review (2026-11-08)
+
+This section distinguishes repository evidence from recommended design. It is not a production-readiness statement.
+
+### Verified scaffold
+
+- Repository branch: scaffold/platform-foundation. The branch head was fetched before edits.
+- API: Node.js 22 baseline, Fastify 5.6.x, TypeScript, Zod, liveness/readiness routes. The API has no identity, persistence, grant, vault, or execution wiring.
+- Web: Next.js 15.5.x control-plane shell only; no authentication or account-enrollment flow.
+- MCP: tool-name constants only; no transport, authenticated agent identity, authorization, or tool execution.
+- Data: PostgreSQL migration and local Docker Compose service. There is no database client, migration runner, persistence adapter, row-level security policy, or production database selection.
+- Vault and execution: TypeScript interfaces only. No encryption, KMS adapter, credential storage, browser provider, or isolated worker implementation.
+- CI at the fetched baseline failed in API typecheck because Fastify's error-handler error value is unknown. The tests were skipped after that failure. The workflow did not run build, and the repository had no pnpm lockfile.
+- The current branch contains no Cloudflare Worker, Wrangler configuration, Cloudflare binding, or Cloudflare service integration.
+
+### Architecture recommendation
+
+- Keep Node.js/Fastify as the primary API and policy enforcement point for the current milestone. Keep PostgreSQL as the proposed authoritative relational store, but do not describe the schema as working persistence.
+- Do not select Cloudflare Workers for the core API, vault, KMS, or browser execution. Reconsider Workers only as optional edge ingress if a measured WAF/routing/latency requirement justifies another runtime.
+- Keep website login in a separately selected isolated execution service. A Workers isolate is not a general-purpose browser sandbox.
+- Use envelope encryption with a managed KMS/HSM as the recommended target. The provider remains open until hosting, region, workload identity, and recovery requirements are known.
+- Use standard Web Crypto or Node crypto APIs only; no custom cryptography is authorized or implemented.
+
+### ADRs
+
+- [ADR 0002 — Cloudflare Workers placement](docs/adr/0002-cloudflare-workers-placement.md)
+- [ADR 0003 — Key custody and envelope encryption](docs/adr/0003-key-custody-and-envelope-encryption.md)
+- [ADR 0004 — Cryptography runtime guidance](docs/adr/0004-cryptography-runtime.md)
+
+### Current implementation gaps
+
+The policy package now has a pure authorization helper that checks tenant, user, authenticated agent, connected account, canonical origin, scope, current policy version, approval reference/status, task, execution-context ID, operation, expiry, and revocation. This helper is not connected to API authentication or authoritative database reads. It does not complete the grant/approval milestone.
+
+The canonical-origin schema and helper tests are being verified by CI. The vault, KMS, database, approval UX, identity, and browser execution remain unimplemented. Use synthetic credentials only.
+
 ## 1. Product definition
 
 **AgentLogin gives agents controlled access to user accounts without exposing the user's credentials to the agent.**
@@ -311,7 +346,19 @@ Store secret ciphertext in dedicated encrypted storage where possible; ordinary 
 Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE. Update only with repository evidence.
 
 ### Milestone 0 — Repository and threat-model foundation
-**Status: NOT STARTED**
+**Status: IN PROGRESS**
+
+Completed in the 2026-11-08 architecture review:
+- inspected the actual branch head, workspace manifests, CI workflow, API/web/MCP source, contracts, policy helper, vault/execution interfaces, PostgreSQL migration, and security/architecture documents;
+- recorded the current Node/Fastify/PostgreSQL scaffold separately from production-provider recommendations;
+- evaluated Cloudflare Workers runtime compatibility, bindings, Hyperdrive, and Web Crypto against the current stack;
+- documented managed KMS/HSM and Vault Transit options without selecting a provider;
+- fixed the verified Fastify error-handler type error and tightened canonical origin validation and the pure grant-authorization helper; CI verification is pending.
+
+Remaining:
+- complete CI verification and commit a generated pnpm lockfile;
+- choose the hosting/runtime and KMS provider after region, workload identity, and recovery requirements are known;
+- review the full threat model and data model, including database tenant isolation and execution boundaries, with a security reviewer.
 
 Deliverables:
 - inspect current repository stack, conventions, and existing implementation;
@@ -375,7 +422,8 @@ Deliverables:
 Acceptance:
 - approved response matches documented grant contract;
 - no raw credentials returned;
-- wrong agent, tenant, account, origin, scope, expired/revoked grant rejected;
+- wrong agent, tenant, account, non-canonical/wrong origin, scope, stale policy version, approval reference/status, task, execution context, or operation rejected;
+- expiry and revocation are checked on every operation;
 - grant ID alone cannot authorize a request;
 - approval-required requests cannot execute before approval;
 - replay and concurrent-use behavior tested and documented.
@@ -474,33 +522,32 @@ Use synthetic test accounts and credentials only.
 
 ## 10. Initial technology direction and open decisions
 
-No specific stack is confirmed by this plan. Keep adapters/interfaces so choices can change without changing the product contract.
+The repository now has a concrete scaffold stack, but production hosting, identity, database operation, KMS, and browser providers are not selected. Keep adapters/interfaces so choices can change without changing the product contract.
 
 | Decision | Current direction | Status |
 |---|---|---|
 | Audience | Agents first; developers integrate their own systems | PRODUCT REQUIREMENT |
 | Initial capability | Website login with opaque grants | PROPOSED |
-| Agent response | Approved grant, never raw credentials | NON-NEGOTIABLE |
-| Browser execution | AgentLogin-owned provider-neutral adapter | OPEN |
+| Agent response | Approved grant reference and sanitized results; never raw credentials | NON-NEGOTIABLE |
+| API runtime | Node.js 22 + Fastify 5 scaffold; retain as the current control-plane recommendation | SCAFFOLD / RECOMMENDED |
+| Web control plane | Next.js 15 shell; no authentication or enrollment implementation | SCAFFOLD ONLY |
+| Database | PostgreSQL migration and local Compose service; no persistence adapter or production selection | SCAFFOLD ONLY |
+| Cloudflare Workers | Not selected for core API, vault, or execution; optional edge ingress only if justified | ADR 0002 |
+| Key custody | Managed KMS/HSM recommended; AWS, Google, Azure, and Vault Transit evaluated; provider open | PROPOSED / OPEN |
+| Cryptography | Standard Web Crypto or Node crypto only; no implementation | GUIDANCE ONLY |
+| Browser execution | AgentLogin-owned provider-neutral interface; provider and isolation model open | SCAFFOLD / OPEN |
+| Agent identity | Separate authenticated workload identity required; not implemented | OPEN |
+| SDK | TypeScript first; client scaffold only | SCAFFOLD ONLY |
+| Agent integration | REST + MCP; MCP names only, no transport or authorization wiring | PROPOSED / SCAFFOLD |
 | Chusky integration/browser | Explicitly excluded | NON-NEGOTIABLE |
-| Key custody | Managed KMS may be initial; preserve BYOK path | OPEN |
-| Database/storage | Decide after repo and threat-model review | OPEN |
-| Hosting/runtime | Decide after repo and threat-model review | OPEN |
-| SDK | TypeScript first | PROPOSED |
-| Agent integration | REST + MCP | PROPOSED |
 | OAuth/API connectors | Add after core grant and website-login model | PROPOSED |
 
-Create architecture decision records for:
-1. hosting/runtime and trust boundaries;
-2. database and encrypted blob storage;
-3. KMS provider and key hierarchy;
-4. browser execution provider and isolation model;
-5. agent authentication/workload identity;
-6. user authentication/passkey strategy;
-7. grant TTL, revocation, replay, single-use/reusable semantics;
-8. supported websites/providers and enrollment UX;
-9. audit retention and privacy;
-10. BYOK/customer-managed keys.
+Architecture records:
+1. [ADR 0002 — Cloudflare Workers placement](docs/adr/0002-cloudflare-workers-placement.md)
+2. [ADR 0003 — Key custody and envelope encryption](docs/adr/0003-key-custody-and-envelope-encryption.md)
+3. [ADR 0004 — Cryptography runtime guidance](docs/adr/0004-cryptography-runtime.md)
+
+Still open: production hosting and region; managed KMS provider and workload identity; database persistence, row-level security and backup/recovery; user authentication; agent authentication; browser provider/isolation; grant reuse/replay/idempotency semantics; audit retention; BYOK.
 
 ## 11. Recommended delivery order
 
