@@ -1,0 +1,8 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "Security disclosure" };
+export default function Page(){return <InfoLayout eyebrow="TRUST / RESPONSIBLE DISCLOSURE" title={<>Help us protect<br/>the boundary.</>} intro="If you believe you have found a security vulnerability in AgentLogin, please report it responsibly and give us an opportunity to investigate.">
+<InfoSection title="What to include"><p>Provide a clear description, affected endpoint or component, impact, reproduction steps, and any relevant timestamps or request identifiers. Do not include real user credentials, tokens, or personal data in the report.</p></InfoSection>
+<InfoSection title="Safe testing"><p>Test only against accounts and environments you own or have explicit permission to assess. Avoid accessing, modifying, or deleting other users' data; avoid denial-of-service testing and actions that could expose secrets.</p></InfoSection>
+<InfoSection title="What not to do"><p>Do not publicly disclose an unremediated vulnerability or exploit it to access customer data. Stop testing if you encounter sensitive information and report the minimum evidence needed to demonstrate the issue.</p></InfoSection>
+<InfoSection title="Reporting channel"><p>The operator must publish a monitored security contact or vulnerability-reporting endpoint before launch. Until that contact is published, do not assume that this page establishes a formal bug-bounty program or response-time commitment.</p></InfoSection>
+</InfoLayout>}
