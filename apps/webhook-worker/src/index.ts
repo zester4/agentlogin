@@ -156,7 +156,7 @@ async function recordOutcome(
     );
     if (final) {
       await client.query(
-        "DELETE FROM webhook_delivery_queue WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3",
+        "SELECT public.complete_webhook_delivery_queue($1, $2, $3, NULL, true)",
         [item.tenant_id, item.delivery_id, item.lease_token]
       );
     } else {
