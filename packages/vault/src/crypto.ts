@@ -13,15 +13,17 @@ export class CredentialDecryptionError extends Error {
 function assertContext(context: CredentialContext): void {
   if (!context.tenantId || !context.accountId || !context.credentialId ||
       !Number.isSafeInteger(context.recordVersion) || context.recordVersion < 1 ||
-      !["website_login", "oauth_token", "api_key"].includes(context.purpose)) {
+      !["website_login", "oauth_token", "api_key", "webhook_signing_secret"].includes(context.purpose)) {
     throw new TypeError("Invalid credential encryption context.");
   }
 }
 
 function associatedData(context: CredentialContext): Buffer {
   assertContext(context);
+  const namespace = context.purpose === "webhook_signing_secret"
+    ? "agentlogin-webhook-signing-secret" : "agentlogin-credential";
   return Buffer.from(JSON.stringify([
-    "agentlogin-credential", AAD_VERSION, context.tenantId,
+    namespace, AAD_VERSION, context.tenantId,
     context.accountId, context.credentialId, context.recordVersion, context.purpose
   ]), "utf8");
 }
@@ -61,7 +63,7 @@ export async function encryptCredential(
   }
 }
 
-async function decryptCredential(
+export async function decryptCredential(
   envelope: CiphertextEnvelope, context: CredentialContext, keyManagement: KeyManagementProvider
 ): Promise<Buffer> {
   let dek: Uint8Array | undefined;

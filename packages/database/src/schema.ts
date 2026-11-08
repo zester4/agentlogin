@@ -247,8 +247,25 @@ export const webhookDeliveryAttempts = pgTable("webhook_delivery_attempts", {
   tenantPolicy(t.tenantId),
 ]).enableRLS();
 
+
+export const webhookDeliveryQueue = pgTable("webhook_delivery_queue", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  deliveryId: text("delivery_id").notNull(),
+  availableAt: timestamp("available_at", { withTimezone: true }).notNull().defaultNow(),
+  leaseToken: text("lease_token"),
+  leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+  claimCount: integer("claim_count").notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [
+  unique("webhook_delivery_queue_tenant_delivery_unique").on(t.tenantId, t.deliveryId),
+  check("webhook_delivery_queue_claim_count", sql.raw("claim_count >= 0")),
+  foreignKey({ name: "webhook_delivery_queue_tenant_delivery_fk", columns: [t.tenantId, t.deliveryId], foreignColumns: [webhookDeliveries.tenantId, webhookDeliveries.id] }),
+  index("webhook_delivery_queue_due").on(t.availableAt, t.leaseExpiresAt, t.createdAt),
+]);
+
 export const schema = {
   tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
   grants, approvals, executions, auditEvents, agentCredentials,
-  webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts,
+  webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts, webhookDeliveryQueue,
 };

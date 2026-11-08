@@ -1,6 +1,6 @@
 import { and, arrayOverlaps, eq } from "drizzle-orm";
 import type { TenantTransaction } from "./types.js";
-import { webhookDeliveries, webhookEndpoints, webhookEvents } from "./schema.js";
+import { webhookDeliveryQueue, webhookDeliveries, webhookEndpoints, webhookEvents } from "./schema.js";
 
 export interface EnqueueWebhookEventInput {
   tenantId: string;
@@ -82,6 +82,13 @@ export async function enqueueWebhookEvent(
     eventId,
   }));
   await tx.insert(webhookDeliveries).values(deliveries);
+  // Queue rows contain only opaque references and lease metadata. The worker
+  // must set app.tenant_id before reading any endpoint, event, or delivery row.
+  await tx.insert(webhookDeliveryQueue).values(deliveries.map((delivery) => ({
+    id: crypto.randomUUID(),
+    tenantId: input.tenantId,
+    deliveryId: delivery.id,
+  })));
   return { eventId, deliveryIds: deliveries.map((delivery) => delivery.id) };
 }
 
