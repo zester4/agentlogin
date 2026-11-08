@@ -8,7 +8,7 @@ export async function decideApproval(formData: FormData): Promise<void> {
   const grantId = formData.get("grant_id");
   const approvalId = formData.get("approval_id");
   const decision = formData.get("decision");
-  if (typeof grantId !== "string" || !/^grt_[A-Za-z0-9_-]{8,200}$/.test(grantId) ||
+  if (typeof grantId !== "string" || !/^[A-Za-z0-9_-]{8,300}$/.test(grantId) ||
       typeof approvalId !== "string" || approvalId.length < 8 || approvalId.length > 300 ||
       (decision !== "approved" && decision !== "denied")) {
     redirect("/dashboard/approvals?result=invalid");
