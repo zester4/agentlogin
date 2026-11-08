@@ -16,7 +16,8 @@ if (allowedHosts.length === 0) throw new Error("MCP_ALLOWED_HOSTS must contain t
 
 const app = createMcpFastifyApp({
   host: process.env.HOST ?? "0.0.0.0",
-  allowedHosts
+  allowedHosts,
+  logger: { redact: { paths: ["req.headers.authorization", "req.headers.cookie"], censor: "[REDACTED]" } }
 });
 const handler = createAgentLoginMcpHandler({ apiBaseUrl });
 const nodeHandler = toNodeHandler(handler);
