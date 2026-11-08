@@ -29,8 +29,8 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
   });
 
   app.register(healthRoutes, { pool });
-  // The diagnostic route is inert (404) unless a temporary high-entropy token
-  // is configured. It never accepts or returns credential material.
+  // Internal diagnostics are inert (404) unless a temporary high-entropy token
+  // is configured. They use synthetic data only and never return credential material.
   app.register(kmsDiagnosticRoutes);
   app.register(vaultLifecycleDiagnosticRoutes, { database: auth?.database });
   if (auth) {
