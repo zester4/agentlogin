@@ -17,7 +17,12 @@ const databaseUrl = process.env.DATABASE_URL;
 const kmsKeyId = process.env.AWS_KMS_KEY_ID;
 const awsRegion = process.env.AWS_REGION;
 if (!enabled) {
-  process.stdout.write("Webhook worker is disabled. Set WEBHOOK_WORKER_ENABLED=true to start delivery.\n");
+  process.stdout.write("Webhook worker is disabled; waiting without polling the queue.\n");
+  let disabled = true;
+  const stopDisabled = () => { disabled = false; };
+  process.on("SIGTERM", stopDisabled);
+  process.on("SIGINT", stopDisabled);
+  while (disabled) await new Promise((resolve) => setTimeout(resolve, 30_000));
   process.exit(0);
 }
 if (!databaseUrl || !kmsKeyId || !awsRegion) {
