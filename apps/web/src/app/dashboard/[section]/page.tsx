@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../../lib/auth0";
 import { Icon } from "../../ui-icon";\nimport { ThemeToggle } from "../../theme-toggle";
+import { decideApproval } from "./actions";
 
 const sections = {
   accounts: {
@@ -81,6 +82,32 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   const displayName = session.user.name || session.user.email?.split("@")[0] || "there";
   const initial = (session.user.name || session.user.email || "A").slice(0, 1).toUpperCase();
 
+  const apiBase = process.env.AGENTLOGIN_API_URL;
+  const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
+  const apiToken = apiTokenResult?.token;
+  let accounts: Array<{ account_id: string; provider: string; origin: string; display_label: string; status: string; created_at: string }> = [];
+  let approvals: Array<{ grantId: string; approvalId: string; agentId: string; agentName: string; accountId: string; accountLabel: string; origin: string; scopes: string[]; taskId: string | null; expiresAt: string; requestedAt: string }> = [];
+  let liveDataError = !apiBase ? "Set AGENTLOGIN_API_URL on the web service." : !apiToken ? "Auth0 API access is not configured yet. Set AUTH0_AUDIENCE and complete the trusted tenant claim setup." : "";
+  if (apiToken && apiBase && (key === "accounts" || key === "approvals")) {
+    try {
+      const endpoint = key === "accounts" ? "/v1/connected-accounts" : "/v1/grants/pending";
+      const response = await fetch(new URL(endpoint, apiBase), {
+        headers: { Authorization: `Bearer ${apiToken}` },
+        cache: "no-store"
+      });
+      if (!response.ok) liveDataError = response.status === 503
+        ? "The API is not configured for verified user authentication yet."
+        : "The API could not load this workspace data. Check the Auth0 and API configuration.";
+      else {
+        const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals };
+        if (key === "accounts") accounts = payload.accounts ?? [];
+        else approvals = payload.pending ?? [];
+      }
+    } catch {
+      liveDataError = "AgentLogin API is temporarily unavailable.";
+    }
+  }
+
   return (
     <main className="workspace-shell workspace-shell-v2">
       <aside className="workspace-sidebar workspace-sidebar-v2">
@@ -102,13 +129,51 @@ export default async function DashboardSectionPage({ params }: { params: Promise
       <section className="workspace-main workspace-main-v2">
         <header className="workspace-topbar"><div className="workspace-breadcrumb"><Link href="/dashboard">WORKSPACE</Link><b>/</b><strong>{item.label}</strong></div><div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> AUTHENTICATED</span><Link href="/settings" aria-label="Workspace settings"><Icon name="settings" /></Link></div></header>
         <section className="workspace-welcome section-page-welcome"><div><span className="section-kicker">CONTROL PLANE / {item.number}</span><h1>{item.title}</h1><p>{item.description}</p></div><span className="workspace-coming">{item.state}</span></section>
-        <section className="section-page-card">
-          <div className="section-page-icon"><Icon name={item.icon} /></div>
-          <span className="section-kicker">{item.label}</span>
-          <h2>{item.emptyTitle}</h2>
-          <p>{item.emptyBody}</p>
-          <div className="section-page-next"><Icon name="arrow" /><span>{item.next}</span></div>
-        </section>
+        {key === "accounts" ? (
+          <section className="section-page-card live-data-card">
+            <div className="section-page-icon"><Icon name="globe" /></div>
+            <span className="section-kicker">CONNECTED ACCOUNTS</span>
+            <h2>Connected account directory</h2>
+            <p>Only safe account metadata is displayed here. Passwords and encrypted credential material are never sent to the dashboard.</p>
+            {liveDataError ? <p className="live-data-notice">{liveDataError}</p> : accounts.length ? (
+              <div className="live-data-list">{accounts.map((account) => (
+                <article className="live-data-row" key={account.account_id}>
+                  <div><strong>{account.display_label}</strong><small>{account.provider} · {account.origin}</small></div>
+                  <span className={account.status === "active" ? "live-status active" : "live-status"}>{account.status}</span>
+                </article>
+              ))}</div>
+            ) : <p className="live-data-notice">No connected accounts in this workspace yet.</p>}
+          </section>
+        ) : key === "approvals" ? (
+          <section className="section-page-card live-data-card">
+            <div className="section-page-icon"><Icon name="inbox" /></div>
+            <span className="section-kicker">HUMAN IN THE LOOP</span>
+            <h2>Approval inbox</h2>
+            <p>Review each request’s agent, account, exact origin, scope and expiry before deciding.</p>
+            {liveDataError ? <p className="live-data-notice">{liveDataError}</p> : approvals.length ? (
+              <div className="live-data-list">{approvals.map((approval) => (
+                <article className="approval-row" key={approval.grantId}>
+                  <div className="approval-row-head"><strong>{approval.agentName}</strong><span className="live-status pending">PENDING</span></div>
+                  <p><b>{approval.accountLabel}</b> · {approval.origin}</p>
+                  <div className="approval-scopes">{approval.scopes.map((scope) => <span key={scope}>{scope}</span>)}</div>
+                  <small>Requested {new Date(approval.requestedAt).toLocaleString()} · Expires {new Date(approval.expiresAt).toLocaleString()}</small>
+                  <div className="approval-actions">
+                    <form action={decideApproval}><input type="hidden" name="grant_id" value={approval.grantId} /><input type="hidden" name="approval_id" value={approval.approvalId} /><input type="hidden" name="decision" value="denied" /><button className="button button-outline" type="submit">Deny</button></form>
+                    <form action={decideApproval}><input type="hidden" name="grant_id" value={approval.grantId} /><input type="hidden" name="approval_id" value={approval.approvalId} /><input type="hidden" name="decision" value="approved" /><button className="button button-primary" type="submit">Approve request</button></form>
+                  </div>
+                </article>
+              ))}</div>
+            ) : <p className="live-data-notice">No pending approval requests. You’re all caught up.</p>}
+          </section>
+        ) : (
+          <section className="section-page-card">
+            <div className="section-page-icon"><Icon name={item.icon} /></div>
+            <span className="section-kicker">{item.label}</span>
+            <h2>{item.emptyTitle}</h2>
+            <p>{item.emptyBody}</p>
+            <div className="section-page-next"><Icon name="arrow" /><span>{item.next}</span></div>
+          </section>
+        )}
         <footer className="workspace-footer"><span>AGENTLOGIN / CONTROL PLANE</span><span>SECURE ACCESS FOR AUTONOMOUS WORK</span><Link href="/dashboard">BACK TO OVERVIEW <Icon name="arrow" /></Link></footer>
       </section>
     </main>
