@@ -34,6 +34,21 @@ describe("AgentLoginClient", () => {
     expect(String(fetcher.mock.calls[0]?.[0])).toBe("https://api.agentlogin.test/v1/users/usr_123/grants");
   });
 
+  it("retrieves the authenticated agent's grant status", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      status: "pending_approval",
+      grant_id: "grt_12345678901234567890",
+      origin: "https://example.com",
+      scopes: ["autofill_login"],
+      expires_at: "2026-11-08T20:00:00.000Z",
+      approved_at: null
+    }), { status: 200 }));
+    const client = new AgentLoginClient({ baseUrl: "https://api.agentlogin.test", agentToken: "agent-token", fetch: fetcher });
+    const grant = await client.getGrantStatus("grt_12345678901234567890");
+    expect(grant.status).toBe("pending_approval");
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe("https://api.agentlogin.test/v1/agent/grants/grt_12345678901234567890");
+  });
+
   it("uses a token provider for rotating credentials", async () => {
     const provider = vi.fn().mockResolvedValue("rotated-token");
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(identity), { status: 200 }));
