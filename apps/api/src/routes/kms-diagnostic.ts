@@ -49,7 +49,7 @@ export async function kmsDiagnosticRoutes(
       wrapped = result.wrappedDek;
       encrypt = wrapped.byteLength > 0 && Boolean(result.keyVersion);
       recovered = await provider.unwrapKey(wrapped, result.keyVersion, context);
-      decrypt = recovered.byteLength === 32 && timingSafeEqual(Buffer.from(dek), Buffer.from(recovered));
+      decrypt = recovered.byteLength === 32 && timingSafeEqual(dek, recovered);
 
       const alteredContext = { ...context, tenantId: context.tenantId + "-altered" };
       try {
