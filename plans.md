@@ -11,18 +11,18 @@ This section distinguishes repository evidence from recommended design. It is no
 ### Verified scaffold
 
 - Repository branch: scaffold/platform-foundation. The branch head was fetched before edits.
-- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft. At the latest comparison, this branch was diverged from main, 27 commits ahead of the merge base and 250 commits behind main. Main's web manifest is Next.js 16.4.5 while this scaffold branch remains on Next.js 15.5.6. Work stayed on the requested branch; no merge/rebase or main-branch changes were made. Reconcile with main before opening a follow-up PR.
+- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft, so it cannot be updated as an open draft PR. The current branch is 31 commits ahead of the merge base and 250 commits behind main. Main's web manifest uses Next.js 16.4.5 and Auth0 SDK 4.11.0; this branch remains on Next.js 15.5.6 and the provider-neutral OIDC adapter recorded in ADR 0005. No merge/rebase or main-branch changes were made, as requested. Reconcile deliberately before opening any follow-up PR; do not silently import main's Auth0 integration.
 - API: Node.js 22, Fastify 5, TypeScript, Zod, Postgres.js identity repository, generic RS256 OIDC user-token verifier, developer API keys, per-agent credentials, scoped authentication middleware, tenant-scoped queries, forced PostgreSQL RLS migration, migration runner, liveness and identity readiness. Grant, vault and execution wiring remain incomplete.
 - Web: Next.js 15.5.x control-plane shell only; no authentication or account-enrollment flow.
 - MCP: tool-name constants only; no transport, authenticated agent identity, authorization, or tool execution.
-- Data: PostgreSQL with Postgres.js identity persistence, a schema migration runner, tenant RLS policies and explicit tenant/owner predicates. Local Compose provisions a non-superuser runtime role separately from the migration administrator. The new migration has not been executed against a provisioned environment in this run; production database hosting and backup/recovery remain open.
+- Data: PostgreSQL identity persistence and migration runner; CI provisions disposable PostgreSQL 17, applies migrations 0001/0002 with a separate migration administrator and non-superuser runtime role, and exercises forced RLS plus explicit tenant/owner predicates. No production database has been provisioned; production hosting, backup and recovery remain open.
 - Vault and execution: TypeScript interfaces only. No encryption, KMS adapter, credential storage, browser provider, or isolated worker implementation.
-- CI at the pre-identity baseline passed frozen install, typecheck, tests and workspace build (run 42432965705 on commit 8f267a5). The identity changes below require a fresh CI run; no result is claimed until that run completes.
+- Latest CI: [run 42443566579](https://github.com/zester4/agentlogin/actions/runs/42443566579) on commit 009aadd passed frozen install, TypeScript typecheck, PostgreSQL migrations, all tests (API 35, contracts 8, policy 18), and workspace build. Tests use synthetic identities and credentials only. CI resolves the branch's web build to Next.js 15.5.29; the Next.js 16/Auth0 work on main is not included in this branch.
 - The current branch contains no Cloudflare Worker, Wrangler configuration, Cloudflare binding, or Cloudflare service integration.
 
 ### Architecture recommendation
 
-- Keep Node.js/Fastify as the primary API and policy enforcement point for the current milestone. Keep PostgreSQL as the proposed authoritative relational store, but do not describe the schema as working persistence.
+- Keep Node.js/Fastify as the primary API and policy enforcement point. PostgreSQL is the implemented identity store for this milestone and is exercised under a least-privilege runtime role in CI; production database provisioning, backup and recovery are still open.
 - Do not select Cloudflare Workers for the core API, vault, KMS, or browser execution. Reconsider Workers only as optional edge ingress if a measured WAF/routing/latency requirement justifies another runtime.
 - Keep website login in a separately selected isolated execution service. A Workers isolate is not a general-purpose browser sandbox.
 - Use envelope encryption with a managed KMS/HSM as the recommended target. The provider remains open until hosting, region, workload identity, and recovery requirements are known.
@@ -38,7 +38,7 @@ This section distinguishes repository evidence from recommended design. It is no
 
 The policy package now has a pure authorization helper that checks tenant, user, authenticated agent, connected account, canonical origin, scope, current policy version, approval reference/status, task, execution-context ID, operation, expiry, and revocation. This helper is not connected to API authentication or authoritative database reads. It does not complete the grant/approval milestone.
 
-The initial PostgreSQL migration models credential envelope metadata and grant policy/approval/execution bindings. Migration 0002 adds OIDC issuer/subject membership, owner/admin roles, hashed developer API keys, hashed per-agent credentials, rotation/revocation metadata, composite agent ownership, and forced tenant RLS. A Postgres.js repository sets transaction-local tenant context and applies explicit tenant/developer/agent predicates. The API verifies RS256 user tokens against a configured static public JWKS, checks tenant membership, and authenticates separate developer and agent credentials. A one-time operator bootstrap route creates the initial tenant owner and developer. The migration has not been executed against a provisioned database in this run. No KMS, credential encryption/decryption, grant routes, approval UX, or browser provider exists. Use synthetic credentials only.
+The initial PostgreSQL migration models credential envelope metadata and grant policy/approval/execution bindings. Migration 0002 adds OIDC issuer/subject membership, owner/admin roles, hashed developer API keys, hashed per-agent credentials, rotation/revocation metadata, composite agent ownership, and forced tenant RLS. A Postgres.js repository sets transaction-local tenant context and applies explicit tenant/developer/agent predicates. CI applied both migrations with a separate migration administrator and non-superuser runtime role; integration tests verified RLS reads/writes, tenant/user/agent ownership, credential rotation and revocation. The API verifies RS256 user tokens against a configured static public JWKS, checks tenant membership, and authenticates separate developer and agent credentials. A one-time operator bootstrap route creates the initial tenant owner and developer. Identity routes fail closed at startup unless migration, forced RLS and runtime-role checks pass. No KMS, credential encryption/decryption, grant routes, approval UX, or browser provider exists. Use synthetic credentials only.
 
 ## 1. Product definition
 
@@ -354,7 +354,9 @@ Completed in the 2026-11-08 architecture review:
 - recorded the current Node/Fastify/PostgreSQL scaffold separately from production-provider recommendations;
 - evaluated Cloudflare Workers runtime compatibility, bindings, Hyperdrive, and Web Crypto against the current stack;
 - documented managed KMS/HSM and Vault Transit options without selecting a provider;
-- fixed the verified Fastify error-handler type error; made origin validation canonical; extended the pure grant helper to bind policy version, approval, task, execution-context ID, and operation; added matching database columns/constraints and execution-provider context fields; modernized CI and committed the lockfile. The latest full CI run passed.
+- fixed the verified Fastify error-handler type error; made origin validation canonical; extended the pure grant helper to bind policy version, approval, task, execution-context ID, and operation; added matching database columns/constraints and execution-provider context fields; modernized CI and committed the lockfile;
+- added the identity baseline: static RS256/JWKS user verification, database membership, distinct developer/agent credentials, tenant-scoped Postgres.js persistence, forced RLS, transactional rotation/revocation, startup readiness gating, and adversarial route/JWT tests;
+- added a disposable PostgreSQL 17 CI service with distinct migration/runtime roles and real RLS/identity integration tests. CI run 42443566579 passed typecheck, both migrations, 61 tests, and workspace build.
 
 Remaining:
 - choose production hosting/runtime, region, and KMS provider after workload-identity and recovery requirements are known;
@@ -371,7 +373,7 @@ Acceptance:
 - threat model reviewed before real credential handling;
 - no production secrets in repository;
 - architecture decisions recorded, not silently assumed;
-- CI runs frozen pnpm install, typecheck, baseline tests, and workspace build. Formatting/lint and database migration execution are not yet included and remain follow-ups.
+- CI runs frozen pnpm install, typecheck, migrations against disposable PostgreSQL with separate roles, adversarial tests, and workspace build. Formatting/lint and independent security review remain follow-ups.
 
 ### Milestone 1 — Identity, tenant isolation, developer onboarding
 **Status: IN PROGRESS**
@@ -381,30 +383,31 @@ Implemented in this branch:
 - operator-controlled tenant bootstrap and owner/admin developer project creation;
 - separate 256-bit developer API keys and per-agent credentials, storing only SHA-256 hashes;
 - explicit credential scopes, 30-day default TTL, 90-day maximum, rotation and revocation;
-- composite tenant/developer/agent ownership constraints, forced PostgreSQL RLS, transaction-local tenant context and explicit tenant predicates;
+- composite tenant/developer/agent ownership constraints, tenant-qualified credential-rotation references, forced PostgreSQL RLS, transaction-local tenant context and explicit tenant predicates;
+- identity routes fail closed at startup unless migrations, forced RLS policies and a non-superuser/non-BYPASSRLS runtime role pass readiness;
 - authenticated user/developer/agent identity routes and strict request schemas that reject caller-supplied tenant IDs;
-- adversarial route/JWT tests for missing authentication, wrong user, wrong agent, cross-tenant reads, tenant spoofing, expiry, revocation and rotation.
+- adversarial route/JWT tests for missing authentication, wrong user, wrong agent, cross-tenant reads and writes, tenant spoofing, principal-type confusion, expiry, revocation and rotation;
+- PostgreSQL 17 integration tests in CI exercise real tenant RLS and credential lifecycle operations using synthetic credentials.
 
 Remaining:
-- run and verify the new migration against a provisioned PostgreSQL instance;
 - configure a real OIDC issuer/JWKS and review the static-JWKS rotation/operational model;
-- provision a least-privilege non-superuser runtime database role and verify RLS with that role;
+- provision production PostgreSQL, least-privilege credentials, backup/recovery and operational monitoring (CI's disposable database is not production provisioning);
 - add rate limits, key-usage monitoring, admin recovery, invitations and user self-service onboarding;
-- complete independent security review and confirm concurrency/revocation behavior against PostgreSQL.
+- complete independent security review and production concurrency/revocation review.
 
 Deliverables:
 - developer account/project model;
 - tenant and user identity model;
 - agent registration and revocation;
 - authenticated developer and agent credentials;
-- scoped API authentication and rate limits;
-- safe connected-account metadata.
+- scoped API authentication (rate limits remain open);
+- safe connected-account metadata routes remain unimplemented.
 
 Acceptance:
 - cross-tenant access tests pass;
 - agents cannot impersonate other agents/users;
 - credentials can be rotated and revoked;
-- every request has verified tenant and actor context.
+- every implemented identity route derives tenant and actor context from verified user tokens or database-verified developer/agent credentials; unimplemented grant/execution operations remain unavailable.
 
 ### Milestone 2 — Secure enrollment and credential vault
 **Status: NOT STARTED**
@@ -547,7 +550,7 @@ The repository now has a concrete scaffold stack, but production hosting, identi
 | Agent response | Approved grant reference and sanitized results; never raw credentials | NON-NEGOTIABLE |
 | API runtime | Node.js 22 + Fastify 5 scaffold; retain as the current control-plane recommendation | SCAFFOLD / RECOMMENDED |
 | User authentication | Generic RS256 OIDC/JWKS adapter with signed tenant claim and database membership check; no provider selected | IMPLEMENTED ADAPTER / OPEN |
-| Web control plane | Next.js 15 shell; no authentication or enrollment implementation | SCAFFOLD ONLY |
+| Web control plane | Next.js 15.5.6 manifest (CI resolves 15.5.29); shell only, no authentication or enrollment implementation | SCAFFOLD ONLY |
 | Database | PostgreSQL identity repository, migrations, forced RLS and explicit tenant predicates; production provisioning/recovery remain open | IMPLEMENTED BASELINE / OPEN |
 | Cloudflare Workers | Not selected for core API, vault, or execution; optional edge ingress only if justified | ADR 0002 |
 | Key custody | Managed KMS/HSM recommended; AWS, Google, Azure, and Vault Transit evaluated; provider open | PROPOSED / OPEN |
@@ -556,7 +559,7 @@ The repository now has a concrete scaffold stack, but production hosting, identi
 | Agent identity | Separate scoped, hashed, expiring and revocable agent credentials bound to developer-owned agents | IMPLEMENTED BASELINE / NEEDS REVIEW |
 | SDK | TypeScript first; client scaffold only | SCAFFOLD ONLY |
 | Agent integration | REST + MCP; MCP names only, no transport or authorization wiring | PROPOSED / SCAFFOLD |
-| CI | pnpm 10.20.0 lockfile committed; frozen install, typecheck, tests, and workspace build pass on run 42432892529 | PASSING BASELINE |
+| CI | pnpm 10.20.0 frozen install, typecheck, migrations, 61 tests, and workspace build pass on [run 42443566579](https://github.com/zester4/agentlogin/actions/runs/42443566579) | PASSING / POSTGRES VERIFIED IN CI |
 | Chusky integration/browser | Explicitly excluded | NON-NEGOTIABLE |
 | OAuth/API connectors | Add after core grant and website-login model | PROPOSED |
 
@@ -565,7 +568,7 @@ Architecture records:
 2. [ADR 0003 — Key custody and envelope encryption](docs/adr/0003-key-custody-and-envelope-encryption.md)
 3. [ADR 0004 — Cryptography runtime guidance](docs/adr/0004-cryptography-runtime.md)
 
-Still open: production hosting and region; managed KMS provider and workload identity; database persistence, row-level security and backup/recovery; user authentication; agent authentication; browser provider/isolation; grant reuse/replay/idempotency semantics; audit retention; BYOK.
+Still open: production hosting and region; managed KMS provider and a stronger workload-identity option than bearer API credentials; production database provisioning and backup/recovery; real OIDC issuer/JWKS configuration and key rotation; rate limits and onboarding/recovery flows; browser provider/isolation; grant reuse/replay/idempotency semantics; audit retention; BYOK.
 
 ## 11. Recommended delivery order
 
