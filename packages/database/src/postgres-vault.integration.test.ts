@@ -100,13 +100,18 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
 
     await expect(vault!.withDecryptedCredential(first.credentialRef, firstContext, async () => "must-not-run"))
       .rejects.toBeInstanceOf(CredentialDecryptionError);
-    await expect(vault.withDecryptedCredential(second.credentialRef, secondContext, async (secret) => {
+    await expect(vault!.withDecryptedCredential(second.credentialRef, secondContext, async (secret) => {
       const parsed = JSON.parse(Buffer.from(secret).toString("utf8")) as { password: string };
       return parsed.password;
     })).resolves.toBe(syntheticPassword + "-rotated");
 
     await vault!.revoke(second.credentialRef, secondContext);
-    await expect(vault.withDecryptedCredential(second.credentialRef, secondContext, async () => "must-not-run"))
+    await expect(vault!.withDecryptedCredential(second.credentialRef, secondContext, async () => "must-not-run"))
       .rejects.toBeInstanceOf(CredentialDecryptionError);
+
+    const disconnected = await new PostgresConnectedAccountRepository(databaseHandle!.db, tenantId)
+      .disconnect(accountId, userId);
+    expect(disconnected).toBe(true);
+    expect(await records!.find(second.credentialRef, tenantId, secondContext.credentialId)).toBeNull();
   }, 60_000);
 });
