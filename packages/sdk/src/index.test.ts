@@ -31,7 +31,7 @@ describe("AgentLoginClient", () => {
       account_id: "acc_123", origin: "https://example.com", scopes: ["autofill_login"]
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(fetcher.mock.calls[0]?.[0]).toBe("https://api.agentlogin.test/v1/users/usr_123/grants");
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe("https://api.agentlogin.test/v1/users/usr_123/grants");
   });
 
   it("uses a token provider for rotating credentials", async () => {
