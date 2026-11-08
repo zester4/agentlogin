@@ -1,0 +1,8 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "Developers" };
+export default function Page(){return <InfoLayout eyebrow="BUILD / INTEGRATION" title={<>Give your agent<br/>an access boundary.</>} intro="Integrate AgentLogin into an agent runtime or application without turning the agent into a password store.">
+<InfoSection title="Agent-first integration"><p>Your agent requests an approved login operation through the AgentLogin interface. The integration receives an opaque grant reference and status metadata; it should never receive the underlying credential value.</p></InfoSection>
+<InfoSection title="Design around explicit grants"><p>Bind every authorization to a verified tenant and agent identity, a specific connected account, exact website origin, requested scopes, expiry, and execution context. Never treat a grant identifier as a bearer credential unless the server-side contract explicitly defines it.</p></InfoSection>
+<InfoSection title="Keep post-login actions separate"><p>Model each action with its own scope and policy. A login grant must not become an unrestricted browser session or a general-purpose authorization token.</p></InfoSection>
+<InfoSection title="Integration access"><p>Developer documentation, SDK installation instructions, API references, and MCP configuration will be published here as the public integration surface is finalized. Contact the AgentLogin team through the channel provided with your account for early integration access.</p></InfoSection>
+</InfoLayout>}
