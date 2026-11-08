@@ -13,6 +13,21 @@ REVOKE ALL ON TABLE public.webhook_delivery_queue FROM agentlogin_runtime;
 --> statement-breakpoint
 GRANT SELECT, INSERT ON TABLE public.webhook_delivery_queue TO agentlogin_runtime;
 --> statement-breakpoint
+DO $bootstrap$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'agentlogin_webhook_queue_executor') THEN
+    RAISE EXCEPTION 'Missing pre-provisioned role agentlogin_webhook_queue_executor';
+  END IF;
+  IF NOT pg_has_role(current_user, 'agentlogin_webhook_queue_executor', 'MEMBER') THEN
+    RAISE EXCEPTION 'Migration role must be a member of agentlogin_webhook_queue_executor';
+  END IF;
+END;
+$bootstrap$;
+--> statement-breakpoint
+GRANT USAGE, CREATE ON SCHEMA public TO agentlogin_webhook_queue_executor;
+--> statement-breakpoint
+GRANT SELECT, UPDATE, DELETE ON TABLE public.webhook_delivery_queue TO agentlogin_webhook_queue_executor;
+--> statement-breakpoint
 CREATE OR REPLACE FUNCTION public.claim_webhook_delivery_queue(p_limit integer DEFAULT 10)
 RETURNS TABLE(tenant_id text, delivery_id text, lease_token text)
 LANGUAGE plpgsql
@@ -45,7 +60,7 @@ BEGIN
 END;
 $function$;
 --> statement-breakpoint
-ALTER FUNCTION public.claim_webhook_delivery_queue(integer) OWNER TO agentlogin_owner;
+ALTER FUNCTION public.claim_webhook_delivery_queue(integer) OWNER TO agentlogin_webhook_queue_executor;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION public.claim_webhook_delivery_queue(integer) FROM PUBLIC;
 --> statement-breakpoint
@@ -92,8 +107,11 @@ BEGIN
 END;
 $function$;
 --> statement-breakpoint
-ALTER FUNCTION public.complete_webhook_delivery_queue(text, text, text, timestamptz, boolean) OWNER TO agentlogin_owner;
+ALTER FUNCTION public.complete_webhook_delivery_queue(text, text, text, timestamptz, boolean) OWNER TO agentlogin_webhook_queue_executor;
 --> statement-breakpoint
 REVOKE ALL ON FUNCTION public.complete_webhook_delivery_queue(text, text, text, timestamptz, boolean) FROM PUBLIC;
 --> statement-breakpoint
 GRANT EXECUTE ON FUNCTION public.complete_webhook_delivery_queue(text, text, text, timestamptz, boolean) TO agentlogin_runtime;
+
+--> statement-breakpoint
+REVOKE CREATE ON SCHEMA public FROM agentlogin_webhook_queue_executor;
