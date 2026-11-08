@@ -100,7 +100,7 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
   - `OIDC_TENANT_CLAIM=https://agentlogin.app/tenant_id`
 - [ ] Verify Railway web variables: `AUTH0_AUDIENCE`, `AUTH0_ORGANIZATION`, `AGENTLOGIN_API_URL`, and existing Auth0 session/client variables.
 - [ ] Sign out and sign in again; verify `GET /v1/user/me` returns the expected tenant and user.
-- [ ] Verify token renewal/age behavior. The API currently rejects tokens older than 15 minutes even if their `exp` claim has not passed; confirm Auth0 token lifetime and Next.js SDK renewal behavior or align the verifier/configuration before relying on long-lived dashboard sessions.
+- [ ] Verify token renewal/age behavior against the Auth0 API access-token lifetime and Next.js SDK renewal behavior. The API maximum token age is now configurable with `OIDC_MAX_TOKEN_AGE` (default `24h`); align it with the actual Auth0 token lifetime.
 - [ ] Test missing organization, missing tenant claim, wrong issuer/audience, expired token, inactive membership, and cross-tenant access.
 
 ## 3. Dashboard and API integration
