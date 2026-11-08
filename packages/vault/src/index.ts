@@ -4,7 +4,7 @@ export type CiphertextEnvelope = {
 };
 export type CredentialContext = {
   tenantId: string; accountId: string; credentialId: string; recordVersion: number;
-  purpose: "website_login" | "oauth_token" | "api_key";
+  purpose: "website_login" | "oauth_token" | "api_key" | "webhook_signing_secret";
 };
 export type WrappedDataKey = { wrappedDek: Uint8Array; keyVersion: string };
 export interface KeyManagementProvider {
@@ -20,7 +20,6 @@ export interface CredentialRecordStore {
   find(credentialRef: string, tenantId: string, credentialId: string): Promise<StoredCredential | null>;
   revoke(credentialRef: string, tenantId: string, credentialId: string, revokedAt: Date): Promise<void>;
 }
-// Callers must not retain, copy, log, serialize, or return the callback's plaintext buffer.
 export interface CredentialVault {
   store(context: CredentialContext, plaintext: Uint8Array): Promise<{ credentialRef: string; version: number }>;
   rotate(previousCredentialRef: string, previousContext: CredentialContext, nextContext: CredentialContext, plaintext: Uint8Array): Promise<{ credentialRef: string; version: number }>;
