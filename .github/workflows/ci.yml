@@ -20,5 +20,7 @@ jobs:
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
+      # Tests resolve workspace package exports to compiled dist/. Build first so
+      # Vite can resolve @agentlogin/contracts and other packages.
       - run: pnpm build
+      - run: pnpm test
