@@ -18,20 +18,20 @@ AgentLogin is under active development. The repository now contains a TypeScript
 
 **This is not yet a production-ready credential vault or login service.** The KMS key and least-privilege AWS identity still need to be configured on Railway, and the live KMS path must pass end-to-end and negative-path verification. Auth0 organization-claim configuration and the deployed user onboarding/API flow also need verification. The secure user-facing enrollment flow, isolated browser worker, MFA/CAPTCHA handoff, complete SDK/MCP transports, and independent security review remain release gates. Do not submit real credentials or connect real accounts until the production credential gate in [implementation status](./docs/IMPLEMENTATION_STATUS.md) is satisfied.
 
-See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for the implemented foundations, [remaining work tracker](./docs/REMAINING_WORK.md) for the active checklist, and [plans](./plans.md) for the longer-term roadmap.
+See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for the implemented foundations, [SDK and MCP guide](./docs/SDK_MCP.md) for developer integrations, [remaining work tracker](./docs/REMAINING_WORK.md) for the active checklist, and [plans](./plans.md) for the longer-term roadmap.
 
 ## Repository layout
 
 - `apps/api` — Fastify API, OIDC and agent authentication, connected-account, grant, approval, onboarding, and health routes
 - `apps/web` — Next.js 16 user dashboard and developer-facing pages
-- `apps/mcp` — MCP boundary; transport and tools are not yet complete
+- `apps/mcp` — Streamable HTTP MCP server with authenticated identity and access-request tools; login execution is intentionally not exposed until its browser worker and API lifecycle are ready
 - `packages/contracts` — shared schemas and public types
 - `packages/identity` — opaque agent credential issuance and authentication primitives
 - `packages/policy` — fail-closed grant authorization and approval lifecycle
 - `packages/vault` — AES-GCM envelope encryption and AWS KMS key wrapping provider
 - `packages/database` — Neon Postgres + Drizzle schema, repositories, tenant transaction context, and RLS support
 - `packages/execution` — provider-neutral execution contracts and coordinator; not a production browser worker
-- `packages/sdk` — TypeScript client package; complete authenticated integration is still in progress
+- `packages/sdk` — typed TypeScript client for agent identity and user-approved grant requests
 - `db/migrations` — generated Drizzle SQL migrations and metadata
 - `db/legacy-migrations` — original SQL bootstrap history, retained for audit only
 
@@ -71,6 +71,10 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+## SDK and MCP
+
+The SDK and MCP implementation status, supported operations, authentication setup, and examples are documented in [docs/SDK_MCP.md](./docs/SDK_MCP.md). The current MCP server exposes identity inspection and user-approved access requests only. It does not expose passwords, cookies, token retrieval, or browser execution.
 
 ## Security boundary
 

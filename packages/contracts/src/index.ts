@@ -11,6 +11,30 @@ export const ApprovedGrantSchema = z.object({
   status: z.literal("approved"), grant_id: z.string().min(24), origin: OriginSchema,
   expires_at: z.string().datetime(), scopes: z.array(GrantScopeSchema).min(1)
 }).strict();
+export const PendingGrantSchema = z.object({
+  status: z.literal("pending_approval"),
+  grant_id: z.string().min(1),
+  approval_id: z.string().min(1),
+  expires_at: z.string().datetime()
+}).strict();
+export const AgentPrincipalSchema = z.object({
+  tenant_id: z.string().min(1),
+  developer_id: z.string().min(1),
+  agent_id: z.string().min(1),
+  credential_id: z.string().min(1)
+}).strict();
+export const AgentIdentitySchema = z.object({
+  authenticated: z.literal(true),
+  principal: AgentPrincipalSchema
+}).strict();
+export const AgentGrantStatusSchema = z.object({
+  status: z.enum(["pending_approval", "approved", "denied", "expired", "revoked"]),
+  grant_id: z.string().min(1),
+  origin: OriginSchema,
+  scopes: z.array(GrantScopeSchema),
+  expires_at: z.string().datetime(),
+  approved_at: z.string().datetime().nullable()
+}).strict();
 export const GrantRequestSchema = z.object({
   account_id: z.string().min(1), origin: OriginSchema, scopes: z.array(GrantScopeSchema).min(1),
   task_id: z.string().min(1).max(200).optional(), requested_ttl_seconds: z.number().int().min(30).max(900).default(300)
@@ -29,6 +53,11 @@ export const ExecutionResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("login_failed"), execution_id: z.string().min(1), reason_code: ExecutionFailureCodeSchema }).strict()
 ]);
 export type ApprovedGrant = z.infer<typeof ApprovedGrantSchema>;
-export type GrantRequest = z.infer<typeof GrantRequestSchema>;
+export type PendingGrant = z.infer<typeof PendingGrantSchema>;
+export type AgentIdentity = z.infer<typeof AgentIdentitySchema>;
+export type AgentGrantStatus = z.infer<typeof AgentGrantStatusSchema>;
+export type AgentPrincipal = z.infer<typeof AgentPrincipalSchema>;
+export type GrantRequest = z.input<typeof GrantRequestSchema>;
+export type ParsedGrantRequest = z.output<typeof GrantRequestSchema>;
 export type GrantScope = z.infer<typeof GrantScopeSchema>;
 export type ExecutionResult = z.infer<typeof ExecutionResultSchema>;

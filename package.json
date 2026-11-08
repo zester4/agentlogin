@@ -15,14 +15,16 @@
     "start": "node scripts/start-api.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm --filter @agentlogin/api --filter @agentlogin/policy --filter @agentlogin/vault --filter @agentlogin/identity --filter @agentlogin/database --filter @agentlogin/execution test",
+    "test": "pnpm --filter @agentlogin/api --filter @agentlogin/policy --filter @agentlogin/vault --filter @agentlogin/identity --filter @agentlogin/database --filter @agentlogin/execution --filter @agentlogin/sdk --filter @agentlogin/mcp test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "node scripts/check-migration-env.mjs && drizzle-kit migrate --config=drizzle.config.ts && tsx scripts/enforce-rls.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.ts"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "dev:mcp": "pnpm --filter @agentlogin/mcp dev",
+    "start:mcp": "pnpm --filter @agentlogin/mcp start"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",

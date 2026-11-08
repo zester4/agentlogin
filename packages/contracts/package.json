@@ -1,11 +1,11 @@
 {
   "name": "@agentlogin/contracts",
-  "private": true,
-  "version": "0.1.0",
+  "private": false,
+  "version": "0.2.0",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
@@ -17,5 +17,14 @@
   },
   "dependencies": {
     "zod": "^4.1.12"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
   }
 }

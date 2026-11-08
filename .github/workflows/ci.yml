@@ -18,9 +18,8 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
+      # Build workspace dependencies first because public package exports resolve to dist/.
+      - run: pnpm build
       - run: pnpm lint
       - run: pnpm typecheck
-      # Tests resolve workspace package exports to compiled dist/. Build first so
-      # Vite can resolve @agentlogin/contracts and other packages.
-      - run: pnpm build
       - run: pnpm test
