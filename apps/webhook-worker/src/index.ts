@@ -104,8 +104,12 @@ async function loadDelivery(item: QueueItem): Promise<ClaimedDelivery | null> {
       await client.query(
         `UPDATE webhook_deliveries
             SET status = 'cancelled', lease_token = NULL, lease_expires_at = NULL, updated_at = now()
-          WHERE tenant_id = $1 AND id = $2 AND status IN ('pending', 'leased')`,
-        [item.tenant_id, item.delivery_id]
+          WHERE tenant_id = $1 AND id = $2 AND status IN ('pending', 'leased')
+            AND EXISTS (
+              SELECT 1 FROM webhook_delivery_queue
+               WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3
+            )`,
+        [item.tenant_id, item.delivery_id, item.lease_token]
       );
       await client.query(
         "DELETE FROM webhook_delivery_queue WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3",
