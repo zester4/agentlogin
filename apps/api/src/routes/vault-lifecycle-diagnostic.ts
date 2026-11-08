@@ -23,11 +23,13 @@ type Checks = {
   ciphertext_only_persistence: boolean;
   callback_decryption: boolean;
   callback_buffer_cleared: boolean;
-  tenant_isolation: boolean;
+  tenant_bound_lookup: boolean;
   credential_rotation: boolean;
   credential_revocation: boolean;
   account_disconnect: boolean;
 };
+
+let diagnosticInFlight = false;
 
 export async function vaultLifecycleDiagnosticRoutes(
   app: FastifyInstance,
@@ -39,6 +41,8 @@ export async function vaultLifecycleDiagnosticRoutes(
     if (!authorized(request.headers.authorization, token)) {
       return reply.code(401).send({ error: { code: "unauthorized" } });
     }
+
+    if (diagnosticInFlight) return reply.code(409).send({ error: { code: "diagnostic_in_progress" } });
 
     const database = options.database;
     const keyId = process.env.AWS_KMS_KEY_ID;
@@ -58,7 +62,7 @@ export async function vaultLifecycleDiagnosticRoutes(
       ciphertext_only_persistence: false,
       callback_decryption: false,
       callback_buffer_cleared: false,
-      tenant_isolation: false,
+      tenant_bound_lookup: false,
       credential_rotation: false,
       credential_revocation: false,
       account_disconnect: false
@@ -75,6 +79,7 @@ export async function vaultLifecycleDiagnosticRoutes(
       purpose: "website_login";
     } | undefined;
 
+    diagnosticInFlight = true;
     try {
       ({ accountId } = await accounts.create({
         userId,
@@ -116,7 +121,7 @@ export async function vaultLifecycleDiagnosticRoutes(
       });
       checks.callback_decryption = recovered === true;
       checks.callback_buffer_cleared = Boolean(callbackBuffer?.every((byte) => byte === 0));
-      checks.tenant_isolation = await records.find(first.credentialRef, "ten_vault_test_wrong_tenant", currentContext.credentialId) === null;
+      checks.tenant_bound_lookup = await records.find(first.credentialRef, "ten_vault_test_wrong_tenant", currentContext.credentialId) === null;
 
       const nextContext = {
         ...currentContext,
@@ -165,6 +170,7 @@ export async function vaultLifecycleDiagnosticRoutes(
     } finally {
       if (accountId) await accounts.disconnect(accountId, userId).catch(() => false);
       // Credential records remain revoked for auditability; only synthetic values are used.
+      diagnosticInFlight = false;
     }
   });
 }
