@@ -14,7 +14,7 @@
 - Web framework: Next.js 16.4.5 / React 19.3.1
 - API: Fastify
 
-The API health endpoint has previously returned HTTP 200. The web and API deployments for PR #32 completed successfully; the separate MCP service is being deployed and still needs live verification.
+The API health endpoint has returned HTTP 200. The web, API, and separate MCP Railway services have deployed successfully. Live authenticated MCP smoke testing and Auth0 organization-claim verification remain open.
 
 ## Completed foundations
 
@@ -60,7 +60,7 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 - [x] Add SDK and MCP client tests and developer integration documentation.
 - [x] GitHub Actions passed on the current implementation: build, lint, typecheck, and tests (including the SDK and MCP client integration tests).
 - [ ] Publish the public SDK and contracts packages to npm after package ownership, release metadata, and CI are verified.
-- [ ] Deploy a separate MCP Railway service and configure its hostname/origin allowlists before sharing the endpoint.
+- [x] Deploy a separate MCP Railway service and configure its hostname/origin allowlists.\n- [ ] Run authenticated remote MCP smoke tests with a dedicated synthetic agent credential.
 - [ ] Implement standard OAuth 2.1 discovery/authorization for remote MCP clients if automatic OAuth onboarding is required; current MCP HTTP auth accepts AgentLogin opaque agent tokens supplied by the host.
 
 ## Current follow-up work
