@@ -11,10 +11,10 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
   const region = process.env.AWS_REGION ?? "";
   const syntheticPassword = "agentlogin-synthetic-vault-check-only-7d2f9c";
 
-  let databaseHandle: ReturnType<typeof createDatabase>;
+  let databaseHandle: ReturnType<typeof createDatabase> | undefined;
   let accountId = "";
-  let vault: EncryptedCredentialVault;
-  let records: PostgresCredentialRecordStore;
+  let vault: EncryptedCredentialVault | undefined;
+  let records: PostgresCredentialRecordStore | undefined;
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL || !tenantId || !userId || !keyId || !region) {
@@ -56,10 +56,10 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
       password: syntheticPassword
     }));
 
-    const first = await vault.store(firstContext, firstPlaintext);
+    const first = await vault!.store(firstContext, firstPlaintext);
     firstPlaintext.fill(0);
 
-    const persisted = await records.find(first.credentialRef, tenantId, firstContext.credentialId);
+    const persisted = await records!.find(first.credentialRef, tenantId, firstContext.credentialId);
     expect(persisted).not.toBeNull();
     expect(persisted?.envelope.algorithm).toBe("AES-256-GCM");
     expect(persisted?.envelope.iv).toHaveLength(12);
@@ -70,7 +70,7 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
     expect(Buffer.from(persisted!.envelope.wrappedDek).includes(Buffer.from(syntheticPassword))).toBe(false);
 
     let callbackBuffer: Uint8Array | undefined;
-    const recovered = await vault.withDecryptedCredential(
+    const recovered = await vault!.withDecryptedCredential(
       first.credentialRef,
       firstContext,
       async (secret) => {
@@ -84,7 +84,7 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
       password: syntheticPassword
     });
     expect(callbackBuffer?.every((byte) => byte === 0)).toBe(true);
-    expect(await records.find(first.credentialRef, "ten_wrong_tenant", firstContext.credentialId)).toBeNull();
+    expect(await records!.find(first.credentialRef, "ten_wrong_tenant", firstContext.credentialId)).toBeNull();
 
     const secondContext = {
       ...firstContext,
@@ -95,17 +95,17 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
       username: "synthetic-user@vault-integration.invalid",
       password: syntheticPassword + "-rotated"
     }));
-    const second = await vault.rotate(first.credentialRef, firstContext, secondContext, secondPlaintext);
+    const second = await vault!.rotate(first.credentialRef, firstContext, secondContext, secondPlaintext);
     secondPlaintext.fill(0);
 
-    await expect(vault.withDecryptedCredential(first.credentialRef, firstContext, async () => "must-not-run"))
+    await expect(vault!.withDecryptedCredential(first.credentialRef, firstContext, async () => "must-not-run"))
       .rejects.toBeInstanceOf(CredentialDecryptionError);
     await expect(vault.withDecryptedCredential(second.credentialRef, secondContext, async (secret) => {
       const parsed = JSON.parse(Buffer.from(secret).toString("utf8")) as { password: string };
       return parsed.password;
     })).resolves.toBe(syntheticPassword + "-rotated");
 
-    await vault.revoke(second.credentialRef, secondContext);
+    await vault!.revoke(second.credentialRef, secondContext);
     await expect(vault.withDecryptedCredential(second.credentialRef, secondContext, async () => "must-not-run"))
       .rejects.toBeInstanceOf(CredentialDecryptionError);
   }, 60_000);
