@@ -67,7 +67,6 @@ export async function vaultLifecycleDiagnosticRoutes(
     const records = new PostgresCredentialRecordStore(database, tenantId);
     const vault = new EncryptedCredentialVault(records, new AwsKmsProvider(keyId, region));
     let accountId = "";
-    let currentCredentialRef = "";
     let currentContext: {
       tenantId: string;
       accountId: string;
@@ -96,7 +95,6 @@ export async function vaultLifecycleDiagnosticRoutes(
       }), "utf8");
       const first = await vault.store(currentContext, firstPlaintext);
       firstPlaintext.fill(0);
-      currentCredentialRef = first.credentialRef;
 
       const persisted = await records.find(first.credentialRef, tenantId, currentContext.credentialId);
       checks.ciphertext_only_persistence = Boolean(
@@ -131,7 +129,6 @@ export async function vaultLifecycleDiagnosticRoutes(
       }), "utf8");
       const rotated = await vault.rotate(first.credentialRef, currentContext, nextContext, nextPlaintext);
       nextPlaintext.fill(0);
-      currentCredentialRef = rotated.credentialRef;
       let oldRejected = false;
       try {
         await vault.withDecryptedCredential(first.credentialRef, currentContext, async () => "unexpected");
@@ -168,8 +165,6 @@ export async function vaultLifecycleDiagnosticRoutes(
     } finally {
       if (accountId) await accounts.disconnect(accountId, userId).catch(() => false);
       // Credential records remain revoked for auditability; only synthetic values are used.
-      void currentCredentialRef;
-      void currentContext;
     }
   });
 }
