@@ -6,14 +6,14 @@ import { Icon } from "../ui-icon";
 
 const navigation = [
   { label: "Overview", href: "#overview", icon: "grid" as const, active: true },
-  { label: "Connected accounts", href: "#accounts", icon: "globe" as const },
-  { label: "Agents", href: "#agents", icon: "bot" as const },
-  { label: "Access grants", href: "#grants", icon: "ticket" as const },
-  { label: "Approvals", href: "#approvals", icon: "inbox" as const },
-  { label: "Activity", href: "#activity", icon: "activity" as const },
+  { label: "Connected accounts", href: "/dashboard/accounts", icon: "globe" as const },
+  { label: "Agents", href: "/dashboard/agents", icon: "bot" as const },
+  { label: "Access grants", href: "/dashboard/grants", icon: "ticket" as const },
+  { label: "Approvals", href: "/dashboard/approvals", icon: "inbox" as const },
+  { label: "Activity", href: "/dashboard/activity", icon: "activity" as const },
 ];
 const management = [
-  { label: "Security center", href: "#security", icon: "shield" as const },
+  { label: "Security center", href: "/dashboard/security", icon: "shield" as const },
   { label: "Team & members", href: "/settings", icon: "users" as const },
   { label: "Developer settings", href: "/developers", icon: "code" as const },
 ];
