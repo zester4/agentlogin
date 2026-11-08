@@ -55,7 +55,7 @@ exports.onExecutePostLogin = async (event, api) => {
 5. Open **Actions → Flows → Login**.
 6. Drag **AgentLogin workspace claim** into the Login flow and click **Apply**.
 
-This claim comes from Auth0's authenticated Organization context, not from user_metadata or app_metadata that a user might be able to edit. Do not replace it with a value submitted by the browser.
+This claim comes from Auth0's authenticated Organization context, not from user_metadata or a browser-supplied value. Do not replace it with a value submitted by the browser.
 
 ## 4. Configure the Regular Web Application
 
