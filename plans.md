@@ -539,7 +539,7 @@ The repository now has a concrete scaffold stack, but production hosting, identi
 | Agent identity | Separate authenticated workload identity required; not implemented | OPEN |
 | SDK | TypeScript first; client scaffold only | SCAFFOLD ONLY |
 | Agent integration | REST + MCP; MCP names only, no transport or authorization wiring | PROPOSED / SCAFFOLD |
-| CI | pnpm 10.20.0 lockfile committed; frozen install, typecheck, tests, and workspace build pass on run 42432769236 | PASSING BASELINE |
+| CI | pnpm 10.20.0 lockfile committed; frozen install, typecheck, tests, and workspace build pass on run 42432892529 | PASSING BASELINE |
 | Chusky integration/browser | Explicitly excluded | NON-NEGOTIABLE |
 | OAuth/API connectors | Add after core grant and website-login model | PROPOSED |
 
