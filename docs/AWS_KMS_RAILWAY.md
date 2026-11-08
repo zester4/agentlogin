@@ -97,10 +97,10 @@ The diagnostic route is not a health endpoint and must not be called by Railway 
 ## Verification and release gate
 
 After the synthetic diagnostic passes:
-4. Verify an unrelated KMS key is denied.
-5. Verify CloudWatch/CloudTrail records show only the expected KMS operations and identity; never log plaintext or credentials.
-6. Test key disablement, IAM key revocation, service restart, and recovery procedures.
-7. Confirm no plaintext or DEK is persisted or returned to an agent.
+1. Verify an unrelated KMS key is denied.
+2. Verify CloudWatch/CloudTrail records show only the expected KMS operations and identity; never log plaintext or credentials.
+3. Test key disablement, IAM key revocation, service restart, and recovery procedures.
+4. Confirm no plaintext or DEK is persisted or returned to an agent.
 
 Do not accept real user credentials until this integration, durable vault storage, audited decrypt authorization, identity/grant enforcement, secret-safe telemetry, recovery/rotation procedures, and the remaining production security review gates are complete.
 
