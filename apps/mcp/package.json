@@ -23,7 +23,8 @@
     "@modelcontextprotocol/fastify": "2.4.0",
     "@modelcontextprotocol/node": "2.4.0",
     "@modelcontextprotocol/server": "2.4.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "fastify": "^5.6.1"
   },
   "devDependencies": {
     "tsx": "^4.20.6",
