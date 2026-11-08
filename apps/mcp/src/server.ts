@@ -29,11 +29,8 @@ const nodeHandler = toNodeHandler(handler);
 app.get("/health", async () => ({ status: "ok", service: "agentlogin-mcp" }));
 
 app.addHook("onRequest", async (request, reply) => {
-  const hostname = (request.headers.host ?? "").split(":")[0]?.toLowerCase();
-  if (!hostname || !allowedHosts.includes(hostname)) {
-    await reply.code(403).send({ error: "forbidden_host" });
-    return;
-  }
+  // createMcpFastifyApp enforces the Host allowlist; this hook tightens browser
+  // Origin validation to exact scheme+host+port matches from configuration.
   const origin = request.headers.origin;
   if (origin) {
     let parsed: URL;
