@@ -14,8 +14,8 @@ const navigation = [
 ];
 const management = [
   { label: "Security center", href: "#security", icon: "shield" as const },
-  { label: "Team & members", href: "#team", icon: "users" as const },
-  { label: "Developer settings", href: "#developers", icon: "code" as const },
+  { label: "Team & members", href: "/settings", icon: "users" as const },
+  { label: "Developer settings", href: "/developers", icon: "code" as const },
 ];
 
 function ComingSoon({ children }: { children: ReactNode }) {
