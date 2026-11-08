@@ -35,6 +35,8 @@ The API health endpoint has previously returned HTTP 200. Recheck deployments af
 - [x] Set `AGENTLOGIN_API_URL=https://agentlogin-production-90b2.up.railway.app` on the Railway production web service.
 - [x] Set `AUTH0_AUDIENCE=https://api.agentlogin.app` and `AUTH0_ORGANIZATION=org_fBUW065W2Ut6KHbt` on the web service.
 - [x] Set `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE=24h` on the API service.
+- [x] Set `AWS_REGION=us-east-1` and the dedicated `AWS_KMS_KEY_ID` ARN on the API service (no AWS credentials have been created or added yet).
+- [x] GitHub CI passed for the current PR head: lint, typecheck, build, and tests.
 - [ ] Confirm the web/API redeployments triggered by these variable changes finish successfully.
 
 ## In progress — current GitHub branch
