@@ -25,17 +25,33 @@ export function createAgentLoginMcpApp(options: AgentLoginMcpAppOptions) {
   }
 
   const fetcher = options.fetch ?? fetch;
-  const app = createMcpFastifyApp({
-    host: "0.0.0.0",
-    allowedHosts,
-    allowedOrigins: allowedOrigins.map((origin) => new URL(origin).hostname)
-  });
+  // Railway's health checker can use an internal Host header that is not the
+  // public service hostname. Keep the health endpoint reachable by the platform,
+  // while enforcing the explicit hostname allowlist on the MCP protocol route.
+  // The MCP SDK's global Host hook cannot express a health-route exception.
+  const app = createMcpFastifyApp({ host: "0.0.0.0" });
   const handler = createAgentLoginMcpHandler({ apiBaseUrl: apiBaseUrl.toString(), fetch: fetcher });
   const nodeHandler = toNodeHandler(handler);
 
   app.get("/health", async () => ({ status: "ok", service: "agentlogin-mcp" }));
 
   app.addHook("onRequest", async (request, reply) => {
+    if (request.url.split("?")[0] === "/mcp") {
+      const hostHeader = request.headers.host;
+      let hostname: string;
+      try {
+        if (!hostHeader) throw new TypeError("Missing Host header");
+        hostname = new URL(`http://${hostHeader}`).hostname.toLowerCase();
+      } catch {
+        await reply.code(403).send({ error: "forbidden_host" });
+        return;
+      }
+      if (!allowedHosts.includes(hostname)) {
+        await reply.code(403).send({ error: "forbidden_host" });
+        return;
+      }
+    }
+
     const origin = request.headers.origin;
     if (!origin) return;
     let parsed: URL;
