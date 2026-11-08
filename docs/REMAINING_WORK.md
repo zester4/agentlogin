@@ -14,7 +14,7 @@
 - Web framework: Next.js 16.4.5 / React 19.3.1
 - API: Fastify
 
-The API health endpoint has previously returned HTTP 200. Recheck deployments after the current integration PR is merged.
+The API health endpoint has previously returned HTTP 200. The web and API deployments for PR #32 completed successfully; the separate MCP service is being deployed and still needs live verification.
 
 ## Completed foundations
 
@@ -36,7 +36,7 @@ The API health endpoint has previously returned HTTP 200. Recheck deployments af
 - [x] Set `AUTH0_AUDIENCE=https://api.agentlogin.app` and `AUTH0_ORGANIZATION=org_fBUW065W2Ut6KHbt` on the web service.
 - [x] Set `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE=24h` on the API service.
 - [x] Set `AWS_REGION=us-east-1` and the dedicated `AWS_KMS_KEY_ID` ARN on the API service. AWS IAM access keys are not yet created or configured.
-- [x] GitHub CI passed for PR #31: lint, typecheck, build, and tests.
+- [x] GitHub CI passed for PR #31 and PR #32: lint, typecheck, build, and tests.
 - [ ] Confirm the web/API redeployments triggered by the environment changes finish successfully.
 
 ## Recently completed — PR #31 merged
@@ -114,7 +114,7 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 - [ ] Verify the Auth0 web application callback, logout, and web-origin URLs.
 - [x] Set the API OIDC variables on Railway, including `OIDC_MAX_TOKEN_AGE=24h`.
 - [x] Set the web audience, Organization ID, and API base URL on Railway.
-- [ ] Confirm the variable-triggered web/API deployments succeed.
+- [x] Confirmed the web/API deployments triggered by the Railway environment changes succeeded.
 - [ ] Verify existing Auth0 session/client variables are present and correctly configured.
 - [ ] Sign out and sign in again; verify `GET /v1/user/me` returns the expected tenant and user.
 - [ ] Verify token renewal/age behavior against the Auth0 API access-token lifetime and Next.js SDK renewal behavior. The API maximum token age is now configurable with `OIDC_MAX_TOKEN_AGE` (default `24h`); align it with the actual Auth0 token lifetime.
@@ -135,8 +135,14 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 
 ## 4. SDK, MCP, and browser execution
 
-- [ ] Complete authenticated SDK methods and typed safe result contracts.
-- [ ] Implement authenticated MCP transport and task-level tools; do not expose secret retrieval.
+- [x] Typed SDK methods for agent identity, grant creation, and agent-owned grant-status retrieval.
+- [x] Authenticated Streamable HTTP MCP server with identity, access-request, and grant-status tools.
+- [x] Host and Origin validation, API-backed agent-token verification, and client integration tests.
+- [x] SDK/MCP CI passed. See [SDK and MCP guide](./SDK_MCP.md).
+- [ ] Verify the deployed MCP service and live calls with a dedicated test agent credential.
+- [ ] Publish `@agentlogin/sdk` and `@agentlogin/contracts` after confirming npm scope ownership and release metadata.
+- [ ] Implement MCP OAuth 2.1 discovery/authorization if general remote-client auto-onboarding is required.
+- [ ] Implement an isolated browser worker and task-level login execution tools; do not expose secret retrieval.
 - [ ] Implement an isolated browser worker behind the existing provider-neutral interface.
 - [ ] Enforce exact origin and redirect validation before credential injection.
 - [ ] Add SSRF/private-network/metadata endpoint protections.
