@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth0 } from "../lib/auth0";
 import { SiteInteractions } from "./site-interactions";
-import { Icon } from "./icon";
+import { Icon } from "./ui-icon";
 const layers=[["01","Identity boundary","Every request is tied to a verified user, tenant, and agent identity."],["02","Credential vault","Encrypted credentials stay server-side. Agents never receive plaintext secrets."],["03","Policy & approval","Origin, scope, expiry, and user approval are checked before access."],["04","Isolated execution","Approved login work runs inside a controlled execution boundary."]];
 const principles=[["No secret handoff","Agents work with short-lived grants, not passwords, cookies, or API keys."],["Specific by design","A grant is bound to an account, origin, scope, agent, and expiry."],["Permission is not a blank cheque","Logging in does not silently authorize transfers, purchases, or other actions."]];
 export default async function Home(){const session=await auth0.getSession();return <main className="site-shell"><SiteInteractions/>
