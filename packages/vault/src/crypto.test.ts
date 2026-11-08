@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { CredentialContext, CredentialRecordStore, KeyManagementProvider, StoredCredential, WrappedDataKey } from "./index.js";
-import { CredentialDecryptionError, EncryptedCredentialVault } from "./crypto.js";
+import { CredentialDecryptionError, EncryptedCredentialVault, decryptCredential, encryptCredential } from "./crypto.js";
 
 const context: CredentialContext = {
   tenantId: "ten_test", accountId: "acct_test", credentialId: "cred_record_1", recordVersion: 1, purpose: "website_login"
@@ -109,5 +109,39 @@ describe("encrypted credential vault", () => {
     await vault.revoke(stored.credentialRef, context);
     await expect(vault.withDecryptedCredential(stored.credentialRef, context, async () => "no"))
       .rejects.toBeInstanceOf(CredentialDecryptionError);
+  });
+});
+
+
+describe("webhook signing secret envelope", () => {
+  it("binds ciphertext to tenant, endpoint, secret version and webhook-only purpose", async () => {
+    const kms = new TestKeyManagement();
+    const webhookContext: CredentialContext = {
+      tenantId: "ten_webhook",
+      accountId: "wh_endpoint_1",
+      credentialId: "wh_endpoint_1",
+      recordVersion: 3,
+      purpose: "webhook_signing_secret"
+    };
+    const secret = Buffer.from("synthetic-webhook-signing-secret");
+    const envelope = await encryptCredential(secret, webhookContext, kms);
+    expect(Buffer.from(envelope.ciphertext).includes(secret)).toBe(false);
+
+    const decrypted = await decryptCredential(envelope, webhookContext, kms);
+    expect(decrypted.toString("utf8")).toBe(secret.toString("utf8"));
+    decrypted.fill(0);
+
+    await expect(decryptCredential(envelope, {
+      ...webhookContext, accountId: "wh_other_endpoint"
+    }, kms)).rejects.toBeInstanceOf(CredentialDecryptionError);
+    await expect(decryptCredential(envelope, {
+      ...webhookContext, tenantId: "ten_other"
+    }, kms)).rejects.toBeInstanceOf(CredentialDecryptionError);
+    await expect(decryptCredential(envelope, {
+      ...webhookContext, recordVersion: 4
+    }, kms)).rejects.toBeInstanceOf(CredentialDecryptionError);
+    await expect(decryptCredential(envelope, {
+      ...webhookContext, purpose: "api_key"
+    }, kms)).rejects.toBeInstanceOf(CredentialDecryptionError);
   });
 });
