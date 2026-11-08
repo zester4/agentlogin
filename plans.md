@@ -357,9 +357,8 @@ Completed in the 2026-11-08 architecture review:
 - fixed the verified Fastify error-handler type error; made origin validation canonical; extended the pure grant helper to bind policy version, approval, task, execution-context ID, and operation; added matching database columns/constraints and execution-provider context fields; modernized CI and committed the lockfile. The latest full CI run passed.
 
 Remaining:
-- complete independent threat-model/security review; choose production hosting, region, and KMS provider after workload-identity and recovery requirements are known;
-- choose the hosting/runtime and KMS provider after region, workload identity, and recovery requirements are known;
-- review the full threat model and data model, including database tenant isolation and execution boundaries, with a security reviewer.
+- choose production hosting/runtime, region, and KMS provider after workload-identity and recovery requirements are known;
+- complete an independent threat-model/security review covering tenant isolation, database enforcement, execution boundaries, secret custody, and residual operator/insider risk.
 
 Deliverables:
 - inspect current repository stack, conventions, and existing implementation;
