@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../lib/auth0";
@@ -17,7 +18,7 @@ const management = [
   { label: "Developer settings", href: "#developers", icon: "code" as const },
 ];
 
-function ComingSoon({ children }: { children: React.ReactNode }) {
+function ComingSoon({ children }: { children: ReactNode }) {
   return <span className="workspace-coming">{children}</span>;
 }
 
