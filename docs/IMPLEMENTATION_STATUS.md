@@ -17,6 +17,7 @@ Last reviewed: 2026-11-08. This is a snapshot of the repository and deployment s
 | Dashboard | Branded Next.js 16 dashboard with account, agent, grant, approval, activity, and security sections; responsive mobile layout and light/dark themes. Connected-account and approval API integration is in place. | Several product workflows still show coming-soon states because the complete enrollment, agent execution, and activity stream are not yet available. Verify Auth0 configuration and API data paths in production. |
 | SDK and MCP | Package structure and integration surfaces exist. | SDK and MCP transport remain stubs/incomplete; implement authenticated task-level tools and typed safe results before describing them as usable integrations. |
 | Browser execution | Provider-neutral execution interfaces/coordinator and grant-bound authorization checks exist. | A concrete isolated browser worker/provider, credential broker inside the worker, origin/redirect/SSRF protections, and secure MFA/CAPTCHA user handoff/resume UI remain open. |
+| Webhooks and synchronization | No durable webhook delivery or dashboard live-event stream is implemented yet. The design is documented in docs/WEBHOOKS.md. | Implement transactional outbox, tenant-scoped endpoint management, signed HMAC delivery, SSRF protections, retries/dead-letter/replay, and dashboard SSE with polling fallback. Do not claim webhooks are available until verified. |
 | Tests | Unit tests cover identity, agent tokens, vault context/tampering, grants, approvals, and authorization denials. An opt-in PostgreSQL RLS integration suite exists. | Run integration tests against the deployed database/runtime role; add adversarial, property/fuzz, replay, concurrency, browser-isolation, and secret-leak tests. Establish independent security review gates. |
 | Cloudflare | Cloudflare is optional infrastructure, not the primary database or a required dependency. | No Cloudflare deployment is required for the current Railway/Neon architecture. Add it only for a defined product need. |
 
@@ -41,9 +42,10 @@ These are implementation milestones, not a declaration that every associated pro
 2. Configure the AWS IAM credentials and KMS key variables on the Railway API service; run end-to-end and negative-path verification of the already-wired credential lifecycle routes.
 3. Complete secure credential enrollment and user-facing account connection/management.
 4. Build the isolated browser worker, credential-broker integration, origin/redirect/SSRF controls, and MFA/CAPTCHA handoff/resume.
-5. Complete SDK and MCP transports with authenticated identity, scoped grants, sanitized outputs, and usable examples.
-6. Run cross-tenant integration tests against Neon using the runtime role, plus adversarial, replay, concurrency, and secret-leak tests.
-7. Complete independent security review, operational key rotation/recovery, backup/restore, deletion, monitoring, and incident-response gates.
+5. Finish npm release verification for the SDK/contracts packages and verify the live MCP Railway deployment plus authenticated remote smoke tests.
+6. Implement the durable webhook outbox/delivery service and dashboard SSE/polling synchronization.
+7. Run cross-tenant integration tests against Neon using the runtime role, plus adversarial, replay, concurrency, and secret-leak tests.
+8. Complete independent security review, operational key rotation/recovery, backup/restore, deletion, monitoring, and incident-response gates.
 
 ## Production credential gate
 
