@@ -20,8 +20,8 @@
   "dependencies": {
     "@agentlogin/contracts": "workspace:*",
     "@agentlogin/sdk": "workspace:*",
-    "@modelcontextprotocol/fastify": "2.4.0",
-    "@modelcontextprotocol/node": "2.4.0",
+    "@modelcontextprotocol/fastify": "2.0.1",
+    "@modelcontextprotocol/node": "2.1.2",
     "@modelcontextprotocol/server": "2.4.0",
     "zod": "^4.1.12",
     "fastify": "^5.6.1"
