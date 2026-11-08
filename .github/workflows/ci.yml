@@ -52,7 +52,7 @@ jobs:
           ALTER DEFAULT PRIVILEGES FOR ROLE agentlogin_admin IN SCHEMA public
             GRANT USAGE, SELECT ON SEQUENCES TO agentlogin_app;
           SQL
-      - run: pnpm db:migrate
       - run: pnpm typecheck
+      - run: pnpm db:migrate
       - run: pnpm test
       - run: pnpm build
