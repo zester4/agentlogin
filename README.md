@@ -16,9 +16,9 @@ AgentLogin is under active development. The repository now contains a TypeScript
 - Persistent grant and approval workflows, scoped delegation checks, and secret-free audit events.
 - A Next.js 16 dashboard with connected-account and approval views, plus a Fastify API.
 
-**This is not yet a production-ready credential vault or login service.** The KMS key and least-privilege AWS identity still need to be configured on Railway, and the live KMS path must pass end-to-end and negative-path verification. Auth0 organization-claim configuration and the deployed user onboarding/API flow also need verification. The secure user-facing enrollment flow, isolated browser worker, MFA/CAPTCHA handoff, complete SDK/MCP transports, and independent security review remain release gates. Do not submit real credentials or connect real accounts until the production credential gate in [implementation status](./docs/IMPLEMENTATION_STATUS.md) is satisfied.
+**This is not yet a production-ready credential vault or login service.** The KMS key and least-privilege AWS identity still need to be configured on Railway, and the live KMS path must pass end-to-end and negative-path verification. Auth0 organization-claim configuration and the deployed user onboarding/API flow also need verification. The secure user-facing enrollment flow, isolated browser worker, MFA/CAPTCHA handoff, live MCP deployment verification, webhook delivery system, npm package release checks, and independent security review remain release gates. Do not submit real credentials or connect real accounts until the production credential gate in [implementation status](./docs/IMPLEMENTATION_STATUS.md) is satisfied.
 
-See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for the implemented foundations, [SDK and MCP guide](./docs/SDK_MCP.md) for developer integrations, [remaining work tracker](./docs/REMAINING_WORK.md) for the active checklist, and [plans](./plans.md) for the longer-term roadmap.
+See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for the implemented foundations, [SDK and MCP guide](./docs/SDK_MCP.md) for developer integrations, [SDK release readiness](./docs/SDK_RELEASE.md) for npm publishing, [webhook architecture](./docs/WEBHOOKS.md) for event delivery and synchronization, [remaining work tracker](./docs/REMAINING_WORK.md) for the active checklist, and [plans](./plans.md) for the longer-term roadmap.
 
 ## Repository layout
 
@@ -31,7 +31,7 @@ See [implementation status](./docs/IMPLEMENTATION_STATUS.md) for the implemented
 - `packages/vault` — AES-GCM envelope encryption and AWS KMS key wrapping provider
 - `packages/database` — Neon Postgres + Drizzle schema, repositories, tenant transaction context, and RLS support
 - `packages/execution` — provider-neutral execution contracts and coordinator; not a production browser worker
-- `packages/sdk` — typed TypeScript client for agent identity and user-approved grant requests
+- `packages/sdk` — typed TypeScript client for agent identity, user-approved grant requests, and grant-status lookup
 - `db/migrations` — generated Drizzle SQL migrations and metadata
 - `db/legacy-migrations` — original SQL bootstrap history, retained for audit only
 
