@@ -11,12 +11,13 @@ This section distinguishes repository evidence from recommended design. It is no
 ### Verified scaffold
 
 - Repository branch: scaffold/platform-foundation. The branch head was fetched before edits.
+- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft. At the latest comparison, this branch was diverged from main (23 commits ahead, 224 behind). Main's web manifest is Next.js 16.4.5 while this scaffold branch remains on Next.js 15.5.6. Work stayed on the requested branch; no merge/rebase or main-branch changes were made. Reconcile with main before opening a follow-up PR.
 - API: Node.js 22 baseline, Fastify 5.6.x, TypeScript, Zod, liveness/readiness routes. The API has no identity, persistence, grant, vault, or execution wiring.
 - Web: Next.js 15.5.x control-plane shell only; no authentication or account-enrollment flow.
 - MCP: tool-name constants only; no transport, authenticated agent identity, authorization, or tool execution.
 - Data: PostgreSQL migration and local Docker Compose service. There is no database client, migration runner, persistence adapter, row-level security policy, or production database selection.
 - Vault and execution: TypeScript interfaces only. No encryption, KMS adapter, credential storage, browser provider, or isolated worker implementation.
-- CI at the fetched baseline failed in API typecheck because Fastify's error-handler error value is unknown. The tests were skipped after that failure. The workflow did not run build, and the repository had no pnpm lockfile.
+- CI at the fetched baseline failed in API typecheck because Fastify's error-handler error value was unknown. Tests were skipped and build was not run. The repository also had no pnpm lockfile. The error was fixed, the lockfile was generated with pnpm 10.20.0 and committed, and CI now uses a frozen install.
 - The current branch contains no Cloudflare Worker, Wrangler configuration, Cloudflare binding, or Cloudflare service integration.
 
 ### Architecture recommendation
@@ -37,7 +38,7 @@ This section distinguishes repository evidence from recommended design. It is no
 
 The policy package now has a pure authorization helper that checks tenant, user, authenticated agent, connected account, canonical origin, scope, current policy version, approval reference/status, task, execution-context ID, operation, expiry, and revocation. This helper is not connected to API authentication or authoritative database reads. It does not complete the grant/approval milestone.
 
-The canonical-origin schema and helper tests are being verified by CI. The vault, KMS, database, approval UX, identity, and browser execution remain unimplemented. Use synthetic credentials only.
+The initial PostgreSQL migration now models credential envelope metadata and grant policy/approval/execution bindings, including a tenant-scoped approval reference. The execution-provider interface carries the server-verified context; it has no provider implementation. The migration was not executed against a database. There is still no database client, persistence adapter, API authentication, KMS implementation, approval UX, or browser provider. Use synthetic credentials only.
 
 ## 1. Product definition
 
@@ -353,10 +354,10 @@ Completed in the 2026-11-08 architecture review:
 - recorded the current Node/Fastify/PostgreSQL scaffold separately from production-provider recommendations;
 - evaluated Cloudflare Workers runtime compatibility, bindings, Hyperdrive, and Web Crypto against the current stack;
 - documented managed KMS/HSM and Vault Transit options without selecting a provider;
-- fixed the verified Fastify error-handler type error and tightened canonical origin validation and the pure grant-authorization helper; CI verification is pending.
+- fixed the verified Fastify error-handler type error; made origin validation canonical; extended the pure grant helper to bind policy version, approval, task, execution-context ID, and operation; added matching database columns/constraints and execution-provider context fields; modernized CI and committed the lockfile. The latest full CI run passed.
 
 Remaining:
-- complete CI verification and commit a generated pnpm lockfile;
+- complete independent threat-model/security review; choose production hosting, region, and KMS provider after workload-identity and recovery requirements are known;
 - choose the hosting/runtime and KMS provider after region, workload identity, and recovery requirements are known;
 - review the full threat model and data model, including database tenant isolation and execution boundaries, with a security reviewer.
 
@@ -371,7 +372,7 @@ Acceptance:
 - threat model reviewed before real credential handling;
 - no production secrets in repository;
 - architecture decisions recorded, not silently assumed;
-- CI runs formatting, lint, type checks, and baseline tests.
+- CI runs frozen pnpm install, typecheck, baseline tests, and workspace build. Formatting/lint and database migration execution are not yet included and remain follow-ups.
 
 ### Milestone 1 — Identity, tenant isolation, developer onboarding
 **Status: NOT STARTED**
@@ -539,6 +540,7 @@ The repository now has a concrete scaffold stack, but production hosting, identi
 | Agent identity | Separate authenticated workload identity required; not implemented | OPEN |
 | SDK | TypeScript first; client scaffold only | SCAFFOLD ONLY |
 | Agent integration | REST + MCP; MCP names only, no transport or authorization wiring | PROPOSED / SCAFFOLD |
+| CI | pnpm 10.20.0 lockfile committed; frozen install, typecheck, tests, and workspace build pass on run 42432769236 | PASSING BASELINE |
 | Chusky integration/browser | Explicitly excluded | NON-NEGOTIABLE |
 | OAuth/API connectors | Add after core grant and website-login model | PROPOSED |
 
