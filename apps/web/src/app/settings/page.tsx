@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../lib/auth0";
-import { Icon } from "../icon";
+import { Icon } from "../ui-icon";
 export default async function SettingsPage() {
  const session=await auth0.getSession(); if(!session) redirect("/auth/login");
  return <main className="workspace-shell"><aside className="workspace-sidebar"><Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt=""/><span>AgentLogin</span></Link><div className="sidebar-label">WORKSPACE</div><Link className="side-link" href="/dashboard"><Icon name="grid"/> Overview</Link><Link className="side-link active" href="/settings"><Icon name="settings"/> Settings</Link><div className="sidebar-bottom"><span className="avatar">{(session.user.name||session.user.email||"A").slice(0,1).toUpperCase()}</span><div><strong>{session.user.name||"Account"}</strong><small>{session.user.email||"Authenticated account"}</small></div><a href="/auth/logout" aria-label="Sign out"><Icon name="logout"/></a></div></aside>
