@@ -1,0 +1,8 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "Cookie policy" };
+export default function Page(){return <InfoLayout eyebrow="LEGAL / COOKIES" title="Cookies and session storage" intro="This draft explains the intended use of browser storage. Confirm the actual cookies and technologies used in production before publishing a final policy.">
+<InfoSection title="Essential session cookies"><p>Authentication may use secure, HTTP-only cookies to maintain a signed-in dashboard session. These are necessary for account security and core functionality.</p></InfoSection>
+<InfoSection title="Security and preferences"><p>The service may use limited browser storage to protect requests, remember essential preferences, or maintain security state. The final policy should list each cookie or storage key, its purpose, provider, and lifetime.</p></InfoSection>
+<InfoSection title="Analytics and optional cookies"><p>Do not enable non-essential analytics, advertising, or tracking cookies without documenting them and implementing any consent required by applicable law. This draft does not assert that such trackers are currently active.</p></InfoSection>
+<InfoSection title="Managing browser storage"><p>You can manage or clear cookies through your browser settings. Clearing essential session cookies may sign you out or interrupt an active workflow.</p></InfoSection>
+</InfoLayout>}
