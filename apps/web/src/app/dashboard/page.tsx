@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../lib/auth0";
-import { Icon } from "../ui-icon";
+import { Icon } from "../ui-icon";\nimport { ThemeToggle } from "../theme-toggle";
 
 const navigation = [
   { label: "Overview", href: "#overview", icon: "grid" as const, active: true },
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
       <section className="workspace-main workspace-main-v2">
         <header className="workspace-topbar">
           <div className="workspace-breadcrumb"><span>WORKSPACE</span><b>/</b><strong>OVERVIEW</strong></div>
-          <div className="topbar-right"><span className="topbar-session"><i /> AUTHENTICATED</span><Link href="/settings" aria-label="Workspace settings"><Icon name="settings" /></Link></div>
+          <div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> AUTHENTICATED</span><Link href="/settings" aria-label="Workspace settings"><Icon name="settings" /></Link></div>
         </header>
 
         <section className="workspace-welcome">
