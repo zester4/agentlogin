@@ -107,6 +107,7 @@ Set these variables on the **API** service only:
 | `OIDC_AUDIENCE` | `https://api.agentlogin.app` |
 | `OIDC_JWKS_URL` | `https://YOUR_AUTH0_DOMAIN/.well-known/jwks.json` |
 | `OIDC_TENANT_CLAIM` | `https://agentlogin.app/tenant_id` |
+| `OIDC_MAX_TOKEN_AGE` | `24h` (or a shorter value matching your Auth0 API token lifetime) |
 
 Replace `YOUR_AUTH0_DOMAIN` with the exact Auth0 tenant domain, for example `agentlogin.us.auth0.com`. Keep the trailing slash on the issuer URL. If using an Auth0 custom domain, use that same domain consistently for issuer and JWKS.
 
@@ -125,6 +126,6 @@ Do not put Auth0 Client Secret or AUTH0_SECRET on the API service. Do not expose
 
 - Auth0's access token is a user-to-AgentLogin API token. It is not an agent credential and is never passed to an agent.
 - The Next.js server obtains the token and makes API calls. Do not fetch the access token from a browser component.
-- The API validates RS256/ES256 signatures, exact issuer and audience, token age, and the required namespaced tenant claim.
+- The API validates RS256/ES256 signatures, exact issuer and audience, token expiry, a configurable maximum token age, and the required namespaced tenant claim. The default maximum age is 24 hours; set `OIDC_MAX_TOKEN_AGE` to match the Auth0 API access-token lifetime if it is shorter.
 - A login without an Organization is denied by the Action. This prevents a missing tenant context from silently becoming a default or user-selected tenant.
 - Do not enter real website credentials until the production KMS and isolated execution release gates have been verified.
