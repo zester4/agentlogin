@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../../lib/auth0";
-import { Icon } from "../../ui-icon";
+import { Icon } from "../../ui-icon";\nimport { ThemeToggle } from "../../theme-toggle";
 
 const sections = {
   accounts: {
@@ -100,7 +100,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
         <div className="sidebar-bottom sidebar-bottom-v2"><span className="avatar">{initial}</span><div><strong>{displayName}</strong><small>{session.user.email || "Authenticated account"}</small></div><a href="/auth/logout" aria-label="Sign out"><Icon name="logout" /></a></div>
       </aside>
       <section className="workspace-main workspace-main-v2">
-        <header className="workspace-topbar"><div className="workspace-breadcrumb"><Link href="/dashboard">WORKSPACE</Link><b>/</b><strong>{item.label}</strong></div><div className="topbar-right"><span className="topbar-session"><i /> AUTHENTICATED</span><Link href="/settings" aria-label="Workspace settings"><Icon name="settings" /></Link></div></header>
+        <header className="workspace-topbar"><div className="workspace-breadcrumb"><Link href="/dashboard">WORKSPACE</Link><b>/</b><strong>{item.label}</strong></div><div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> AUTHENTICATED</span><Link href="/settings" aria-label="Workspace settings"><Icon name="settings" /></Link></div></header>
         <section className="workspace-welcome section-page-welcome"><div><span className="section-kicker">CONTROL PLANE / {item.number}</span><h1>{item.title}</h1><p>{item.description}</p></div><span className="workspace-coming">{item.state}</span></section>
         <section className="section-page-card">
           <div className="section-page-icon"><Icon name={item.icon} /></div>
