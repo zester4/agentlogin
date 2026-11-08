@@ -48,7 +48,7 @@ Errors include \`AgentLoginApiError\` and specialized authentication, permission
 
 ## MCP server
 
-The MCP application uses the official Model Context Protocol TypeScript SDK v2.4.0 and Streamable HTTP transport.
+The MCP application uses the official Model Context Protocol TypeScript SDK v2.4.0 server/client packages, the published Node adapter v2.1.2, and the published Fastify adapter v2.0.1 with Streamable HTTP transport.
 
 Start it locally:
 
