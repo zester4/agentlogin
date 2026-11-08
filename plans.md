@@ -311,7 +311,7 @@ Store secret ciphertext in dedicated encrypted storage where possible; ordinary 
 Status values: NOT STARTED, IN PROGRESS, BLOCKED, DONE. Update only with repository evidence.
 
 ### Milestone 0 — Repository and threat-model foundation
-**Status: NOT STARTED**
+**Status: DONE — foundation and architecture are in place; continue maintaining threat-model and security-review evidence.**
 
 Deliverables:
 - inspect current repository stack, conventions, and existing implementation;
@@ -327,7 +327,7 @@ Acceptance:
 - CI runs formatting, lint, type checks, and baseline tests.
 
 ### Milestone 1 — Identity, tenant isolation, developer onboarding
-**Status: IN PROGRESS**
+**Status: IN PROGRESS — core repositories, agent authentication, Fastify middleware, and OIDC/membership code paths exist. Finish provider configuration and deployed end-to-end verification.**
 
 Deliverables:
 - developer account/project model;
@@ -344,7 +344,7 @@ Acceptance:
 - every request has verified tenant and actor context.
 
 ### Milestone 2 — Secure enrollment and credential vault
-**Status: NOT STARTED**
+**Status: IN PROGRESS — envelope encryption, durable credential storage, lifecycle routes, and AWS KMS adapter exist. Production KMS wiring/verification and the complete user-facing enrollment flow remain open.**
 
 Deliverables:
 - secure hosted enrollment;
@@ -361,7 +361,7 @@ Acceptance:
 - secret scanning enabled in CI.
 
 ### Milestone 3 — Grant, policy, and approval engine
-**Status: NOT STARTED**
+**Status: IN PROGRESS — persistent grant/approval lifecycle and API routes exist, and the dashboard approval inbox is integrated. End-to-end verification and adversarial/concurrency gates remain.**
 
 Deliverables:
 - grant request endpoint and typed response;
@@ -381,7 +381,7 @@ Acceptance:
 - replay and concurrent-use behavior tested and documented.
 
 ### Milestone 4 — Website login execution
-**Status: NOT STARTED**
+**Status: IN PROGRESS — provider-neutral coordinator and grant-bound checks exist; isolated browser worker, credential broker, and MFA/CAPTCHA handoff remain open.**
 
 Deliverables:
 - provider-neutral browser execution interface;
@@ -401,7 +401,7 @@ Acceptance:
 - isolation, timeout, cleanup, and revocation tests pass.
 
 ### Milestone 5 — SDK, REST docs, MCP
-**Status: NOT STARTED**
+**Status: IN PROGRESS — package and integration scaffolding exist; SDK/MCP transport implementations remain stubs and are not ready to be represented as working integrations.**
 
 Deliverables:
 - TypeScript SDK;
@@ -418,7 +418,7 @@ Acceptance:
 - quickstart uses fake accounts only.
 
 ### Milestone 6 — Security hardening and private beta
-**Status: NOT STARTED**
+**Status: IN PROGRESS — foundational tests and deployment exist; full adversarial/concurrency review, independent security review, operational recovery, and private-beta release gates remain.**
 
 Deliverables:
 - independent security review/penetration test plan;
@@ -436,27 +436,28 @@ Acceptance:
 - security invariants have automated coverage where practical;
 - private-beta scope and limitations explicit.
 
-## 8A. Verified implementation evidence — 7 November 2026
+## 8. Current implementation snapshot — 8 November 2026
 
-The following foundations are present in the repository and deployed environment. These do not constitute completion of the milestones below.
+The current state of the repository is summarized in [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md). The snapshot distinguishes code that exists from production configuration and end-to-end verification.
 
-- Fastify API scaffold, database-aware readiness route, and Railway deployment.
-- Neon PostgreSQL with Drizzle schema and generated baseline migration.
-- Twelve tenant-owned tables with RLS enabled and FORCE ROW LEVEL SECURITY verified on all twelve.
-- Separate runtime and migration database roles; both inspected roles are non-superuser and have BYPASSRLS disabled.
-- Envelope-encryption primitives and a KMS provider interface; production KMS adapter is not selected or deployed.
-- Opaque agent credential issuance/verification service with hashed token storage and lifecycle checks.
-- Tenant-scoped Postgres agent-credential repository adapter added in the current implementation branch. It binds each repository instance to a verified tenant context and uses transaction-local RLS context for every operation.
-- Repository adapter intentionally does not perform global credential-ID resolution. A safe bootstrap authentication lookup must be designed before a live agent-authentication endpoint is exposed.
+Implemented foundations include:
+- Neon PostgreSQL, Drizzle baseline migration, tenant-scoped repositories, and FORCE RLS on all 12 current tenant-owned tables.
+- Persistent agent credential repository, signed HMAC agent tokens, and Fastify authentication middleware.
+- Auth0/OIDC user/developer authentication path, tenant membership model, and onboarding/agent-management API routes. Auth0 organization tenant-claim configuration and deployed verification remain open.
+- AWS KMS wrap/unwrap adapter, AES-256-GCM envelope encryption, durable credential-envelope storage, and credential lifecycle API routes. Live Railway KMS wiring and end-to-end verification remain open.
+- Persistent grants, delegations, approvals, policy checks, API routes, and dashboard approval inbox integration.
+- Railway web/API deployment and health checks.
 
-Current gaps before Milestone 1 can be called done:
-- No production user/developer identity provider or authenticated user session flow.
-- No trusted tenant-resolution/bootstrap authentication path for agent credentials.
-- No API authentication middleware wired to the repository and identity service.
-- No production agent registration/onboarding and credential rotation endpoints.
-- No actual tenant-isolation integration test executed against Neon using the runtime role.
-- No grant/approval lifecycle or browser execution implementation.
+Still open:
+- Complete trusted Auth0 organization/tenant claim setup and verify real user-to-API authorization.
+- Complete production KMS wiring and positive/negative end-to-end tests.
+- Finish the user-facing secure credential enrollment flow.
+- Build and verify the isolated browser worker and MFA/CAPTCHA user handoff.
+- Implement usable SDK and MCP transports; current transport surfaces are incomplete/stubs.
+- Run runtime-role database integration, adversarial, replay, concurrency, and secret-leak tests; complete independent security review.
 
+Do not treat an implemented adapter, API route, migration, or dashboard screen as proof that the full user-facing workflow is production-ready. The production credential gate in `docs/IMPLEMENTATION_STATUS.md` remains authoritative.
+ 
 ## 9. Test strategy
 
 Build security tests alongside every feature.
