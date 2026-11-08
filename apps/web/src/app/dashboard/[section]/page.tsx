@@ -7,58 +7,58 @@ import { decideApproval } from "./actions";
 
 const sections = {
   accounts: {
-    label: "CONNECTED ACCOUNTS", title: "Account directory",
-    description: "A secure inventory of the websites and services your agents may access.",
+    label: "YOUR ACCOUNTS", title: "Connected accounts",
+    description: "See the websites and services you have connected to AgentLogin.",
     icon: "globe" as const, number: "01",
-    state: "ACCOUNT ENROLLMENT NOT ENABLED",
-    emptyTitle: "Your account vault is ready for its first connection.",
-    emptyBody: "When credential enrollment is connected to the production vault, add a website account here. Secrets will remain encrypted server-side and will never be returned to an agent.",
-    next: "Next milestone: wire the credential lifecycle to the production KMS provider."
+    state: "ACCOUNT CONNECTIONS COMING SOON",
+    emptyTitle: "Your connected accounts will appear here.",
+    emptyBody: "You will be able to add websites and services here. Your passwords will stay private, even when an AI agent signs in for you.",
+    next: "We are finishing the secure account-connection process."
   },
   agents: {
-    label: "AGENT DIRECTORY", title: "Registered agents",
-    description: "Give every agent a distinct identity and a clearly bounded permission set.",
+    label: "YOUR AI AGENTS", title: "Your AI agents",
+    description: "See the AI agents you have connected and decide what each one can access.",
     icon: "bot" as const, number: "02",
-    state: "AGENT MANAGEMENT NOT ENABLED",
-    emptyTitle: "No agents registered in this workspace.",
-    emptyBody: "Agent registration and credential management will appear here when the workspace management API is connected. Each agent will have its own identity, status and revocation controls.",
-    next: "Next milestone: connect the dashboard to the agent credential repository."
+    state: "AGENT MANAGEMENT COMING SOON",
+    emptyTitle: "No AI agents connected yet.",
+    emptyBody: "Your connected AI agents will appear here. You will be able to review their access and disconnect them whenever you choose.",
+    next: "We are finishing the tools for managing your AI agents."
   },
   grants: {
-    label: "ACCESS CONTROL", title: "Access grants",
-    description: "Review short-lived authorization handles and the exact boundaries attached to them.",
+    label: "AGENT ACCESS", title: "Agent access",
+    description: "See which accounts your AI agents can use and what they are allowed to do.",
     icon: "ticket" as const, number: "03",
-    state: "GRANT ISSUANCE NOT ENABLED",
-    emptyTitle: "No access grants have been issued.",
-    emptyBody: "Grant issuance will be shown here once the policy and execution flow is connected. Each grant must bind an agent, account, origin, scopes, expiry and execution context.",
-    next: "Next milestone: connect policy evaluation and grant issuance."
+    state: "AGENT ACCESS COMING SOON",
+    emptyTitle: "No AI agents have account access yet.",
+    emptyBody: "When you allow an AI agent to use an account, you will be able to review and manage that permission here.",
+    next: "We are finishing the controls for managing agent access."
   },
   approvals: {
-    label: "HUMAN IN THE LOOP", title: "Approval inbox",
-    description: "Keep people in control of access decisions that require explicit authorization.",
+    label: "YOUR APPROVALS", title: "Requests waiting for you",
+    description: "Review requests from your AI agents before they take an action that needs your permission.",
     icon: "inbox" as const, number: "04",
-    state: "APPROVAL WORKFLOW NOT CONNECTED",
+    state: "APPROVALS COMING SOON",
     emptyTitle: "You're all caught up.",
-    emptyBody: "Approval requests will appear here when the approval workflow is connected to the dashboard. Requests should include the agent, account, origin, requested scope and reason.",
-    next: "Approval inbox API and repository are present; dashboard integration is the next step."
+    emptyBody: "When an AI agent needs your permission, you will see what it wants to do and which account it needs to use before you decide.",
+    next: "We are finishing your approval inbox."
   },
   activity: {
-    label: "AUDIT TRAIL", title: "Activity & audit logs",
-    description: "A chronological record of security-relevant events across your workspace.",
+    label: "RECENT ACTIVITY", title: "Your activity",
+    description: "A simple history of what your AI agents have done with your connected accounts.",
     icon: "activity" as const, number: "05",
-    state: "EVENT STREAM NOT CONNECTED",
-    emptyTitle: "Your audit trail will appear here.",
-    emptyBody: "Credential access, grant decisions, approval outcomes, revocations and denied requests should be recorded with tenant-scoped context. No sample events are shown as real activity.",
-    next: "Next milestone: connect tenant-scoped audit event queries."
+    state: "ACTIVITY HISTORY COMING SOON",
+    emptyTitle: "Your account activity will appear here.",
+    emptyBody: "See when an AI agent uses an account, asks for permission, or loses access.",
+    next: "We are preparing your activity history."
   },
   security: {
-    label: "SECURITY POSTURE", title: "Security center",
-    description: "Understand the controls protecting credentials, agents and authorization decisions.",
+    label: "YOUR SECURITY", title: "How we protect your accounts",
+    description: "Learn how AgentLogin keeps your passwords private and gives you control over what your AI agents can do.",
     icon: "shield" as const, number: "06",
-    state: "PRODUCTION VERIFICATION IN PROGRESS",
-    emptyTitle: "Security controls are being connected.",
-    emptyBody: "The production KMS key and adapter are provisioned, but runtime wiring and end-to-end verification are still required before the vault can be marked production-ready.",
-    next: "Next milestone: wire Railway API credentials to AWS KMS and verify encrypt/decrypt plus denial cases."
+    state: "SECURITY CHECKS IN PROGRESS",
+    emptyTitle: "We are putting the final security checks in place.",
+    emptyBody: "We are still testing the systems that protect your saved passwords. We will not say account protection is ready until those checks are complete.",
+    next: "We are completing and checking the password protection process."
   }
 } as const;
 
@@ -68,7 +68,7 @@ const navigation = [
   { label: "Overview", href: "/dashboard", icon: "grid" as const },
   { label: "Connected accounts", href: "/dashboard/accounts", icon: "globe" as const, key: "accounts" },
   { label: "Agents", href: "/dashboard/agents", icon: "bot" as const, key: "agents" },
-  { label: "Access grants", href: "/dashboard/grants", icon: "ticket" as const, key: "grants" },
+  { label: "Agent access", href: "/dashboard/grants", icon: "ticket" as const, key: "grants" },
   { label: "Approvals", href: "/dashboard/approvals", icon: "inbox" as const, key: "approvals" },
   { label: "Activity", href: "/dashboard/activity", icon: "activity" as const, key: "activity" },
 ];
@@ -88,7 +88,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   const apiToken = apiTokenResult?.token;
   let accounts: Array<{ account_id: string; provider: string; origin: string; display_label: string; status: string; created_at: string }> = [];
   let approvals: Array<{ grantId: string; approvalId: string; agentId: string; agentName: string; accountId: string; accountLabel: string; origin: string; scopes: string[]; taskId: string | null; expiresAt: string; requestedAt: string }> = [];
-  let liveDataError = !apiBase ? "Set AGENTLOGIN_API_URL on the web service." : !apiToken ? "Auth0 API access is not configured yet. Set AUTH0_AUDIENCE and complete the trusted tenant claim setup." : "";
+  let liveDataError = !apiBase ? "We are still connecting your account information. Please try again soon." : !apiToken ? "We could not load your information just now. Please try again in a moment." : "";
   if (apiToken && apiBase && (key === "accounts" || key === "approvals")) {
     try {
       const endpoint = key === "accounts" ? "/v1/connected-accounts" : "/v1/grants/pending";
@@ -97,8 +97,8 @@ export default async function DashboardSectionPage({ params }: { params: Promise
         cache: "no-store"
       });
       if (!response.ok) liveDataError = response.status === 503
-        ? "The API is not configured for verified user authentication yet."
-        : "The API could not load this workspace data. Check the Auth0 and API configuration.";
+        ? "We are still finishing this part of AgentLogin. Please try again soon."
+        : "We could not load this information. Please try again in a moment.";
       else {
         const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals };
         if (key === "accounts") accounts = payload.accounts ?? [];
@@ -113,23 +113,23 @@ export default async function DashboardSectionPage({ params }: { params: Promise
     <main className="workspace-shell workspace-shell-v2">
       <aside className="workspace-sidebar workspace-sidebar-v2">
         <Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt="" /><span>AgentLogin</span></Link>
-        <div className="workspace-switcher"><span className="workspace-switcher-mark">A</span><span><small>WORKSPACE</small><strong>Personal workspace</strong></span><Icon name="chevron" /></div>
-        <div className="sidebar-label">PLATFORM</div>
-        <nav className="workspace-nav" aria-label="Workspace navigation">
+        <div className="workspace-switcher"><span className="workspace-switcher-mark">A</span><span><small>YOUR ACCOUNT</small><strong>Personal account</strong></span><Icon name="chevron" /></div>
+        <div className="sidebar-label">YOUR ACCOUNT</div>
+        <nav className="workspace-nav" aria-label="Your account">
           {navigation.map((entry) => <Link key={entry.label} className={entry.key === key ? "side-link active" : "side-link"} href={entry.href}><Icon name={entry.icon} /><span>{entry.label}</span></Link>)}
         </nav>
-        <div className="sidebar-label sidebar-label-spaced">MANAGE</div>
+        <div className="sidebar-label sidebar-label-spaced">SETTINGS</div>
         <nav className="workspace-nav" aria-label="Management navigation">
-          <Link className={key === "security" ? "side-link active" : "side-link"} href="/dashboard/security"><Icon name="shield" /><span>Security center</span></Link>
+          <Link className={key === "security" ? "side-link active" : "side-link"} href="/dashboard/security"><Icon name="shield" /><span>Your security</span></Link>
           <Link className="side-link" href="/settings"><Icon name="users" /><span>Team & members</span></Link>
-          <Link className="side-link" href="/developers"><Icon name="code" /><span>Developer settings</span></Link>
+          <Link className="side-link" href="/developers"><Icon name="code" /><span>For developers</span></Link>
         </nav>
-        <div className="sidebar-help"><span className="help-icon"><Icon name="book" /></span><strong>Build with AgentLogin</strong><p>Connect your agent through the SDK or MCP interface.</p><Link href="/developers">Developer guide <Icon name="arrow" /></Link></div>
+        <div className="sidebar-help"><span className="help-icon"><Icon name="book" /></span><strong>Build with AgentLogin</strong><p>Connect your AI assistant to AgentLogin in a few simple steps.</p><Link href="/developers">Getting started <Icon name="arrow" /></Link></div>
         <div className="sidebar-bottom sidebar-bottom-v2"><span className="avatar">{initial}</span><div><strong>{displayName}</strong><small>{session.user.email || "Authenticated account"}</small></div><a href="/auth/logout" aria-label="Sign out"><Icon name="logout" /></a></div>
       </aside>
       <section className="workspace-main workspace-main-v2">
-        <header className="workspace-topbar"><div className="workspace-breadcrumb"><Link href="/dashboard">WORKSPACE</Link><b>/</b><strong>{item.label}</strong></div><div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> AUTHENTICATED</span><Link href="/settings" aria-label="Workspace settings"><Icon name="settings" /></Link></div></header>
-        <section className="workspace-welcome section-page-welcome"><div><span className="section-kicker">CONTROL PLANE / {item.number}</span><h1>{item.title}</h1><p>{item.description}</p></div><span className="workspace-coming">{item.state}</span></section>
+        <header className="workspace-topbar"><div className="workspace-breadcrumb"><Link href="/dashboard">YOUR ACCOUNT</Link><b>/</b><strong>{item.label}</strong></div><div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> SIGNED IN</span><Link href="/settings" aria-label="Account settings"><Icon name="settings" /></Link></div></header>
+        <section className="workspace-welcome section-page-welcome"><div><span className="section-kicker">YOUR ACCOUNT / {item.number}</span><h1>{item.title}</h1><p>{item.description}</p></div><span className="workspace-coming">{item.state}</span></section>
         {key === "accounts" ? (
           <section className="section-page-card live-data-card">
             <div className="section-page-icon"><Icon name="globe" /></div>
@@ -143,7 +143,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
                   <span className={account.status === "active" ? "live-status active" : "live-status"}>{account.status}</span>
                 </article>
               ))}</div>
-            ) : <p className="live-data-notice">No connected accounts in this workspace yet.</p>}
+            ) : <p className="live-data-notice">No connected accounts yet.</p>}
           </section>
         ) : key === "approvals" ? (
           <section className="section-page-card live-data-card">
@@ -175,7 +175,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
             <div className="section-page-next"><Icon name="arrow" /><span>{item.next}</span></div>
           </section>
         )}
-        <footer className="workspace-footer"><span>AGENTLOGIN / CONTROL PLANE</span><span>SECURE ACCESS FOR AUTONOMOUS WORK</span><Link href="/dashboard">BACK TO OVERVIEW <Icon name="arrow" /></Link></footer>
+        <footer className="workspace-footer"><span>AGENTLOGIN</span><span>YOUR ACCOUNTS. YOUR PERMISSION. YOUR CONTROL.</span><Link href="/dashboard">BACK TO YOUR ACCOUNT <Icon name="arrow" /></Link></footer>
       </section>
     </main>
   );
