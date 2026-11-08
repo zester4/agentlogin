@@ -11,6 +11,7 @@ import { developerRoutes } from "./routes/developers.js";
 import { connectedAccountRoutes } from "./routes/connected-accounts.js";
 import { grantRoutes } from "./routes/grants.js";
 import { delegationRoutes } from "./routes/delegations.js";
+import { kmsDiagnosticRoutes } from "./routes/kms-diagnostic.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
@@ -27,6 +28,9 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
   });
 
   app.register(healthRoutes, { pool });
+  // The diagnostic route is inert (404) unless a temporary high-entropy token
+  // is configured. It never accepts or returns credential material.
+  app.register(kmsDiagnosticRoutes);
   if (auth) {
     agentAuthenticationPlugin(app, auth);
     userAuthenticationPlugin(app, { database: auth.database });
