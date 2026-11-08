@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../../lib/auth0";
-import { Icon } from "../../ui-icon";\nimport { ThemeToggle } from "../../theme-toggle";
+import { Icon } from "../../ui-icon";
+import { ThemeToggle } from "../../theme-toggle";
 import { decideApproval } from "./actions";
 
 const sections = {
