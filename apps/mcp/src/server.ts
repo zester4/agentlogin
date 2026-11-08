@@ -17,7 +17,11 @@ if (allowedHosts.length === 0) throw new Error("MCP_ALLOWED_HOSTS must contain t
 const app = createMcpFastifyApp({
   host: process.env.HOST ?? "0.0.0.0",
   allowedHosts,
-  logger: { redact: { paths: ["req.headers.authorization", "req.headers.cookie"], censor: "[REDACTED]" } }
+  allowedOrigins: allowedOrigins.map((origin) => {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin) throw new Error(`MCP_ALLOWED_ORIGINS entries must be exact origins: ${origin}`);
+    return parsed.hostname;
+  })
 });
 const handler = createAgentLoginMcpHandler({ apiBaseUrl });
 const nodeHandler = toNodeHandler(handler);
