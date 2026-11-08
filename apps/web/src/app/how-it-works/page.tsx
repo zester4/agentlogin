@@ -1,0 +1,9 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "How it works" };
+export default function Page(){return <InfoLayout eyebrow="PRODUCT / OVERVIEW" title={<>A safer path from<br/>agent intent to login.</>} intro="AgentLogin is designed to separate authorization from credential handling, so an agent can complete an approved sign-in without being handed the secret itself.">
+<InfoSection title="01 — Connect an account"><p>A user connects an account through a supported credential or identity flow. Secrets are stored behind the vault boundary and are not returned as ordinary agent context.</p></InfoSection>
+<InfoSection title="02 — An agent requests access"><p>An authenticated agent asks to perform a defined login task. The request should identify the target origin, connected account, requested scope, and execution context.</p></InfoSection>
+<InfoSection title="03 — Evaluate policy and approval"><p>AgentLogin evaluates the request against tenant, user, agent, account, origin, scope, expiry, and policy constraints. User approval is required wherever the configured policy says so.</p></InfoSection>
+<InfoSection title="04 — Execute without exposing secrets"><p>Approved work is carried out through a protected execution path. The agent receives an opaque, short-lived grant reference rather than a password, cookie, or API key.</p></InfoSection>
+<InfoSection title="A login grant is deliberately narrow"><p>Permission to sign in is not permission to make purchases, move funds, change account settings, or perform arbitrary actions after login. Those actions require separately defined scopes and authorization.</p></InfoSection>
+</InfoLayout>}
