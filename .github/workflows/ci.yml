@@ -5,15 +5,25 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pnpm-lockfile-bootstrap
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 1
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm build
