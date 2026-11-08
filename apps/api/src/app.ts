@@ -1,7 +1,16 @@
 import Fastify from "fastify";
 import { healthRoutes } from "./routes/health.js";
+import { identityRoutes } from "./routes/identity.js";
+import type { IdentityStore } from "./identity/types.js";
+import type { UserTokenVerifier } from "./identity/user-jwt.js";
 
-export function buildApp() {
+export type BuildAppOptions = {
+  identityStore?: IdentityStore;
+  userTokenVerifier?: UserTokenVerifier;
+  bootstrapSecret?: string;
+};
+
+export function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
@@ -9,10 +18,14 @@ export function buildApp() {
         paths: [
           "req.headers.authorization",
           "req.headers.cookie",
+          "req.headers.x-agentlogin-bootstrap-secret",
           "*.password",
           "*.token",
           "*.secret",
-          "*.credential"
+          "*.credential",
+          "*.api_key",
+          "*.developer_key",
+          "*.agent_credential"
         ],
         censor: "[REDACTED]"
       }
@@ -20,7 +33,14 @@ export function buildApp() {
     bodyLimit: 1_048_576,
     requestIdHeader: "x-request-id"
   });
-  app.register(healthRoutes);
+  app.register(healthRoutes, {
+    identityHealthCheck: options.identityStore ? () => options.identityStore!.healthCheck() : async () => false
+  });
+  app.register(identityRoutes, {
+    store: options.identityStore ?? null,
+    userTokenVerifier: options.userTokenVerifier ?? null,
+    bootstrapSecret: options.bootstrapSecret ?? null
+  });
   app.setErrorHandler((error, request, reply) => {
     const name = error instanceof Error ? error.name : "UnknownError";
     const code =

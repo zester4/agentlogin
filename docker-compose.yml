@@ -2,13 +2,15 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: agentlogin
-      POSTGRES_PASSWORD: local_dev_only
+      POSTGRES_USER: agentlogin_admin
+      POSTGRES_PASSWORD: local_admin_only
       POSTGRES_DB: agentlogin
     ports: ["5432:5432"]
-    volumes: ["agentlogin_pg:/var/lib/postgresql/data"]
+    volumes:
+      - "agentlogin_pg:/var/lib/postgresql/data"
+      - "./db/init:/docker-entrypoint-initdb.d:ro"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agentlogin -d agentlogin"]
+      test: ["CMD-SHELL", "pg_isready -U agentlogin_admin -d agentlogin"]
       interval: 5s
       timeout: 3s
       retries: 10
