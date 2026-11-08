@@ -28,6 +28,8 @@ Every tenant-owned table has PostgreSQL row-level security enabled and forced. E
 
 The database runtime role must not be a superuser and must not have `BYPASSRLS`. Local Compose creates `agentlogin_app` separately from the migration administrator; `DATABASE_URL` must use the former and `MIGRATION_DATABASE_URL` the latter. RLS is defense in depth: it does not protect against a compromised application role that can deliberately set another tenant context. Application authorization and explicit query predicates remain mandatory. Authentication lookup uses only the identifiers in the presented credential to narrow a tenant-scoped lookup; the resulting principal is not trusted until the secret hash and active database state are verified.
 
+At API startup, the identity route plugin runs the identity readiness check before enabling authentication, developer provisioning, or operator bootstrap. If the identity migration, forced RLS policies, or non-superuser runtime-role check fails, those routes remain unavailable (503) until the API is restarted after remediation. The liveness endpoint remains separate from identity readiness.
+
 ## Credential lifecycle
 
 Developer and agent credentials expire after 30 days by default, with a 90-day maximum. Rotation inserts a new credential and revokes the old one in the same transaction. Revocation, expiry and active tenant/developer/agent status are rechecked on every request. The old secret is never recoverable because only its one-way hash is persisted.

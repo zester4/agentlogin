@@ -16,10 +16,10 @@ describe("PostgreSQL identity isolation contract", () => {
 
   it("defines a tenant-qualified grant key before approval and execution references", async () => {
     const sql = await readFile(new URL("../../../../db/migrations/0001_initial.sql", import.meta.url), "utf8");
-    const grantsDefinition = sql.match(/CREATE TABLE grants \\((.*?)\\);/)?.[1] ?? "";
-    const grantReferences = sql.match(/FOREIGN KEY\\(tenant_id,grant_id\\) REFERENCES grants\\(tenant_id,id\\)/g) ?? [];
+    const grantsDefinition = sql.split("CREATE TABLE grants (")[1]?.split(");")[0] ?? "";
+    const grantReferences = sql.split("FOREIGN KEY(tenant_id,grant_id) REFERENCES grants(tenant_id,id)").length - 1;
     expect(grantsDefinition).toContain("UNIQUE(tenant_id,id)");
-    expect(grantReferences).toHaveLength(2);
+    expect(grantReferences).toBe(2);
   });
 
   it("enforces agent credential ownership with a composite foreign key", async () => {

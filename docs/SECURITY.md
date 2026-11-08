@@ -11,6 +11,7 @@ Assets include credential plaintext, OAuth tokens, cookies, sessions, recovery c
 - Each tenant-scoped SQL operation sets a transaction-local tenant context, uses explicit tenant/owner predicates, and is protected by forced PostgreSQL RLS policies.
 - API logging redacts authorization, cookies and credential-like fields. Provisioning responses use no-store headers. Identity inspection endpoints return safe metadata only.
 - Strict request schemas reject caller-supplied tenant IDs. Tenant and actor principals are derived from verified user tokens or successfully verified credential hashes and their database records.
+- Identity authentication, provisioning and operator bootstrap routes remain disabled unless startup readiness confirms the identity migration, forced RLS policies and a non-superuser/non-`BYPASSRLS` runtime database role.
 
 The current OIDC adapter uses a static JWKS supplied through environment configuration. It is a bounded generic adapter, not a selected identity-provider integration. Key rotation requires an operator to update the configured public JWKS and redeploy. Tenant bootstrap is operator-controlled through a separate bootstrap secret; public self-service signup and invitation flows are not implemented.
 

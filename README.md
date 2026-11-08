@@ -38,7 +38,7 @@ API liveness: `http://localhost:4000/health`.
 
 `DATABASE_URL` is the API runtime connection and must use the non-superuser runtime role. `MIGRATION_DATABASE_URL` is a separate schema-owner connection, and `AGENTLOGIN_DB_RUNTIME_ROLE` names the runtime role. The migration runner refuses a superuser/`BYPASSRLS` runtime role or a shared migration/runtime role.
 
-Identity readiness: `http://localhost:4000/identity/ready` checks the database, applied identity migration, forced RLS policies, and that the runtime role is not a superuser or `BYPASSRLS`. Full API readiness intentionally remains `503` at `/ready` until the vault, grant, approval, and execution dependencies exist.
+Identity readiness: `http://localhost:4000/identity/ready` checks the database, applied identity migration, forced RLS policies, and that the runtime role is not a superuser or `BYPASSRLS`. The identity route plugin performs the same check at startup; authentication, provisioning and bootstrap routes remain `503` if it fails and require an API restart after the database or role is repaired. Full API readiness intentionally remains `503` at `/ready` until the vault, grant, approval, and execution dependencies exist.
 
 ## Identity configuration
 
