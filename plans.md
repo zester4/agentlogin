@@ -344,7 +344,7 @@ Acceptance:
 - every request has verified tenant and actor context.
 
 ### Milestone 2 — Secure enrollment and credential vault
-**Status: IN PROGRESS — envelope encryption, durable credential storage, lifecycle routes, and AWS KMS adapter exist. Production KMS wiring/verification and the complete user-facing enrollment flow remain open.**
+**Status: IN PROGRESS — envelope encryption, durable credential storage, lifecycle routes, and AWS KMS adapter exist. Railway production KMS wiring is configured; live synthetic Encrypt/Decrypt and altered-tenant-context rejection passed, and the temporary diagnostic endpoint is disabled (404). A PostgreSQL + KMS lifecycle integration test has been added but is not yet run against Neon. Secure user-facing enrollment and the remaining operational/security checks remain open.**
 
 Deliverables:
 - secure hosted enrollment;
@@ -401,7 +401,7 @@ Acceptance:
 - isolation, timeout, cleanup, and revocation tests pass.
 
 ### Milestone 5 — SDK, REST docs, MCP
-**Status: IN PROGRESS — package and integration scaffolding exist; SDK/MCP transport implementations remain stubs and are not ready to be represented as working integrations.**
+**Status: IN PROGRESS — typed TypeScript SDK and authenticated Streamable HTTP MCP transport are implemented and deployed. npm publication and authenticated remote smoke tests remain open; login execution tools remain blocked on the isolated browser worker.**
 
 Deliverables:
 - TypeScript SDK;
@@ -444,16 +444,16 @@ Implemented foundations include:
 - Neon PostgreSQL, Drizzle baseline migration, tenant-scoped repositories, and FORCE RLS on all 12 current tenant-owned tables.
 - Persistent agent credential repository, signed HMAC agent tokens, and Fastify authentication middleware.
 - Auth0/OIDC user/developer authentication path, tenant membership model, and onboarding/agent-management API routes. Auth0 organization tenant-claim configuration and deployed verification remain open.
-- AWS KMS wrap/unwrap adapter, AES-256-GCM envelope encryption, durable credential-envelope storage, and credential lifecycle API routes. Live Railway KMS wiring and end-to-end verification remain open.
+- AWS KMS wrap/unwrap adapter, AES-256-GCM envelope encryption, durable credential-envelope storage, and credential lifecycle API routes. Railway KMS configuration is live; synthetic Encrypt/Decrypt and altered-tenant-context rejection passed. The diagnostic token was removed and its endpoint returns 404. The database-backed credential lifecycle has not yet been run end to end.
 - Persistent grants, delegations, approvals, policy checks, API routes, and dashboard approval inbox integration.
 - Railway web/API deployment and health checks.
 
 Still open:
 - Complete trusted Auth0 organization/tenant claim setup and verify real user-to-API authorization.
-- Complete production KMS wiring and positive/negative end-to-end tests.
+- Run the new PostgreSQL + AWS KMS lifecycle integration test against Neon using synthetic credentials; verify unrelated-key denial, KMS outage behavior, and CloudTrail identity/actions.
 - Finish the user-facing secure credential enrollment flow.
 - Build and verify the isolated browser worker and MFA/CAPTCHA user handoff.
-- Implement usable SDK and MCP transports; current transport surfaces are incomplete/stubs.
+- Publish the SDK/contracts packages and complete authenticated remote MCP smoke tests; browser login execution tools remain intentionally unavailable until the isolated worker is complete.
 - Run runtime-role database integration, adversarial, replay, concurrency, and secret-leak tests; complete independent security review.
 
 Do not treat an implemented adapter, API route, migration, or dashboard screen as proof that the full user-facing workflow is production-ready. The production credential gate in `docs/IMPLEMENTATION_STATUS.md` remains authoritative.
@@ -552,10 +552,10 @@ This section reflects the current `main` implementation plus the active integrat
 | Agent identity | Persistent agent credential repository; 256-bit random credential secrets; SHA-256 hashes stored in PostgreSQL; HMAC-signed tenant-bound agent tokens; Fastify authentication with expiry, revocation, tenant, developer, and agent-state checks. | Key-ring rotation, migration of legacy unsigned tokens where applicable, abuse controls, and full adversarial/concurrency verification. |
 | User identity and onboarding | Auth0/OIDC JWT verification with issuer, audience, JWKS signature, allowed algorithm, token expiry/age, and trusted tenant claim; membership lookup; idempotent first-user onboarding repository and API route. | Finish Auth0 Post-Login Action and Login-flow setup; verify Railway OIDC variables and live tokens; test token renewal, organization membership, and owner/admin boundaries. |
 | Tenant isolation | Tenant-scoped PostgreSQL repositories, transaction-local tenant context, RLS and FORCE RLS on the current tenant-owned tables, separate least-privilege runtime and migration roles. | Continue testing with the actual Neon runtime role; verify all cross-tenant and membership denial cases after migrations. |
-| Credential vault | AES-256-GCM envelope encryption, callback-scoped decryption, durable encrypted credential records, versioned credential rotation, account disconnect/revocation, and AWS KMS Encrypt/Decrypt provider. The connected-account enrollment and credential-rotation handlers instantiate the KMS provider. | AWS KMS key exists, but the dedicated IAM policy/user and Railway API credentials/configuration are not complete. Run live KMS positive/negative tests. Complete the user-facing secure enrollment/handoff flow. Do not store real credentials yet. |
+| Credential vault | AES-256-GCM envelope encryption, callback-scoped decryption, durable encrypted credential records, versioned credential rotation, account disconnect/revocation, and AWS KMS Encrypt/Decrypt provider. The connected-account enrollment and credential-rotation handlers instantiate the KMS provider. | AWS KMS key, dedicated least-privilege IAM identity, and Railway API-only credentials are configured. The live synthetic KMS test passed Encrypt, Decrypt, and altered-tenant-context rejection; the temporary diagnostic route is disabled (404). An opt-in PostgreSQL + KMS lifecycle integration test has been added but not yet run against Neon. Complete secure user-facing enrollment/handoff, unrelated-key and outage tests, CloudTrail review, and recovery/rotation procedures. Do not store real credentials yet. |
 | Grants and approvals | Persistent grant and approval repositories; delegation checks; pending grant request; user approve/deny/revoke routes; expiry/revocation checks; scoped authorization; secret-free audit events. | Verify end-to-end against deployed Auth0/API configuration, including wrong-owner, cross-tenant, replay, expiry, race, and concurrency cases. |
 | Dashboard | Next.js 16 dashboard with account, agent, grant, approval, activity, and security sections; mobile responsiveness; light/dark themes; server-side connected-account and approval API calls. | Merge and verify the first-use onboarding integration on the active PR. Complete the account enrollment UI and other workflows still marked as coming soon. |
-| SDK and MCP | Package structures and integration boundaries exist. | Complete authenticated SDK methods and MCP transport/tools; they are not yet ready to be represented as complete integrations. |
+| SDK and MCP | Typed TypeScript SDK supports agent identity, grant requests, and grant-status lookup; authenticated Streamable HTTP MCP tools verify AgentLogin agent tokens. Separate Railway MCP service is deployed. | Publish SDK/contracts to npm and run authenticated remote smoke tests. Login execution remains unavailable until the isolated browser worker is built and verified. |
 | Login execution | Provider-neutral execution interfaces/coordinator and grant-bound authorization checks exist. | Concrete isolated browser worker, credential broker, origin/redirect/SSRF protections, output sanitization, session cleanup, and user-mediated MFA/CAPTCHA handoff remain open. |
 | Deployment and tests | Neon database and Railway web/API deployments exist; baseline migration applied; API health endpoint has returned HTTP 200. Unit/security tests and opt-in PostgreSQL integration coverage exist. | Verify current CI, production runtime-role integration tests, KMS/Auth0 end-to-end behavior, operational recovery, and independent security review. |
 
@@ -578,7 +578,7 @@ This section reflects the current `main` implementation plus the active integrat
 
 ### Migration and rollout notes
 
-- The current main branch has the Drizzle baseline migration applied to Neon. Do not use `drizzle-kit push` against production.
+- The current main branch has the Drizzle baseline migration applied to Neon. The new opt-in integration test requires an existing dedicated synthetic tenant/user and the non-owner runtime database role. Do not use `drizzle-kit push` against production.
 - Keep the migration role separate from the runtime role. Verify RLS and FORCE RLS after every schema change using the actual non-owner runtime role.
 - The dashboard's first-use onboarding integration is being added on the active PR; verify CI and deployed behavior after merge.
 - A healthy Railway health endpoint does not prove Auth0, KMS, credential enrollment, grant execution, or browser isolation is ready.

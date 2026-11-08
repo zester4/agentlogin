@@ -1,6 +1,6 @@
 # AgentLogin — Remaining Work
 
-**Last reviewed:** 8 November 2026  
+**Last reviewed:** 8 November 2026 (after live AWS KMS verification)  
 **Repository:** [zester4/agentlogin](https://github.com/zester4/agentlogin)  
 **Purpose:** Current checklist for the remaining setup, integration, and production-readiness work.
 
@@ -14,7 +14,7 @@
 - Web framework: Next.js 16.4.5 / React 19.3.1
 - API: Fastify
 
-The API health endpoint has previously returned HTTP 200. The web and API deployments for PR #32 completed successfully; the separate MCP service is being deployed and still needs live verification.
+The API health endpoint has returned HTTP 200. The web, API, and separate MCP Railway services have deployed successfully. Live authenticated MCP smoke testing and Auth0 organization-claim verification remain open.
 
 ## Completed foundations
 
@@ -35,9 +35,12 @@ The API health endpoint has previously returned HTTP 200. The web and API deploy
 - [x] Set `AGENTLOGIN_API_URL=https://agentlogin-production-90b2.up.railway.app` on the Railway production web service.
 - [x] Set `AUTH0_AUDIENCE=https://api.agentlogin.app` and `AUTH0_ORGANIZATION=org_fBUW065W2Ut6KHbt` on the web service.
 - [x] Set `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE=24h` on the API service.
-- [x] Set `AWS_REGION=us-east-1` and the dedicated `AWS_KMS_KEY_ID` ARN on the API service. AWS IAM access keys are not yet created or configured.
+- [x] Set `AWS_REGION=us-east-1`, the dedicated `AWS_KMS_KEY_ID` ARN, and the dedicated IAM service user's access keys on the Railway API service only.
 - [x] GitHub CI passed for PR #31 and PR #32: lint, typecheck, build, and tests.
-- [ ] Confirm the web/API redeployments triggered by the environment changes finish successfully.
+- [x] Confirmed the production API deployment after AWS KMS configuration completed successfully.
+- [x] Ran the protected live KMS diagnostic: `kms_encrypt=true`, `kms_decrypt=true`, and `encryption_context_rejection=true`.
+- [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; unauthenticated POST to `/internal/kms/self-test` now returns HTTP 404.
+- [x] Added an opt-in PostgreSQL + AWS KMS lifecycle integration test; execution against Neon remains pending.
 
 ## Recently completed — PR #31 merged
 
@@ -60,39 +63,33 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 - [x] Add SDK and MCP client tests and developer integration documentation.
 - [x] GitHub Actions passed on the current implementation: build, lint, typecheck, and tests (including the SDK and MCP client integration tests).
 - [ ] Publish the public SDK and contracts packages to npm after package ownership, release metadata, and CI are verified.
-- [ ] Deploy a separate MCP Railway service and configure its hostname/origin allowlists before sharing the endpoint.
+- [x] Deploy a separate MCP Railway service and configure its hostname/origin allowlists.
+- [ ] Run authenticated remote MCP smoke tests with a dedicated synthetic agent credential.
 - [ ] Implement standard OAuth 2.1 discovery/authorization for remote MCP clients if automatic OAuth onboarding is required; current MCP HTTP auth accepts AgentLogin opaque agent tokens supplied by the host.
 
 ## Current follow-up work
 
 The dashboard onboarding change uses the Auth0 access token only on the Next.js server. The API derives tenant and user identity from the signed token; the browser does not supply tenant/user IDs. The onboarding repository uses a transaction lock and reuses an existing active membership.
 
-## 1. AWS KMS — waiting for PC access
+## 1. AWS KMS — live synthetic test passed; durable vault lifecycle verification next
 
-### Completed
-- [x] Created the AWS KMS key.
-- [x] Alias: `alias/agentlogin-vault`
-- [x] Region: `us-east-1`
-- [x] Key ID: `ce73891f-9bca-41ea-b9dc-e4555703b4fd`
-- [x] Key ARN: `arn:aws:kms:us-east-1:471742380391:key/ce73891f-9bca-41ea-b9dc-e4555703b4fd`
-- [x] Key is symmetric, enabled, and supports Encrypt/Decrypt.
-- [x] Least-privilege IAM policy JSON prepared in the conversation.
+### Completed and verified
+- [x] Created the symmetric AWS KMS key and alias `alias/agentlogin-vault` in `us-east-1`.
+- [x] Created the least-privilege IAM policy `AgentLoginVaultKmsUseOnly` for Encrypt/Decrypt on this key, constrained by allowed purpose values.
+- [x] Created dedicated IAM user `agentlogin-vault-service` without console access and attached only that policy.
+- [x] Created its programmatic access key; both values are stored only in Railway API service variables.
+- [x] Configured `AWS_REGION`, `AWS_KMS_KEY_ID`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` on the Railway API service only.
+- [x] Production API deployment completed successfully after configuration.
+- [x] Live synthetic KMS test passed Encrypt, Decrypt, and rejection when tenant encryption context was altered.
+- [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; the diagnostic endpoint returned HTTP 404 after redeployment.
 
 ### Still to do
-- [ ] Create IAM policy `AgentLoginVaultKmsUseOnly` using the prepared policy JSON.
-- [ ] Create a dedicated IAM user for the AgentLogin API; do not enable console sign-in.
-- [ ] Attach only `AgentLoginVaultKmsUseOnly`.
-- [ ] Create a programmatic access key.
-- [ ] Store the access key ID and secret only in Railway **API service** variables. Never paste them into chat or commit them.
-- [ ] Set `AWS_REGION=us-east-1` on the API service.
-- [ ] Set `AWS_KMS_KEY_ID` to the full key ARN above on the API service.
-- [ ] Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` on the API service only.
-- [ ] Verify the API's AWS SDK credential chain can use the key.
-- [ ] Test live credential enrollment and rotation through KMS.
-- [ ] Test wrong encryption-context denial, wrong-key denial, and KMS outage/failure behavior.
-- [ ] Check CloudTrail and confirm no plaintext credentials or DEKs are logged or persisted.
+- [ ] Run `packages/database/src/postgres-vault.integration.test.ts` against Neon with a dedicated synthetic test user and tenant, using the least-privileged runtime database role.
+- [ ] Verify wrong/unrelated KMS key denial and KMS outage/failure behavior.
+- [ ] Review CloudTrail for the expected principal and KMS operations; confirm no plaintext credential or DEK appears in logs.
+- [ ] Document and test IAM access-key rotation, KMS key recovery, backup/restore, and incident response.
 
-**Important:** KMS provider construction is already present in the connected-account enrollment and credential-rotation handlers. The remaining work is AWS identity/configuration on Railway and end-to-end verification. Do not claim production vault encryption is ready until the live checks pass.
+The live diagnostic proves KMS cryptographic access only. It does not prove that a credential was persisted in PostgreSQL or that the connected-account API lifecycle is production-ready.
 
 ## 2. Auth0 and user identity
 
