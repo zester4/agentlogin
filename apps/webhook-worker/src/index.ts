@@ -201,9 +201,10 @@ async function deliver(item: QueueItem): Promise<void> {
     aadVersion: 1
   };
   let secret: Buffer | undefined;
+  let body: Buffer | undefined;
   try {
     secret = await decryptCredential(envelope, context, kms);
-    const body = Buffer.from(JSON.stringify({
+    body = Buffer.from(JSON.stringify({
       id: delivery.event_id,
       type: delivery.event_type,
       occurred_at: new Date(delivery.occurred_at).toISOString(),
@@ -221,7 +222,6 @@ async function deliver(item: QueueItem): Promise<void> {
       item, delivery, result.outcome, result.statusCode, result.latencyMs,
       `HTTP ${result.statusCode}`, null
     );
-    body.fill(0);
   } catch (error) {
     const timedOut = error instanceof Error && error.message.toLowerCase().includes("timed out");
     const destinationRejected = error instanceof Error &&
@@ -232,6 +232,7 @@ async function deliver(item: QueueItem): Promise<void> {
       null, 0, null, destinationRejected ? "destination_rejected" : "delivery_transport_error"
     );
   } finally {
+    body?.fill(0);
     secret?.fill(0);
   }
 }
