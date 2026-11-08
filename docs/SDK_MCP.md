@@ -107,5 +107,6 @@ Those operations are not yet backed by a complete production execution API and i
 - [ ] Verify delegated and non-delegated grant requests behave correctly.
 - [ ] Verify all errors and logs redact bearer credentials and never include account secrets.
 - [ ] Add OAuth 2.1 discovery and authorization if required by target MCP clients.
-- [ ] Deploy the MCP service separately and configure its hostname/origin allowlists.
+- [ ] Deploy the MCP service separately and configure its hostname/origin allowlists; verify live health and authenticated remote MCP behavior.
 - [ ] Publish the SDK and contracts only after the release checklist passes.
+- [ ] Webhooks are not yet implemented; see [webhook architecture](./WEBHOOKS.md).

@@ -25,6 +25,29 @@
   ],
   "sideEffects": false,
   "publishConfig": {
-    "access": "public"
-  }
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zester4/agentlogin.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/zester4/agentlogin#readme",
+  "bugs": {
+    "url": "https://github.com/zester4/agentlogin/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "description": "Server-side TypeScript SDK for secure, scoped AgentLogin agent access.",
+  "keywords": [
+    "agentlogin",
+    "ai-agents",
+    "credential-vault",
+    "agent-identity",
+    "authorization",
+    "typescript",
+    "sdk"
+  ]
 }

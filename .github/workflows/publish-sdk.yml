@@ -1,0 +1,57 @@
+name: Publish AgentLogin SDK packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Expected package version (for example 0.2.0)"
+        required: true
+        default: "0.2.0"
+  push:
+    tags:
+      - "sdk-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify workspace
+        run: |
+          pnpm --filter @agentlogin/contracts build
+          pnpm --filter @agentlogin/sdk build
+          pnpm --filter @agentlogin/contracts test
+          pnpm --filter @agentlogin/sdk test
+      - name: Verify package contents
+        run: |
+          mkdir -p /tmp/agentlogin-packages
+          pnpm --filter @agentlogin/contracts pack --pack-destination /tmp/agentlogin-packages
+          pnpm --filter @agentlogin/sdk pack --pack-destination /tmp/agentlogin-packages
+          ls -lah /tmp/agentlogin-packages
+      - name: Check npm credentials
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN" || (echo "NPM_TOKEN repository secret is required" && exit 1)
+          npm whoami
+      - name: Publish contracts first
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm --filter @agentlogin/contracts publish --access public --no-git-checks
+      - name: Publish SDK
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm --filter @agentlogin/sdk publish --access public --no-git-checks
