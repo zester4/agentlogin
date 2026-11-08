@@ -40,7 +40,7 @@ Branch: `fix/dashboard-onboarding-and-docs`
 
 - [x] Refresh root README to describe the current repository accurately and remove the duplicate legacy-migrations entry.
 - [x] Add this remaining-work tracker to `docs/REMAINING_WORK.md`.
-- [x] Fix the dashboard's first-use flow: Connected Accounts and Approvals now call the idempotent `POST /v1/onboarding` endpoint server-side before loading their data.
+- [x] Fix the dashboard's first-use flow: the overview provisions the signed-in user on first visit, and Connected Accounts/Approvals retry the idempotent `POST /v1/onboarding` endpoint server-side before loading their data.
 - [x] Update Auth0 setup documentation to explain automatic dashboard onboarding.
 - [ ] Open and review the pull request.
 - [ ] Run CI/build/typecheck/tests and address failures.
