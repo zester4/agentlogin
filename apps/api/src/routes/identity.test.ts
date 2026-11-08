@@ -8,6 +8,7 @@ import type {
   IdentityStore,
   UserIdentityRecord
 } from "../identity/types.js";
+import { InvalidUserTokenError } from "../identity/user-jwt.js";
 import type { UserTokenVerifier } from "../identity/user-jwt.js";
 
 const tenantA = newId("ten");
@@ -23,8 +24,9 @@ class MemoryIdentityStore {
   agentKeys = new Map<string, AgentCredentialRecord>();
   agents = new Map<string, AgentRecord>();
   users = new Map<string, UserIdentityRecord>();
+  identityReady = true;
 
-  async healthCheck() { return true; }
+  async healthCheck() { return this.identityReady; }
   async bootstrapTenant() {}
   async findDeveloperCredential(input: { tenantId: string; developerId: string; credentialId: string }) {
     const row = this.developerKeys.get(input.credentialId);
@@ -116,8 +118,9 @@ class MemoryIdentityStore {
   async close() {}
 }
 
-function setup() {
+function setup(options: { identityReady?: boolean } = {}) {
   const store = new MemoryIdentityStore();
+  store.identityReady = options.identityReady ?? true;
   const developerKey = issueDeveloperCredential(tenantA, developerA);
   store.developerKeys.set(developerKey.id, {
     id: developerKey.id, tenantId: tenantA, developerId: developerA,
@@ -152,7 +155,7 @@ function setup() {
       if (token === "user-wrong") return {
         tenantId: tenantA, issuer, subject: "subject-b", expiresAt: new Date(Date.now() + 60_000)
       };
-      throw new Error("invalid");
+      throw new InvalidUserTokenError();
     }
   };
   const app = buildApp({
@@ -160,7 +163,7 @@ function setup() {
     userTokenVerifier: verifier,
     bootstrapSecret: "bootstrap-test-secret"
   });
-  return { app, store, developerKey, agentKey };
+  return { app, store, developerKey, agentKey, issuer };
 }
 
 describe("identity and tenant isolation routes", () => {
@@ -174,6 +177,36 @@ describe("identity and tenant isolation routes", () => {
   it("fails closed when agent authentication is missing", async () => {
     const { app } = setup();
     const response = await app.inject({ method: "GET", url: "/v1/agent/me" });
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("fails closed when the database or forced-RLS readiness check fails", async () => {
+    const { app, developerKey, issuer } = setup({ identityReady: false });
+    const identity = await app.inject({
+      method: "GET",
+      url: "/v1/developer/me",
+      headers: { authorization: "Bearer " + developerKey.token }
+    });
+    const bootstrap = await app.inject({
+      method: "POST",
+      url: "/v1/bootstrap/tenants",
+      headers: { "x-agentlogin-bootstrap-secret": "bootstrap-test-secret" },
+      payload: {
+        tenant_name: "Unavailable tenant",
+        developer_name: "Unavailable developer",
+        owner_issuer: issuer,
+        owner_subject: "synthetic-owner"
+      }
+    });
+    expect(identity.statusCode).toBe(503);
+    expect(bootstrap.statusCode).toBe(503);
+    await app.close();
+  });
+
+  it("fails closed when user authentication is missing", async () => {
+    const { app } = setup();
+    const response = await app.inject({ method: "GET", url: "/v1/user/me" });
     expect(response.statusCode).toBe(401);
     await app.close();
   });
@@ -244,6 +277,18 @@ describe("identity and tenant isolation routes", () => {
     await app.close();
   });
 
+  it("rejects a tenant-spoofed agent credential selector", async () => {
+    const { app, agentKey } = setup();
+    const wrongTenantToken = agentKey.token.replace(tenantA, tenantB);
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/agent/me",
+      headers: { authorization: "Bearer " + wrongTenantToken }
+    });
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
   it("rejects revoked and expired agent credentials on every request", async () => {
     const { app, store, agentKey } = setup();
     const row = store.agentKeys.get(agentKey.id)!;
@@ -260,6 +305,44 @@ describe("identity and tenant isolation routes", () => {
       headers: { authorization: "Bearer " + agentKey.token }
     });
     expect(expired.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("rejects revoked and expired developer credentials on every request", async () => {
+    const { app, store, developerKey } = setup();
+    const row = store.developerKeys.get(developerKey.id)!;
+    row.revokedAt = new Date();
+    const revoked = await app.inject({
+      method: "GET",
+      url: "/v1/developer/me",
+      headers: { authorization: "Bearer " + developerKey.token }
+    });
+    expect(revoked.statusCode).toBe(401);
+    row.revokedAt = null;
+    row.expiresAt = new Date(Date.now() - 1000);
+    const expired = await app.inject({
+      method: "GET",
+      url: "/v1/developer/me",
+      headers: { authorization: "Bearer " + developerKey.token }
+    });
+    expect(expired.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("does not allow developer credentials to authenticate as agents or vice versa", async () => {
+    const { app, developerKey, agentKey } = setup();
+    const developerAsAgent = await app.inject({
+      method: "GET",
+      url: "/v1/agent/me",
+      headers: { authorization: "Bearer " + developerKey.token }
+    });
+    const agentAsDeveloper = await app.inject({
+      method: "GET",
+      url: "/v1/developer/me",
+      headers: { authorization: "Bearer " + agentKey.token }
+    });
+    expect(developerAsAgent.statusCode).toBe(401);
+    expect(agentAsDeveloper.statusCode).toBe(401);
     await app.close();
   });
 

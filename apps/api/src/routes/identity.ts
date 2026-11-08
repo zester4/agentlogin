@@ -68,7 +68,7 @@ function parseBody<T>(schema: z.ZodType<T>, body: unknown, reply: Parameters<typ
   return parsed.data;
 }
 
-function hasScope(principal: Principal, scope: string): boolean {
+function hasScope(principal: DeveloperPrincipal | AgentPrincipal, scope: string): boolean {
   return principal.scopes.includes(scope);
 }
 
@@ -91,7 +91,19 @@ function user(request: FastifyRequest): UserPrincipal {
 
 export async function identityRoutes(app: FastifyInstance, options: IdentityRoutesOptions) {
   app.decorateRequest("identity", null);
-  const service = options.store ? new IdentityService(options.store, options.userTokenVerifier) : null;
+
+  // Do not enable identity writes or authentication unless the runtime database role,
+  // migration, and forced tenant RLS policies pass the same readiness check exposed
+  // by /identity/ready. A misconfigured superuser/BYPASSRLS connection fails closed.
+  let store: IdentityStore | null = null;
+  if (options.store) {
+    try {
+      if (await options.store.healthCheck()) store = options.store;
+    } catch {
+      store = null;
+    }
+  }
+  const service = store ? new IdentityService(store, options.userTokenVerifier) : null;
 
   const requireDeveloper: preHandlerHookHandler = async (request, reply) => {
     if (!service) return unavailable(reply);
@@ -126,7 +138,7 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   };
 
   app.post("/v1/bootstrap/tenants", async (request, reply) => {
-    if (!options.store || !options.userTokenVerifier || !options.bootstrapSecret) return unavailable(reply);
+    if (!store || !options.userTokenVerifier || !options.bootstrapSecret) return unavailable(reply);
     const supplied = request.headers["x-agentlogin-bootstrap-secret"];
     if (typeof supplied !== "string" || !constantTimeEqual(supplied, options.bootstrapSecret)) return unauthorized(reply);
     const body = parseBody(BootstrapSchema, request.body, reply);
@@ -137,7 +149,7 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
     const userId = newId("usr");
     const developerId = newId("dev");
     const credential = issueDeveloperCredential(tenantId, developerId);
-    await options.store.bootstrapTenant({
+    await store.bootstrapTenant({
       tenantId,
       tenantName: body.tenant_name,
       userId,
@@ -159,7 +171,7 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   });
 
   app.post("/v1/developers", { preHandler: requireUser }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = user(request);
     if (principal.role !== "owner" && principal.role !== "admin") {
       return reply.code(403).send({ error: { code: "forbidden", message: "Tenant administrator access is required." } });
@@ -168,7 +180,7 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
     if (!body) return;
     const developerId = newId("dev");
     const credential = issueDeveloperCredential(principal.tenantId, developerId);
-    const created = await options.store.createDeveloper({
+    const created = await store.createDeveloper({
       tenantId: principal.tenantId,
       userId: principal.userId,
       developerId,
@@ -193,12 +205,12 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   });
 
   app.post("/v1/agents", { preHandler: requireDeveloper }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = developer(request);
     if (!hasScope(principal, "agents:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const body = parseBody(CreateAgentSchema, request.body, reply);
     if (!body) return;
-    const created = await options.store.createAgent({
+    const created = await store.createAgent({
       tenantId: principal.tenantId,
       developerId: principal.developerId,
       agentId: newId("agt"),
@@ -217,7 +229,7 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   app.get("/v1/agents", { preHandler: requireDeveloper }, async (request, reply) => {
     const principal = developer(request);
     if (!hasScope(principal, "agents:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
-    const rows = await options.store!.listAgents({ tenantId: principal.tenantId, developerId: principal.developerId });
+    const rows = await store!.listAgents({ tenantId: principal.tenantId, developerId: principal.developerId });
     return { agents: rows.map((row) => ({ agent_id: row.id, name: row.name, status: row.status, identity_type: row.identityType, created_at: row.createdAt.toISOString() })) };
   });
 
@@ -225,20 +237,20 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
     const principal = developer(request);
     if (!hasScope(principal, "agents:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const params = request.params as { agentId: string };
-    const row = await options.store!.getAgent({ tenantId: principal.tenantId, developerId: principal.developerId, agentId: params.agentId });
+    const row = await store!.getAgent({ tenantId: principal.tenantId, developerId: principal.developerId, agentId: params.agentId });
     if (!row) return reply.code(404).send({ error: { code: "not_found" } });
     return { agent_id: row.id, name: row.name, status: row.status, identity_type: row.identityType, created_at: row.createdAt.toISOString() };
   });
 
   app.post("/v1/agents/:agentId/credentials", { preHandler: requireDeveloper }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = developer(request);
     if (!hasScope(principal, "agents:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const body = parseBody(CredentialSchema, request.body ?? {}, reply);
     if (!body) return;
     const params = request.params as { agentId: string };
     const credential = issueAgentCredential(principal.tenantId, principal.developerId, params.agentId, body.scopes, body.ttl_seconds);
-    const created = await options.store.createAgentCredential({
+    const created = await store.createAgentCredential({
       tenantId: principal.tenantId,
       developerId: principal.developerId,
       credential
@@ -255,11 +267,11 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   });
 
   app.post("/v1/agents/:agentId/credentials/:credentialId/revoke", { preHandler: requireDeveloper }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = developer(request);
     if (!hasScope(principal, "agents:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const params = request.params as { agentId: string; credentialId: string };
-    const revoked = await options.store.revokeAgentCredential({
+    const revoked = await store.revokeAgentCredential({
       tenantId: principal.tenantId,
       developerId: principal.developerId,
       agentId: params.agentId,
@@ -270,14 +282,14 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   });
 
   app.post("/v1/agents/:agentId/credentials/:credentialId/rotate", { preHandler: requireDeveloper }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = developer(request);
     if (!hasScope(principal, "agents:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const body = parseBody(CredentialSchema, request.body ?? {}, reply);
     if (!body) return;
     const params = request.params as { agentId: string; credentialId: string };
     const credential = issueAgentCredential(principal.tenantId, principal.developerId, params.agentId, body.scopes, body.ttl_seconds);
-    const rotated = await options.store.rotateAgentCredential({
+    const rotated = await store.rotateAgentCredential({
       tenantId: principal.tenantId,
       developerId: principal.developerId,
       agentId: params.agentId,
@@ -297,11 +309,11 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   });
 
   app.post("/v1/developer-keys/:credentialId/revoke", { preHandler: requireDeveloper }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = developer(request);
     if (!hasScope(principal, "keys:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const params = request.params as { credentialId: string };
-    const revoked = await options.store.revokeDeveloperCredential({
+    const revoked = await store.revokeDeveloperCredential({
       tenantId: principal.tenantId,
       developerId: principal.developerId,
       credentialId: params.credentialId
@@ -311,12 +323,12 @@ export async function identityRoutes(app: FastifyInstance, options: IdentityRout
   });
 
   app.post("/v1/developer-keys/:credentialId/rotate", { preHandler: requireDeveloper }, async (request, reply) => {
-    if (!options.store) return unavailable(reply);
+    if (!store) return unavailable(reply);
     const principal = developer(request);
     if (!hasScope(principal, "keys:manage")) return reply.code(403).send({ error: { code: "scope_denied" } });
     const params = request.params as { credentialId: string };
     const credential = issueDeveloperCredential(principal.tenantId, principal.developerId);
-    const rotated = await options.store.rotateDeveloperCredential({
+    const rotated = await store.rotateDeveloperCredential({
       tenantId: principal.tenantId,
       developerId: principal.developerId,
       oldCredentialId: params.credentialId,

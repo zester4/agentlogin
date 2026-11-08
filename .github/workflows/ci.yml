@@ -11,6 +11,25 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: agentlogin_admin
+          POSTGRES_PASSWORD: local_admin_only
+          POSTGRES_DB: agentlogin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentlogin_admin -d agentlogin"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://agentlogin_app:ci_app_only@localhost:5432/agentlogin
+      MIGRATION_DATABASE_URL: postgresql://agentlogin_admin:local_admin_only@localhost:5432/agentlogin
+      AGENTLOGIN_DB_RUNTIME_ROLE: agentlogin_app
+      AGENTLOGIN_TEST_DATABASE_URL: postgresql://agentlogin_app:ci_app_only@localhost:5432/agentlogin
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -18,6 +37,22 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --frozen-lockfile
+      - name: Configure least-privilege PostgreSQL runtime role
+        run: |
+          psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE agentlogin_app
+            LOGIN
+            PASSWORD 'ci_app_only'
+            NOSUPERUSER
+            NOBYPASSRLS;
+          GRANT CONNECT ON DATABASE agentlogin TO agentlogin_app;
+          GRANT USAGE ON SCHEMA public TO agentlogin_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE agentlogin_admin IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO agentlogin_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE agentlogin_admin IN SCHEMA public
+            GRANT USAGE, SELECT ON SEQUENCES TO agentlogin_app;
+          SQL
+      - run: pnpm db:migrate
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

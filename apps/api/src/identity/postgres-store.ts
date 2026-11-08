@@ -20,11 +20,13 @@ export class PostgresIdentityStore implements IdentityStore {
   }
 
   private async tenantTransaction<T>(tenantId: string, work: (tx: SqlClient) => Promise<T>): Promise<T> {
-    return this.db.begin(async (transaction) => {
+    const result = await this.db.begin(async (transaction) => {
       const tx = transaction as unknown as SqlClient;
       await tx.unsafe("select set_config('app.tenant_id', $1, true)", [tenantId]);
       return work(tx);
     });
+    // postgres.js unwraps promise-array results; the store's callback contract is generic.
+    return result as unknown as T;
   }
 
   async healthCheck(): Promise<boolean> {

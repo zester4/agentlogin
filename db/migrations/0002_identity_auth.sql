@@ -27,9 +27,12 @@ CREATE TABLE developer_api_keys (
   created_at timestamptz NOT NULL DEFAULT now(),
   last_used_at timestamptz,
   UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, developer_id, id),
   FOREIGN KEY (tenant_id, developer_id) REFERENCES developers (tenant_id, id),
-  FOREIGN KEY (tenant_id, rotated_to_id) REFERENCES developer_api_keys (tenant_id, id),
-  CHECK (expires_at > created_at)
+  FOREIGN KEY (tenant_id, developer_id, rotated_to_id)
+    REFERENCES developer_api_keys (tenant_id, developer_id, id),
+  CHECK (expires_at > created_at),
+  CHECK (rotated_to_id IS NULL OR rotated_to_id <> id)
 );
 
 CREATE INDEX developer_api_keys_active_lookup
@@ -52,11 +55,13 @@ CREATE TABLE agent_credentials (
   created_at timestamptz NOT NULL DEFAULT now(),
   last_used_at timestamptz,
   UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, developer_id, agent_id, id),
   FOREIGN KEY (tenant_id, agent_id, developer_id)
     REFERENCES agents (tenant_id, id, developer_id),
-  FOREIGN KEY (tenant_id, rotated_to_id)
-    REFERENCES agent_credentials (tenant_id, id),
-  CHECK (expires_at > created_at)
+  FOREIGN KEY (tenant_id, developer_id, agent_id, rotated_to_id)
+    REFERENCES agent_credentials (tenant_id, developer_id, agent_id, id),
+  CHECK (expires_at > created_at),
+  CHECK (rotated_to_id IS NULL OR rotated_to_id <> id)
 );
 
 CREATE INDEX agent_credentials_active_lookup

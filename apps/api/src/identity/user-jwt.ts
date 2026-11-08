@@ -79,7 +79,10 @@ export class StaticJwksUserTokenVerifier implements UserTokenVerifier {
 
     let valid = false;
     try {
-      const publicKey = createPublicKey({ key: jwk, format: "jwk" });
+      const publicKey = createPublicKey({
+        key: { kty: "RSA", n: jwk.n!, e: jwk.e! },
+        format: "jwk"
+      });
       valid = verifySignature(
         "RSA-SHA256",
         Buffer.from(parts[0] + "." + parts[1], "utf8"),

@@ -20,6 +20,14 @@ describe("PostgreSQL identity isolation contract", () => {
     expect(sql).toContain("UNIQUE (tenant_id, id, developer_id)");
   });
 
+  it("binds credential rotation references to the same tenant, developer, and agent", async () => {
+    const sql = await readFile(migrationUrl, "utf8");
+    expect(sql).toContain("UNIQUE (tenant_id, developer_id, id)");
+    expect(sql).toContain("FOREIGN KEY (tenant_id, developer_id, rotated_to_id)");
+    expect(sql).toContain("UNIQUE (tenant_id, developer_id, agent_id, id)");
+    expect(sql).toContain("FOREIGN KEY (tenant_id, developer_id, agent_id, rotated_to_id)");
+  });
+
   it("sets tenant context transaction-locally and includes explicit tenant/owner predicates", async () => {
     const source = await readFile(storeUrl, "utf8");
     expect(source).toContain("set_config('app.tenant_id', $1, true)");

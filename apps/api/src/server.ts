@@ -22,10 +22,11 @@ if (process.env.OIDC_ISSUER && process.env.OIDC_AUDIENCE && process.env.OIDC_JWK
   });
 }
 
+const bootstrapSecret = process.env.AGENTLOGIN_BOOTSTRAP_SECRET;
 const app = buildApp({
-  identityStore: store,
-  userTokenVerifier,
-  bootstrapSecret: process.env.AGENTLOGIN_BOOTSTRAP_SECRET
+  ...(store ? { identityStore: store } : {}),
+  ...(userTokenVerifier ? { userTokenVerifier } : {}),
+  ...(bootstrapSecret ? { bootstrapSecret } : {})
 });
 
 try {
