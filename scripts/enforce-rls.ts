@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   const tables = [
     "tenants", "users", "developers", "developer_memberships", "agents", "connected_accounts",
     "credentials", "delegations", "grants", "approvals", "executions",
-    "audit_events", "agent_credentials",
+    "audit_events", "agent_credentials", "webhook_endpoints", "webhook_events",\n    "webhook_deliveries", "webhook_delivery_attempts",
   ] as const;
 
   const pool = new Pool({
