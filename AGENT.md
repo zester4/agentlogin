@@ -41,7 +41,7 @@ An agent must never receive:
 }
 ~~~
 
-The grant is an opaque authorization handle, not a credential and not blanket permission. Every operation using it must be checked server-side against its bound agent, user, tenant, account, origin, scope, expiry, policy, and revocation state.
+The grant is an opaque authorization handle, not a credential and not blanket permission. Every operation must authenticate the caller as the bound agent and validate tenant, user, authenticated agent, connected account, exact canonical origin, requested scope, current policy version, approval reference and current approved state, task/execution-context ID and operation, expiry, revocation, and connected-account/delegation status. A grant ID is an opaque authorization reference, never a bearer credential; possession alone authorizes nothing.
 
 Never add passwords, login secrets, API keys, access/refresh/ID tokens, cookies, bearer session identifiers, recovery codes, private keys, or equivalent secrets to agent-facing responses.
 
