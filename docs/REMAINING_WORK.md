@@ -35,20 +35,21 @@ The API health endpoint has previously returned HTTP 200. Recheck deployments af
 - [x] Set `AGENTLOGIN_API_URL=https://agentlogin-production-90b2.up.railway.app` on the Railway production web service.
 - [x] Set `AUTH0_AUDIENCE=https://api.agentlogin.app` and `AUTH0_ORGANIZATION=org_fBUW065W2Ut6KHbt` on the web service.
 - [x] Set `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE=24h` on the API service.
-- [ ] Confirm the web/API redeployments triggered by these variable changes finish successfully.
+- [x] Set `AWS_REGION=us-east-1` and the dedicated `AWS_KMS_KEY_ID` ARN on the API service. AWS IAM access keys are not yet created or configured.
+- [x] GitHub CI passed for PR #31: lint, typecheck, build, and tests.
+- [ ] Confirm the web/API redeployments triggered by the environment changes finish successfully.
 
-## In progress — current GitHub branch
+## Recently completed — PR #31 merged
 
-Branch: `fix/dashboard-onboarding-and-docs`
+PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding](https://github.com/zester4/agentlogin/pull/31)
 
 - [x] Refresh root README to describe the current repository accurately and remove the duplicate legacy-migrations entry.
 - [x] Add this remaining-work tracker to `docs/REMAINING_WORK.md`.
 - [x] Fix the dashboard's first-use flow: the overview provisions the signed-in user on first visit, and Connected Accounts/Approvals retry the idempotent `POST /v1/onboarding` endpoint server-side before loading their data.
-- [x] Update Auth0 setup documentation to explain automatic dashboard onboarding.
-- [ ] Open and review the pull request.
-- [ ] Run CI/build/typecheck/tests and address failures.
-- [ ] Merge only after the diff and checks are satisfactory.
-- [ ] Verify Railway deployments after merge.
+- [x] Make OIDC maximum token age configurable with `OIDC_MAX_TOKEN_AGE` (default `24h`).
+- [x] Update Auth0 setup documentation to explain automatic onboarding and current Auth0 tenant settings.
+
+## Current follow-up work
 
 The dashboard onboarding change uses the Auth0 access token only on the Next.js server. The API derives tenant and user identity from the signed token; the browser does not supply tenant/user IDs. The onboarding repository uses a transaction lock and reuses an existing active membership.
 
