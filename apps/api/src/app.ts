@@ -32,7 +32,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
   // Internal diagnostics are inert (404) unless a temporary high-entropy token
   // is configured. They use synthetic data only and never return credential material.
   app.register(kmsDiagnosticRoutes);
-  app.register(vaultLifecycleDiagnosticRoutes, { database: auth?.database });
+  app.register(vaultLifecycleDiagnosticRoutes, auth ? { database: auth.database } : {});
   if (auth) {
     agentAuthenticationPlugin(app, auth);
     userAuthenticationPlugin(app, { database: auth.database });
