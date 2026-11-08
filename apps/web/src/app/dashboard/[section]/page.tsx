@@ -91,18 +91,37 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   let liveDataError = !apiBase ? "We are still connecting your account information. Please try again soon." : !apiToken ? "We could not load your information just now. Please try again in a moment." : "";
   if (apiToken && apiBase && (key === "accounts" || key === "approvals")) {
     try {
-      const endpoint = key === "accounts" ? "/v1/connected-accounts" : "/v1/grants/pending";
-      const response = await fetch(new URL(endpoint, apiBase), {
-        headers: { Authorization: `Bearer ${apiToken}` },
+      // Provisioning is idempotent: the API derives tenant and user identity
+      // from the verified Auth0 token, never from browser-supplied identifiers.
+      // The repository uses a transaction lock and returns an existing active
+      // membership instead of creating duplicate users or developer workspaces.
+      const onboarding = await fetch(new URL("/v1/onboarding", apiBase), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({}),
         cache: "no-store"
       });
-      if (!response.ok) liveDataError = response.status === 503
-        ? "We are still finishing this part of AgentLogin. Please try again soon."
-        : "We could not load this information. Please try again in a moment.";
-      else {
-        const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals };
-        if (key === "accounts") accounts = payload.accounts ?? [];
-        else approvals = payload.pending ?? [];
+      if (!onboarding.ok) {
+        liveDataError = onboarding.status === 503
+          ? "We are still finishing your account setup. Please try again soon."
+          : "We could not finish setting up your account. Please try again in a moment.";
+      } else {
+        const endpoint = key === "accounts" ? "/v1/connected-accounts" : "/v1/grants/pending";
+        const response = await fetch(new URL(endpoint, apiBase), {
+          headers: { Authorization: `Bearer ${apiToken}` },
+          cache: "no-store"
+        });
+        if (!response.ok) liveDataError = response.status === 503
+          ? "We are still finishing this part of AgentLogin. Please try again soon."
+          : "We could not load this information. Please try again in a moment.";
+        else {
+          const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals };
+          if (key === "accounts") accounts = payload.accounts ?? [];
+          else approvals = payload.pending ?? [];
+        }
       }
     } catch {
       liveDataError = "AgentLogin API is temporarily unavailable.";

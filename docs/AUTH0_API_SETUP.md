@@ -92,7 +92,7 @@ Set these variables on the **web** service only:
 | Variable | Value |
 |---|---|
 | `AUTH0_AUDIENCE` | `https://api.agentlogin.app` |
-| `AUTH0_ORGANIZATION` | The copied `org_...` Organization ID |
+| `AUTH0_ORGANIZATION` | `org_fBUW065W2Ut6KHbt` |
 | `AGENTLOGIN_API_URL` | `https://agentlogin-production-90b2.up.railway.app` |
 
 The existing `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, and `APP_BASE_URL` must also be set on the web service. `AUTH0_DOMAIN` is the tenant hostname only (no `https://`); `APP_BASE_URL` is the full web URL.
@@ -103,12 +103,13 @@ Set these variables on the **API** service only:
 
 | Variable | Value |
 |---|---|
-| `OIDC_ISSUER_URL` | `https://YOUR_AUTH0_DOMAIN/` |
+| `OIDC_ISSUER_URL` | `https://agentlogin.us.auth0.com/` |
 | `OIDC_AUDIENCE` | `https://api.agentlogin.app` |
-| `OIDC_JWKS_URL` | `https://YOUR_AUTH0_DOMAIN/.well-known/jwks.json` |
+| `OIDC_JWKS_URL` | `https://agentlogin.us.auth0.com/.well-known/jwks.json` |
 | `OIDC_TENANT_CLAIM` | `https://agentlogin.app/tenant_id` |
+| `OIDC_MAX_TOKEN_AGE` | `24h` (or a shorter value matching your Auth0 API token lifetime) |
 
-Replace `YOUR_AUTH0_DOMAIN` with the exact Auth0 tenant domain, for example `agentlogin.us.auth0.com`. Keep the trailing slash on the issuer URL. If using an Auth0 custom domain, use that same domain consistently for issuer and JWKS.
+These values use the current Auth0 tenant domain `agentlogin.us.auth0.com`. Keep the trailing slash on the issuer URL. If the Auth0 tenant is later moved to a custom domain, use that same domain consistently for issuer and JWKS.
 
 Do not put Auth0 Client Secret or AUTH0_SECRET on the API service. Do not expose any Auth0 secret or access token in a `NEXT_PUBLIC_*` variable.
 
@@ -117,13 +118,14 @@ Do not put Auth0 Client Secret or AUTH0_SECRET on the API service. Do not expose
 1. Redeploy the web and API services after setting variables.
 2. Sign out of AgentLogin, then sign in again so Auth0 issues a fresh access token with the API audience and Organization context.
 3. Open the dashboard's **Connected Accounts** or **Approvals** page. The dashboard uses server-side Auth0 token retrieval and calls the API from the Next.js server; the bearer token is not returned to browser JavaScript.
-4. A successful response from `GET /v1/user/me` should contain `authenticated: true`, a tenant ID equal to the configured Auth0 Organization ID, and the authenticated user ID. Do not paste access tokens into jwt.io or share them in chat.
-5. If the API returns `user_not_onboarded`, complete the AgentLogin workspace onboarding flow for that Organization. If it returns `user_auth_unavailable`, verify the four `OIDC_*` API variables. If it returns `unauthorized`, check the issuer, audience, signature algorithm, Organization selection, and Post-Login Action deployment.
+4. The Connected Accounts and Approvals dashboard pages first call `POST /v1/onboarding` server-side with an empty JSON body. The API derives the tenant and user from the verified token; the onboarding repository is idempotent and reuses an existing active membership. The access token remains on the Next.js server.
+5. A successful response from `GET /v1/user/me` should contain `authenticated: true`, a tenant ID equal to the configured Auth0 Organization ID, and the authenticated user ID. Do not paste access tokens into jwt.io or share them in chat.
+6. If calling the API directly and the user has not been onboarded, call `POST /v1/onboarding` with the same verified user access token and an empty JSON body. If the API returns `user_auth_unavailable`, verify the four `OIDC_*` API variables. If it returns `unauthorized`, check the issuer, audience, signature algorithm, Organization selection, and Post-Login Action deployment.
 
 ## Security notes
 
 - Auth0's access token is a user-to-AgentLogin API token. It is not an agent credential and is never passed to an agent.
 - The Next.js server obtains the token and makes API calls. Do not fetch the access token from a browser component.
-- The API validates RS256/ES256 signatures, exact issuer and audience, token age, and the required namespaced tenant claim.
+- The API validates RS256/ES256 signatures, exact issuer and audience, token expiry, a configurable maximum token age, and the required namespaced tenant claim. The default maximum age is 24 hours; set `OIDC_MAX_TOKEN_AGE` to match the Auth0 API access-token lifetime if it is shorter.
 - A login without an Organization is denied by the Action. This prevents a missing tenant context from silently becoming a default or user-selected tenant.
 - Do not enter real website credentials until the production KMS and isolated execution release gates have been verified.

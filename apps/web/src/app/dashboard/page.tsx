@@ -26,6 +26,24 @@ function ComingSoon({ children }: { children: ReactNode }) {
 export default async function DashboardPage() {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
+
+  // Provision the verified Auth0 user on the first dashboard visit. The API
+  // derives tenant/user identity from the signed access token; this idempotent
+  // endpoint reuses existing membership and never accepts browser tenant IDs.
+  const apiBase = process.env.AGENTLOGIN_API_URL;
+  const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
+  if (apiBase && apiTokenResult?.token) {
+    await fetch(new URL("/v1/onboarding", apiBase), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiTokenResult.token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({}),
+      cache: "no-store"
+    }).catch(() => null);
+  }
+
   const displayName = session.user.name || session.user.email?.split("@")[0] || "there";
   const initial = (session.user.name || session.user.email || "A").slice(0, 1).toUpperCase();
 

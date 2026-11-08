@@ -543,39 +543,53 @@ A developer connects AgentLogin to an agent system. A user securely connects a w
 
 That end-to-end proof, with adversarial tests demonstrating the secret boundary, is the first meaningful product milestone.
 
-## 8B. Security and lifecycle implementation update — 7 November 2026
+## 8B. Current implementation snapshot — 8 November 2026
 
-The following implementation work is present on the current review branch. It is not considered live until the branch passes CI, merges, and its Railway deployment and migrations are verified.
+This section reflects the current `main` implementation plus the active integration work described in [docs/REMAINING_WORK.md](./docs/REMAINING_WORK.md). “Implemented” means code exists; it does not imply that external provider configuration or production end-to-end verification is complete.
 
-| Area | Implemented in code | Not yet complete / external dependency |
+| Area | Implemented now | Still open / release boundary |
 |---|---|---|
-| 1. Agent identity bootstrap | Opaque agent tokens now carry an HMAC-SHA256-authenticated tenant claim. The API verifies the signature before constructing a tenant-bound repository; the secret remains SHA-256 hashed in PostgreSQL. | Key IDs/key-ring rotation and migration of any tokens issued in the previous unsigned format. |
-| 2. API authentication | Fastify agent auth middleware and a protected identity endpoint. Generic OIDC JWT verification validates issuer, audience, JWKS signature, allowed algorithms, token age, and a signed tenant claim. | Configure a real OIDC issuer, audience, JWKS URL, and trusted tenant claim. Production rate limiting, abuse controls, and operational monitoring still need hardening. |
-| 3. User/developer onboarding | OIDC identity-to-user resolution under RLS; first-user workspace/developer onboarding; developer membership model; authenticated developer and agent creation routes. | No OIDC provider is selected/configured. Invitations, multi-user organization management, passkeys, account recovery, and billing are not implemented. |
-| 4. Credential lifecycle | One-time agent token issuance, atomic agent-token rotate-and-revoke, individual revocation; user website credential enrollment, versioned encrypted rotation, and account disconnect that revokes credentials, delegations, and grants in one tenant transaction. | Runtime-role integration tests against Neon and an operational recovery flow for lost one-time tokens. |
-| 5. Grants and approvals | Tenant-scoped PostgreSQL grant/approval repository, user-controlled delegation and revocation routes, pending grant request, owner-only approve/deny/revoke routes, expiry/revocation checks, exact account/origin/scope/policy authorization, live entity status checks, and secret-free audit writes. | End-to-end user-to-agent flow and runtime-role integration tests against Neon remain. |
-| 6. Credential vault and KMS | User-authenticated connected-account enrollment and credential rotation routes; credential context binds tenant, account, credential ID, version, and purpose in AES-GCM AAD. PostgreSQL record store persists ciphertext, IV, tag, wrapped DEK, key version, and revocation state. AWS KMS adapter wraps/unwraps DEKs with encryption context and records the immutable KMS key ARN. | No AWS KMS key, region, IAM role/credentials, or production KMS configuration is configured. Do not store real website credentials yet. |
-| 7. Isolated login execution | Provider-neutral execution coordinator checks the grant before account lookup, binds worker request to tenant/user/agent/account/origin/credential version, audits denials and outcomes, sanitizes the agent-facing result, and destroys completed/failed sessions. | No concrete isolated browser worker/provider, credential-broker integration inside that worker, secure MFA handoff/resume UI, or browser-origin/redirect/SSRF adversarial integration suite is deployed. |
+| Agent identity | Persistent agent credential repository; 256-bit random credential secrets; SHA-256 hashes stored in PostgreSQL; HMAC-signed tenant-bound agent tokens; Fastify authentication with expiry, revocation, tenant, developer, and agent-state checks. | Key-ring rotation, migration of legacy unsigned tokens where applicable, abuse controls, and full adversarial/concurrency verification. |
+| User identity and onboarding | Auth0/OIDC JWT verification with issuer, audience, JWKS signature, allowed algorithm, token expiry/age, and trusted tenant claim; membership lookup; idempotent first-user onboarding repository and API route. | Finish Auth0 Post-Login Action and Login-flow setup; verify Railway OIDC variables and live tokens; test token renewal, organization membership, and owner/admin boundaries. |
+| Tenant isolation | Tenant-scoped PostgreSQL repositories, transaction-local tenant context, RLS and FORCE RLS on the current tenant-owned tables, separate least-privilege runtime and migration roles. | Continue testing with the actual Neon runtime role; verify all cross-tenant and membership denial cases after migrations. |
+| Credential vault | AES-256-GCM envelope encryption, callback-scoped decryption, durable encrypted credential records, versioned credential rotation, account disconnect/revocation, and AWS KMS Encrypt/Decrypt provider. The connected-account enrollment and credential-rotation handlers instantiate the KMS provider. | AWS KMS key exists, but the dedicated IAM policy/user and Railway API credentials/configuration are not complete. Run live KMS positive/negative tests. Complete the user-facing secure enrollment/handoff flow. Do not store real credentials yet. |
+| Grants and approvals | Persistent grant and approval repositories; delegation checks; pending grant request; user approve/deny/revoke routes; expiry/revocation checks; scoped authorization; secret-free audit events. | Verify end-to-end against deployed Auth0/API configuration, including wrong-owner, cross-tenant, replay, expiry, race, and concurrency cases. |
+| Dashboard | Next.js 16 dashboard with account, agent, grant, approval, activity, and security sections; mobile responsiveness; light/dark themes; server-side connected-account and approval API calls. | Merge and verify the first-use onboarding integration on the active PR. Complete the account enrollment UI and other workflows still marked as coming soon. |
+| SDK and MCP | Package structures and integration boundaries exist. | Complete authenticated SDK methods and MCP transport/tools; they are not yet ready to be represented as complete integrations. |
+| Login execution | Provider-neutral execution interfaces/coordinator and grant-bound authorization checks exist. | Concrete isolated browser worker, credential broker, origin/redirect/SSRF protections, output sanitization, session cleanup, and user-mediated MFA/CAPTCHA handoff remain open. |
+| Deployment and tests | Neon database and Railway web/API deployments exist; baseline migration applied; API health endpoint has returned HTTP 200. Unit/security tests and opt-in PostgreSQL integration coverage exist. | Verify current CI, production runtime-role integration tests, KMS/Auth0 end-to-end behavior, operational recovery, and independent security review. |
 
-### Required runtime configuration
+### External configuration still required
 
-- `AGENT_TOKEN_SIGNING_KEY`: Railway secret, canonical base64url encoding of 32 cryptographically random bytes. It must remain stable across deploys. Do not rotate by replacing it without a key-ID/key-ring migration.
-- `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`: configure only after choosing an OIDC provider and ensuring the tenant claim is issued by that trusted provider. The tenant claim is never accepted from an ordinary request header or body.
-- `AWS_REGION`, `AWS_KMS_KEY_ID`: configure after creating a dedicated KMS key and least-privilege runtime IAM access. The API needs data-key wrap/unwrap permissions only; key administration belongs to a separate operator role.
+**Auth0**
+- API audience: `https://api.agentlogin.app`.
+- Organization: `AgentLogin Workspace` (`org_fBUW065W2Ut6KHbt`).
+- Complete the Post-Login Action and attach it to the Login flow so the signed access token contains `https://agentlogin.app/tenant_id` from the authenticated Organization context.
+- Verify the API service has `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE`. The max token age defaults to 24 hours and must align with the Auth0 API token lifetime.
+- Verify web service Auth0 variables, audience, Organization, and `AGENTLOGIN_API_URL`.
 
-### Migration and rollout gates
+**AWS KMS**
+- KMS key alias: `alias/agentlogin-vault`.
+- Region: `us-east-1`.
+- Key ARN: `arn:aws:kms:us-east-1:471742380391:key/ce73891f-9bca-41ea-b9dc-e4555703b4fd`.
+- Create the least-privilege `AgentLoginVaultKmsUseOnly` IAM policy, a dedicated IAM service user with no console access, and a programmatic key.
+- Put AWS credentials and `AWS_REGION` / `AWS_KMS_KEY_ID` on the Railway API service only. Never place them in the web service, Git, or chat.
+- Verify KMS Encrypt/Decrypt, wrong-context denial, key mismatch, failure behavior, and secret-free logging.
 
-The current review branch adds migrations for credential envelope metadata and developer memberships, and updates the FORCE RLS migration script to include the new membership table. These migrations must not be treated as applied to Neon until the branch is merged and the Railway pre-deploy migration completes successfully. Verify RLS and FORCE RLS on all thirteen tenant-owned tables after rollout.
+### Migration and rollout notes
 
-The signed agent token format is intentionally incompatible with the previous unsigned format. Re-issue credentials through the authenticated rotation flow before relying on the new middleware. Never log or copy a token into a support ticket.
+- The current main branch has the Drizzle baseline migration applied to Neon. Do not use `drizzle-kit push` against production.
+- Keep the migration role separate from the runtime role. Verify RLS and FORCE RLS after every schema change using the actual non-owner runtime role.
+- The dashboard's first-use onboarding integration is being added on the active PR; verify CI and deployed behavior after merge.
+- A healthy Railway health endpoint does not prove Auth0, KMS, credential enrollment, grant execution, or browser isolation is ready.
 
 ### Release blockers before real credentials
 
-1. Configure and verify OIDC, then test first-user onboarding and owner/admin authorization using a real test tenant.
-2. Run cross-tenant and membership integration tests against Neon using the runtime role (not the database owner).
-3. Create a dedicated AWS KMS key, configure workload credentials, and run encrypt/decrypt, wrong-context, key-rotation, and revocation tests.
-4. Implement a concrete isolated browser worker with per-execution profiles, origin/redirect enforcement before autofill, SSRF/private-network blocking, no CDP exposure, and MFA handoff/resume.
-5. Wire account enrollment and grant/approval HTTP routes; prove the full end-to-end flow using synthetic accounts.
-6. Run independent security review and secret-leak tests across logs, traces, errors, screenshots, DOM, artifacts, and worker IPC.
+1. Complete Auth0 Organization claim configuration and prove the deployed user-to-API onboarding flow.
+2. Configure the restricted AWS IAM identity and Railway API KMS variables; pass positive and negative end-to-end encryption tests.
+3. Complete the secure user-facing credential enrollment, update, disconnect, and recovery experience.
+4. Implement and adversarially test the isolated browser worker, credential broker, origin/redirect/SSRF protections, and MFA/CAPTCHA handoff.
+5. Complete SDK and MCP transports with authenticated identity, scoped grants, and sanitized results.
+6. Run cross-tenant, membership, replay, expiry, revocation, concurrency, and secret-leak tests; complete independent security review.
 
-No production website password, OAuth token, cookie, or API key should be entered until those gates are passed.
+No production website password, OAuth token, cookie, or API key should be entered until all production credential gates are passed.
