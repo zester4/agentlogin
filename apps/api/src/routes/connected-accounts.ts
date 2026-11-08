@@ -20,6 +20,22 @@ const CredentialRotationBody = z.object({
 }).strict();
 
 export async function connectedAccountRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
+  app.get("/v1/connected-accounts", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const accounts = await new PostgresConnectedAccountRepository(options.database, request.userPrincipal.tenantId)
+      .listForUser(request.userPrincipal.userId);
+    return reply.send({
+      accounts: accounts.map((account) => ({
+        account_id: account.accountId,
+        provider: account.provider,
+        origin: account.origin,
+        display_label: account.displayLabel,
+        status: account.status,
+        created_at: account.createdAt.toISOString()
+      }))
+    });
+  });
+
   app.post("/v1/connected-accounts", { preHandler: app.authenticateUser }, async (request, reply) => {
     const parsed = AccountBody.safeParse(request.body);
     if (!parsed.success || !request.userPrincipal) {
