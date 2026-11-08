@@ -1,4 +1,4 @@
-import { AgentIdentitySchema, OriginSchema, type GrantRequest } from "@agentlogin/contracts";
+import { AgentGrantStatusSchema, AgentIdentitySchema, OriginSchema, type GrantRequest } from "@agentlogin/contracts";
 import { AgentLoginClient } from "@agentlogin/sdk";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
@@ -46,6 +46,35 @@ export function createAgentLoginMcpHandler(options: AgentLoginMcpOptions) {
             developer_id: identity.principal.developer_id
           }
         };
+      }
+    );
+
+    server.registerTool(
+      "agentlogin_get_access_request",
+      {
+        title: "Check access request",
+        description: "Check the current approval, expiry, or revocation status of a grant requested by this authenticated agent. Only the owning agent can read the request.",
+        inputSchema: z.object({ grant_id: z.string().min(1).max(300) }).strict(),
+        outputSchema: z.object({
+          status: z.enum(["pending_approval", "approved", "denied", "expired", "revoked"]),
+          grant_id: z.string(),
+          origin: OriginSchema,
+          scopes: z.array(z.enum(["autofill_login"])),
+          expires_at: z.string(),
+          approved_at: z.string().datetime().nullable()
+        }),
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true }
+      },
+      async ({ grant_id }) => {
+        try {
+          const grant = AgentGrantStatusSchema.parse(await client.getGrantStatus(grant_id));
+          return {
+            content: [{ type: "text", text: `Access request status: ${grant.status}.` }],
+            structuredContent: grant
+          };
+        } catch {
+          return { content: [{ type: "text", text: "The access request could not be found or checked." }], isError: true };
+        }
       }
     );
 
