@@ -1,0 +1,9 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "Acceptable use policy" };
+export default function Page(){return <InfoLayout eyebrow="LEGAL / ACCEPTABLE USE" title="Use access responsibly." intro="This policy describes prohibited uses of AgentLogin and applies to users, agents, integrations, and connected applications.">
+<InfoSection title="Authorized accounts only"><p>Connect and access only accounts you own or are explicitly authorized to use. Do not impersonate another person, bypass account ownership checks, or access systems without permission.</p></InfoSection>
+<InfoSection title="No abuse or circumvention"><p>Do not use AgentLogin to evade rate limits, CAPTCHAs, multi-factor authentication, access controls, paywalls, platform restrictions, or security measures. Do not automate activity that violates the target service's terms or applicable law.</p></InfoSection>
+<InfoSection title="No harmful activity"><p>Do not use the service for fraud, phishing, credential theft, malware distribution, harassment, unauthorized surveillance, or other unlawful or harmful activity.</p></InfoSection>
+<InfoSection title="Respect permission boundaries"><p>Do not attempt to extract secrets from the vault, misuse grants, expand scopes, tamper with approval records, or continue activity after authorization has expired or been revoked.</p></InfoSection>
+<InfoSection title="Enforcement"><p>The operator may investigate suspected violations, suspend access, revoke grants, preserve relevant security evidence, and take other proportionate steps to protect users and connected services.</p></InfoSection>
+</InfoLayout>}
