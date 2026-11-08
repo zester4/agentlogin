@@ -1,0 +1,11 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "Terms of service" };
+export default function Page(){return <InfoLayout eyebrow="LEGAL / TERMS" title="Terms of service" intro="Draft terms for review. These are not ready to govern a commercial launch until the operating entity, jurisdiction, fees, liability framework, and dispute process are confirmed.">
+<InfoSection title="1. The service"><p>AgentLogin provides software intended to help users authorize AI agents to perform defined account-access and login tasks while keeping credentials behind a protected service boundary. Features may change as the service evolves.</p></InfoSection>
+<InfoSection title="2. Accounts and authority"><p>You are responsible for providing accurate account information, protecting your sign-in methods, and ensuring you have authority to connect each account and authorize the requested activity.</p></InfoSection>
+<InfoSection title="3. Agent permissions"><p>You are responsible for reviewing requested scopes and approvals. A grant should be limited to its stated account, origin, purpose, and duration. Do not assume that a login authorization permits unrelated actions.</p></InfoSection>
+<InfoSection title="4. Acceptable use"><p>You must comply with applicable law and third-party account terms. You may not use the service to access accounts without authorization, evade security controls, commit fraud, or facilitate harmful activity.</p></InfoSection>
+<InfoSection title="5. Availability and changes"><p>The service may be updated, suspended, or unavailable for maintenance, security, or operational reasons. The final agreement must specify any service levels, support commitments, and notice requirements.</p></InfoSection>
+<InfoSection title="6. Fees, warranties, and liability"><p>Pricing, payment terms, warranty disclaimers, liability limits, indemnities, governing law, and dispute resolution must be completed by the operating entity with qualified legal advice before these terms are accepted by customers.</p></InfoSection>
+<InfoSection title="7. Contact and effective date"><p>Insert the legal entity name, registered address, support contact, governing jurisdiction, and effective date before publication as binding terms.</p></InfoSection>
+</InfoLayout>}

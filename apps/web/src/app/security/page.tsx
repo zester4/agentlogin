@@ -1,0 +1,9 @@
+import { InfoLayout, InfoSection } from "../info-layout";
+export const metadata = { title: "Security" };
+export default function Page(){return <InfoLayout eyebrow="TRUST / SECURITY MODEL" title={<>Secrets stay behind<br/>the boundary.</>} intro="AgentLogin is being built around least privilege: credentials remain protected, while agents receive only narrowly scoped authorization to carry out approved work.">
+<InfoSection title="Credential isolation"><p>Credentials are encrypted and handled server-side. The design goal is to prevent raw passwords, API keys, cookies, and session secrets from being placed in agent prompts, tool results, or ordinary application logs.</p></InfoSection>
+<InfoSection title="Scoped, expiring grants"><p>Authorization is bound to the tenant, user, authenticated agent, connected account, exact origin, allowed scopes, expiry, policy version, approval, and execution context. Each operation must revalidate the grant.</p></InfoSection>
+<InfoSection title="Tenant isolation"><p>Tenant boundaries are enforced in the data layer, including PostgreSQL row-level security. Runtime access is separated from migration privileges.</p></InfoSection>
+<InfoSection title="Approval and revocation"><p>Policies can require user approval before sensitive access. Grants and agent credentials must be revocable and time-limited. Login permission does not imply permission for unrelated account actions.</p></InfoSection>
+<InfoSection title="Current implementation status"><p>This page describes the intended security architecture and controls in the product. It is not a claim of independent certification, penetration-test completion, or a guarantee that every planned workflow is already available. Production key-management and operational reviews remain part of launch readiness.</p></InfoSection>
+</InfoLayout>}

@@ -1,61 +1,15 @@
 import Link from "next/link";
 import { auth0 } from "../lib/auth0";
 import { SiteInteractions } from "./site-interactions";
-
-const layers = [
-  ["01", "Identity boundary", "Every request is tied to a verified user, tenant, and agent identity."],
-  ["02", "Credential vault", "Encrypted credentials stay server-side. Agents never receive plaintext secrets."],
-  ["03", "Policy & approval", "Origin, scope, expiry, and user approval are checked before access."],
-  ["04", "Isolated execution", "Approved login work runs inside a controlled execution boundary."],
-];
-
-const principles = [
-  ["No secret handoff", "Agents work with short-lived grants, not passwords, cookies, or API keys."],
-  ["Specific by design", "A grant is bound to an account, origin, scope, agent, and expiry."],
-  ["Permission is not a blank cheque", "Logging in does not silently authorize transfers, purchases, or other actions."],
-];
-
-export default async function Home() {
-  const session = await auth0.getSession();
-  return (
-    <main className="site-shell">
-      <SiteInteractions />
-      <nav className="top-nav">
-        <Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt="" /><span>AgentLogin</span></Link>
-        <div className="nav-links"><a href="#how">How it works</a><a href="#security">Security</a><a href="#developers">Developers</a><Link href="/dashboard">Dashboard</Link></div>
-        <Link className="nav-action" href={session ? "/dashboard" : "/auth/login"}>{session ? "Open workspace" : "Sign in"} <span>↗</span></Link>
-      </nav>
-      <section className="hero-section">
-        <div className="hero-grid" aria-hidden="true" />
-        <div className="eyebrow"><i /> THE ACCESS LAYER FOR AI AGENTS</div>
-        <h1>Let agents sign in.<br /><em>Keep secrets yours.</em></h1>
-        <p className="hero-copy">AgentLogin gives AI agents controlled access to the accounts they need — without exposing the credentials that protect them.</p>
-        <div className="hero-actions"><Link className="button button-light" href={session ? "/dashboard" : "/auth/login"}>{session ? "Go to dashboard" : "Get started"} <span>↗</span></Link><a className="button button-quiet" href="#how">Explore the system <span>↓</span></a></div>
-        <div className="hero-foot"><span>01 / IDENTITY</span><span>02 / AUTHORIZATION</span><span>03 / EXECUTION</span></div>
-      </section>
-      <section className="demo-wrap" id="developers">
-        <div className="section-kicker">A SMALL INTERFACE. A HARD SECURITY BOUNDARY.</div>
-        <div className="demo-panel">
-          <div className="demo-head"><span>AGENT REQUEST FLOW</span><span className="live-dot">● POLICY-BOUND</span></div>
-          <div className="flow-grid">
-            <div className="flow-step"><small>01 / AGENT</small><strong>Request access</strong><p>“Sign in to my workspace.”</p></div><div className="flow-arrow">→</div>
-            <div className="flow-step"><small>02 / AGENTLOGIN</small><strong>Evaluate grant</strong><p>Identity · origin · scope · expiry</p></div><div className="flow-arrow">→</div>
-            <div className="flow-step"><small>03 / EXECUTION</small><strong>Complete login</strong><p>Credential remains protected.</p></div>
-          </div>
-          <div className="code-row"><div><span className="code-label">AGENT RECEIVES</span><code><b>grant_id</b> · approved · short-lived</code></div><div className="code-safe">RAW CREDENTIALS <strong>NEVER EXPOSED</strong></div></div>
-        </div>
-      </section>
-      <section className="principle-rail"><span>BUILT AROUND THREE RULES</span>{principles.map(([title],i)=><span key={title}>{String(i+1).padStart(2,"0")} &nbsp; {title}</span>)}</section>
-      <section className="content-section" id="how">
-        <div className="section-intro"><div className="section-kicker">THE EXECUTION STACK</div><h2>Access without<br />exposure.</h2><p>AgentLogin separates the decision to grant access from the secret required to carry it out.</p></div>
-        <div className="layer-panel">{layers.map(([n,title,desc],i)=><div className="layer-row" key={n}><span className="layer-number">{n}</span><div className="layer-icon">{["◇","▤","⌁","↗"][i]}</div><div className="layer-copy"><h3>{title}</h3><p>{desc}</p></div><span className="layer-status">CORE LAYER</span></div>)}<div className="layer-bottom"><span>ONE TRUST BOUNDARY · EXPLICIT PERMISSIONS</span><a href="#security">Read the security model ↗</a></div></div>
-      </section>
-      <section className="security-section" id="security">
-        <div className="section-intro"><div className="section-kicker">SECURITY MODEL</div><h2>Permission is<br />the product.</h2><p>Not a password-sharing proxy. A controlled authorization layer designed for agent-driven work.</p></div>
-        <div className="security-grid">{principles.map(([title,desc],i)=><article className="security-card" key={title}><span>0{i+1}</span><h3>{title}</h3><p>{desc}</p></article>)}</div>
-      </section>
-      <section className="manifesto"><div className="section-kicker">THE PROMISE</div><p>Your agent can do the work.<br /><strong>It does not need to know your password.</strong></p><Link className="button button-light" href={session ? "/dashboard" : "/auth/login"}>Enter AgentLogin ↗</Link><div className="manifesto-mark">A/L</div></section>
-      <footer className="site-footer"><div className="footer-brand"><Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt="" /><span>AgentLogin</span></Link><p>Secure access for autonomous work.</p><small>© {new Date().getFullYear()} AgentLogin</small></div><div><b>PRODUCT</b><a href="#how">How it works</a><a href="#security">Security model</a><Link href="/dashboard">Dashboard</Link></div><div><b>WORKSPACE</b><Link href="/settings">Settings</Link><a href="#developers">Developers</a><a href="mailto:hello@agentlogin.dev">Contact</a></div><div><b>ACCOUNT</b><Link href="/auth/login">Sign in</Link><Link href="/auth/login?screen_hint=signup">Create account</Link><a href="mailto:security@agentlogin.dev">Security contact</a></div></footer>
-    </main>
-  );
-}
+import { Icon } from "./icon";
+const layers=[["01","Identity boundary","Every request is tied to a verified user, tenant, and agent identity."],["02","Credential vault","Encrypted credentials stay server-side. Agents never receive plaintext secrets."],["03","Policy & approval","Origin, scope, expiry, and user approval are checked before access."],["04","Isolated execution","Approved login work runs inside a controlled execution boundary."]];
+const principles=[["No secret handoff","Agents work with short-lived grants, not passwords, cookies, or API keys."],["Specific by design","A grant is bound to an account, origin, scope, agent, and expiry."],["Permission is not a blank cheque","Logging in does not silently authorize transfers, purchases, or other actions."]];
+export default async function Home(){const session=await auth0.getSession();return <main className="site-shell"><SiteInteractions/>
+<nav className="top-nav"><Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt=""/><span>AgentLogin</span></Link><div className="nav-links"><Link href="/how-it-works">How it works</Link><Link href="/security">Security</Link><Link href="/developers">Developers</Link><Link href="/dashboard">Dashboard</Link></div><Link className="nav-action" href={session?"/dashboard":"/auth/login"}>{session?"Open workspace":"Sign in"} <Icon name="arrow"/></Link></nav>
+<section className="hero-section"><div className="hero-grid" aria-hidden="true"/><div className="eyebrow"><i/> THE ACCESS LAYER FOR AI AGENTS</div><h1>Let agents sign in.<br/><em>Keep secrets yours.</em></h1><p className="hero-copy">AgentLogin gives AI agents controlled access to the accounts they need — without exposing the credentials that protect them.</p><div className="hero-actions"><Link className="button button-light" href={session?"/dashboard":"/auth/login"}>{session?"Go to dashboard":"Get started"} <Icon name="arrow"/></Link><Link className="button button-quiet" href="/how-it-works">Explore the system <Icon name="arrow"/></Link></div><div className="hero-foot"><span>01 / IDENTITY</span><span>02 / AUTHORIZATION</span><span>03 / EXECUTION</span></div></section>
+<section className="demo-wrap" id="developers"><div className="section-kicker">A SMALL INTERFACE. A HARD SECURITY BOUNDARY.</div><div className="demo-panel"><div className="demo-head"><span>AGENT REQUEST FLOW</span><span className="live-dot">POLICY-BOUND</span></div><div className="flow-grid"><div className="flow-step"><small>01 / AGENT</small><strong>Request access</strong><p>“Sign in to my workspace.”</p></div><div className="flow-arrow"><Icon name="arrow"/></div><div className="flow-step"><small>02 / AGENTLOGIN</small><strong>Evaluate grant</strong><p>Identity · origin · scope · expiry</p></div><div className="flow-arrow"><Icon name="arrow"/></div><div className="flow-step"><small>03 / EXECUTION</small><strong>Complete login</strong><p>Credential remains protected.</p></div></div><div className="code-row"><div><span className="code-label">AGENT RECEIVES</span><code><b>grant_id</b> · approved · short-lived</code></div><div className="code-safe">RAW CREDENTIALS <strong>NEVER EXPOSED</strong></div></div></div></section>
+<section className="principle-rail"><span>BUILT AROUND THREE RULES</span>{principles.map(([title],i)=><span key={title}>{String(i+1).padStart(2,"0")} &nbsp; {title}</span>)}</section>
+<section className="content-section" id="how"><div className="section-intro"><div className="section-kicker">THE EXECUTION STACK</div><h2>Access without<br/>exposure.</h2><p>AgentLogin separates the decision to grant access from the secret required to carry it out.</p></div><div className="layer-panel">{layers.map(([n,title,desc],i)=><div className="layer-row" key={n}><span className="layer-number">{n}</span><div className="layer-icon">{[<Icon name="shield"/>,<Icon name="key"/>,<Icon name="settings"/>,<Icon name="arrow"/>][i]}</div><div className="layer-copy"><h3>{title}</h3><p>{desc}</p></div><span className="layer-status">CORE LAYER</span></div>)}<div className="layer-bottom"><span>ONE TRUST BOUNDARY · EXPLICIT PERMISSIONS</span><Link href="/security">Read the security model <Icon name="arrow"/></Link></div></div></section>
+<section className="security-section" id="security"><div className="section-intro"><div className="section-kicker">SECURITY MODEL</div><h2>Permission is<br/>the product.</h2><p>Not a password-sharing proxy. A controlled authorization layer designed for agent-driven work.</p></div><div className="security-grid">{principles.map(([title,desc],i)=><article className="security-card" key={title}><span>0{i+1}</span><h3>{title}</h3><p>{desc}</p></article>)}</div></section>
+<section className="manifesto"><div className="section-kicker">THE PROMISE</div><p>Your agent can do the work.<br/><strong>It does not need to know your password.</strong></p><Link className="button button-light" href={session?"/dashboard":"/auth/login"}>Enter AgentLogin <Icon name="arrow"/></Link><div className="manifesto-mark">A/L</div></section>
+<footer className="site-footer"><div className="footer-brand"><Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt=""/><span>AgentLogin</span></Link><p>Secure access for autonomous work.</p><small>© {new Date().getFullYear()} AgentLogin</small></div><div><b>PRODUCT</b><Link href="/how-it-works">How it works</Link><Link href="/security">Security model</Link><Link href="/developers">Developers</Link><Link href="/dashboard">Dashboard</Link></div><div><b>WORKSPACE</b><Link href="/settings">Settings</Link><Link href="/auth/login">Sign in</Link><Link href="/contact">Contact</Link></div><div><b>LEGAL</b><Link href="/privacy">Privacy policy</Link><Link href="/terms">Terms of service</Link><Link href="/acceptable-use">Acceptable use</Link><Link href="/cookies">Cookie policy</Link><Link href="/security-disclosure">Security disclosure</Link></div></footer></main>}
