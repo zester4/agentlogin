@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth0 } from "../../lib/auth0";
-import { Icon } from "../ui-icon";\nimport { ThemeToggle } from "../theme-toggle";
+import { Icon } from "../ui-icon";
+import { ThemeToggle } from "../theme-toggle";
 
 const navigation = [
   { label: "Overview", href: "#overview", icon: "grid" as const, active: true },

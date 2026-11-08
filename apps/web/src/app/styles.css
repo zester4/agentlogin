@@ -359,3 +359,43 @@ html[data-theme="light"] .theme-toggle:hover{border-color:#a59a35;color:#171a15}
   html[data-theme="light"] .workspace-sidebar-v2 .side-link{background:#f8f9f5;border-color:#e1e4dc}
   html[data-theme="light"] .workspace-sidebar-v2 .side-link.active{background:#f0f1e4;border-color:#d5d5b4}
 }
+
+
+/* Live dashboard account and approval data */
+.live-data-card{max-width:980px}
+.live-data-notice{margin-top:22px;padding:16px 18px;border:1px solid var(--line);background:rgba(255,255,255,.025);color:var(--muted);font:12px/1.6 var(--mono)}
+.live-data-list{display:grid;gap:10px;margin-top:24px}
+.live-data-row,.approval-row{padding:17px 18px;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.live-data-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.live-data-row>div{display:grid;gap:6px;min-width:0}
+.live-data-row strong,.approval-row strong{color:var(--text);font-size:14px}
+.live-data-row small,.approval-row small{color:var(--muted);font:10px/1.6 var(--mono);overflow-wrap:anywhere}
+.live-status{display:inline-flex;align-items:center;padding:5px 8px;border:1px solid var(--line);color:var(--muted);font:9px var(--mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.live-status.active{border-color:rgba(179,190,85,.35);color:var(--yellow)}
+.live-status.pending{border-color:rgba(214,173,65,.35);color:#d6ad41}
+.approval-row{display:grid;gap:12px}
+.approval-row-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.approval-row>p{margin:0;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.approval-row>p b{color:var(--text);font-weight:600}
+.approval-scopes{display:flex;flex-wrap:wrap;gap:7px}
+.approval-scopes span{padding:5px 8px;border:1px solid var(--line);color:var(--yellow);font:9px var(--mono)}
+.approval-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;margin-top:4px}
+.approval-actions form{margin:0}
+.approval-actions button{min-height:34px;padding:8px 12px;font:10px var(--mono);cursor:pointer}
+.approval-actions button:focus-visible{outline:2px solid var(--yellow);outline-offset:3px}
+html[data-theme="light"] .live-data-notice,
+html[data-theme="light"] .live-data-row,
+html[data-theme="light"] .approval-row{background:#fff;border-color:#dce0d6}
+html[data-theme="light"] .live-data-row strong,
+html[data-theme="light"] .approval-row strong,
+html[data-theme="light"] .approval-row>p b{color:#171a15}
+html[data-theme="light"] .live-data-row small,
+html[data-theme="light"] .approval-row small,
+html[data-theme="light"] .approval-row>p{color:#687064}
+@media(max-width:560px){
+  .live-data-row,.approval-row{padding:13px}
+  .live-data-row{align-items:flex-start}
+  .approval-actions{justify-content:stretch}
+  .approval-actions form{flex:1}
+  .approval-actions button{width:100%}
+}
