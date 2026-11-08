@@ -1,6 +1,6 @@
 import { AgentIdentitySchema, type GrantRequest } from "@agentlogin/contracts";
 import { AgentLoginClient } from "@agentlogin/sdk";
-import { createMcpHandler, McpServer, type AuthInfo } from "@modelcontextprotocol/server";
+import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
 
 export type AgentLoginMcpOptions = {
