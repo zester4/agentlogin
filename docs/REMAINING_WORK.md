@@ -32,7 +32,10 @@ The API health endpoint has previously returned HTTP 200. Recheck deployments af
 - [x] Dashboard sections, connected-account metadata view, and approval inbox UI.
 - [x] Railway web and API deployments.
 - [x] PR #29 implementation-status/plan refresh merged (documentation only).
-- [x] `AGENTLOGIN_API_URL` variable added to the Railway production web service. Railway's connected view confirms the variable exists; the stored value was not independently readable because Railway redacts values.
+- [x] Set `AGENTLOGIN_API_URL=https://agentlogin-production-90b2.up.railway.app` on the Railway production web service.
+- [x] Set `AUTH0_AUDIENCE=https://api.agentlogin.app` and `AUTH0_ORGANIZATION=org_fBUW065W2Ut6KHbt` on the web service.
+- [x] Set `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE=24h` on the API service.
+- [ ] Confirm the web/API redeployments triggered by these variable changes finish successfully.
 
 ## In progress — current GitHub branch
 
@@ -86,19 +89,18 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 - [x] Organization ID: `org_fBUW065W2Ut6KHbt`.
 - [x] User added as an Organization member.
 - [x] API verifies issuer, audience, signature, HTTPS JWKS, token expiry/age, and namespaced tenant claim.
-- [x] Auth0 Post-Login Action code and Login-flow attachment documented, but console deployment still needs confirmation.
+- [x] Auth0 Post-Login Action code and Login-flow attachment documented.
+- [ ] Deploy the Post-Login Action and attach it to the Login flow in the Auth0 dashboard.
 - [x] Dashboard server-side Auth0 audience/Organization request code exists.
 
 ### Still to do
 - [ ] On PC, create/deploy the Post-Login Action that emits `https://agentlogin.app/tenant_id` from `event.organization.id`.
 - [ ] Attach the Action to the Auth0 Login flow and apply it.
 - [ ] Verify the Auth0 web application callback, logout, and web-origin URLs.
-- [ ] Verify Railway API variables:
-  - `OIDC_ISSUER_URL=https://agentlogin.us.auth0.com/`
-  - `OIDC_AUDIENCE=https://api.agentlogin.app`
-  - `OIDC_JWKS_URL=https://agentlogin.us.auth0.com/.well-known/jwks.json`
-  - `OIDC_TENANT_CLAIM=https://agentlogin.app/tenant_id`
-- [ ] Verify Railway web variables: `AUTH0_AUDIENCE`, `AUTH0_ORGANIZATION`, `AGENTLOGIN_API_URL`, and existing Auth0 session/client variables.
+- [x] Set the API OIDC variables on Railway, including `OIDC_MAX_TOKEN_AGE=24h`.
+- [x] Set the web audience, Organization ID, and API base URL on Railway.
+- [ ] Confirm the variable-triggered web/API deployments succeed.
+- [ ] Verify existing Auth0 session/client variables are present and correctly configured.
 - [ ] Sign out and sign in again; verify `GET /v1/user/me` returns the expected tenant and user.
 - [ ] Verify token renewal/age behavior against the Auth0 API access-token lifetime and Next.js SDK renewal behavior. The API maximum token age is now configurable with `OIDC_MAX_TOKEN_AGE` (default `24h`); align it with the actual Auth0 token lifetime.
 - [ ] Test missing organization, missing tenant claim, wrong issuer/audience, expired token, inactive membership, and cross-tenant access.
