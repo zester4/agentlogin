@@ -69,7 +69,7 @@ app.all("/mcp", async (request, reply) => {
       scopes: ["agentlogin:agent"],
       expiresAt: Math.floor(Date.now() / 1000) + 30
     };
-    return nodeHandler(Object.assign(request.raw, { auth, method: request.method }), reply.raw, request.body);
+    return nodeHandler(Object.assign(request.raw, { auth, method: request.method, url: request.url }), reply.raw, request.body);
   } catch {
     return reply.code(503).send({ error: { code: "identity_service_unavailable", message: "AgentLogin identity verification is unavailable." } });
   }
