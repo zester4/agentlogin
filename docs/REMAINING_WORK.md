@@ -58,7 +58,7 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 - [x] Verify opaque agent credentials through the existing API authentication endpoint on every MCP request; do not duplicate token verification logic.
 - [x] Expose only agent identity and user-approved access-request tools. Keep login execution and credential access unavailable until their backend is complete.
 - [x] Add SDK and MCP client tests and developer integration documentation.
-- [x] GitHub Actions passed on the current implementation: build, lint, typecheck, and tests (including the SDK and MCP client integration tests).
+- [x] GitHub Actions passed on the latest implementation, including the agent-owned grant-status API/SDK/MCP tool: build, lint, typecheck, 8 SDK tests, and 3 MCP client integration tests.
 - [ ] Publish the public SDK and contracts packages to npm after package ownership, release metadata, and CI are verified.
 - [ ] Deploy a separate MCP Railway service and configure its hostname/origin allowlists before sharing the endpoint.
 - [ ] Implement standard OAuth 2.1 discovery/authorization for remote MCP clients if automatic OAuth onboarding is required; current MCP HTTP auth accepts AgentLogin opaque agent tokens supplied by the host.
