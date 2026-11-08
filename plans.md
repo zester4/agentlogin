@@ -11,7 +11,7 @@ This section distinguishes repository evidence from recommended design. It is no
 ### Verified scaffold
 
 - Repository branch: scaffold/platform-foundation. The branch head was fetched before edits.
-- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft. At the latest comparison, this branch was diverged from main (23 commits ahead, 224 behind). Main's web manifest is Next.js 16.4.5 while this scaffold branch remains on Next.js 15.5.6. Work stayed on the requested branch; no merge/rebase or main-branch changes were made. Reconcile with main before opening a follow-up PR.
+- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft. At the latest comparison, this branch was diverged from main and 224 commits behind. Main's web manifest is Next.js 16.4.5 while this scaffold branch remains on Next.js 15.5.6. Work stayed on the requested branch; no merge/rebase or main-branch changes were made. Reconcile with main before opening a follow-up PR.
 - API: Node.js 22 baseline, Fastify 5.6.x, TypeScript, Zod, liveness/readiness routes. The API has no identity, persistence, grant, vault, or execution wiring.
 - Web: Next.js 15.5.x control-plane shell only; no authentication or account-enrollment flow.
 - MCP: tool-name constants only; no transport, authenticated agent identity, authorization, or tool execution.
