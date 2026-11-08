@@ -1,6 +1,6 @@
 # AgentLogin — Remaining Work
 
-**Last reviewed:** 8 November 2026  
+**Last reviewed:** 8 November 2026 (after live AWS KMS verification)  
 **Repository:** [zester4/agentlogin](https://github.com/zester4/agentlogin)  
 **Purpose:** Current checklist for the remaining setup, integration, and production-readiness work.
 
@@ -35,9 +35,9 @@ The API health endpoint has previously returned HTTP 200. The web and API deploy
 - [x] Set `AGENTLOGIN_API_URL=https://agentlogin-production-90b2.up.railway.app` on the Railway production web service.
 - [x] Set `AUTH0_AUDIENCE=https://api.agentlogin.app` and `AUTH0_ORGANIZATION=org_fBUW065W2Ut6KHbt` on the web service.
 - [x] Set `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_TENANT_CLAIM`, and `OIDC_MAX_TOKEN_AGE=24h` on the API service.
-- [x] Set `AWS_REGION=us-east-1` and the dedicated `AWS_KMS_KEY_ID` ARN on the API service. AWS IAM access keys are not yet created or configured.
+- [x] Set `AWS_REGION=us-east-1`, the dedicated `AWS_KMS_KEY_ID` ARN, and the dedicated IAM service user's access keys on the Railway API service only.
 - [x] GitHub CI passed for PR #31 and PR #32: lint, typecheck, build, and tests.
-- [ ] Confirm the web/API redeployments triggered by the environment changes finish successfully.
+- [x] Confirmed the production API deployment after AWS KMS configuration completed successfully.\n- [x] Ran the protected live KMS diagnostic: `kms_encrypt=true`, `kms_decrypt=true`, and `encryption_context_rejection=true`.\n- [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; unauthenticated POST to `/internal/kms/self-test` now returns HTTP 404.\n- [x] Added an opt-in PostgreSQL + AWS KMS lifecycle integration test; execution against Neon remains pending.
 
 ## Recently completed — PR #31 merged
 
@@ -67,7 +67,7 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 
 The dashboard onboarding change uses the Auth0 access token only on the Next.js server. The API derives tenant and user identity from the signed token; the browser does not supply tenant/user IDs. The onboarding repository uses a transaction lock and reuses an existing active membership.
 
-## 1. AWS KMS — waiting for PC access
+## 1. AWS KMS — live synthetic test passed; durable vault lifecycle verification next
 
 ### Completed
 - [x] Created the AWS KMS key.
@@ -92,7 +92,7 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 - [ ] Test wrong encryption-context denial, wrong-key denial, and KMS outage/failure behavior.
 - [ ] Check CloudTrail and confirm no plaintext credentials or DEKs are logged or persisted.
 
-**Important:** KMS provider construction is already present in the connected-account enrollment and credential-rotation handlers. The remaining work is AWS identity/configuration on Railway and end-to-end verification. Do not claim production vault encryption is ready until the live checks pass.
+**Important:** KMS provider construction is present in the connected-account enrollment and credential-rotation handlers. Live synthetic KMS Encrypt/Decrypt and tenant-context rejection passed. The PostgreSQL + KMS lifecycle integration test is added but has not yet been run against Neon. Do not accept real website credentials until that test and the remaining security gates pass.
 
 ## 2. Auth0 and user identity
 
