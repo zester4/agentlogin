@@ -49,6 +49,20 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 - [x] Make OIDC maximum token age configurable with `OIDC_MAX_TOKEN_AGE` (default `24h`).
 - [x] Update Auth0 setup documentation to explain automatic onboarding and current Auth0 tenant settings.
 
+## SDK and MCP implementation — current branch
+
+- [x] Replace the placeholder SDK with a typed HTTP client for the existing agent identity and grant-request API routes.
+- [x] Correct the grant-request URL mismatch: the SDK calls `POST /v1/users/:userId/grants`.
+- [x] Add token-provider support, bounded timeouts, safe GET retries, typed API errors, and request/response schema validation.
+- [x] Replace the MCP tool-name placeholder with a real MCP TypeScript SDK v2.4.0 Streamable HTTP server.
+- [x] Verify opaque agent credentials through the existing API authentication endpoint on every MCP request; do not duplicate token verification logic.
+- [x] Expose only agent identity and user-approved access-request tools. Keep login execution and credential access unavailable until their backend is complete.
+- [x] Add SDK and MCP client tests and developer integration documentation.
+- [ ] Run the new branch's GitHub CI and resolve all build/type/test failures.
+- [ ] Publish the public SDK and contracts packages to npm after package ownership, release metadata, and CI are verified.
+- [ ] Deploy a separate MCP Railway service and configure its hostname/origin allowlists before sharing the endpoint.
+- [ ] Implement standard OAuth 2.1 discovery/authorization for remote MCP clients if automatic OAuth onboarding is required; current MCP HTTP auth accepts AgentLogin opaque agent tokens supplied by the host.
+
 ## Current follow-up work
 
 The dashboard onboarding change uses the Auth0 access token only on the Next.js server. The API derives tenant and user identity from the signed token; the browser does not supply tenant/user IDs. The onboarding repository uses a transaction lock and reuses an existing active membership.
