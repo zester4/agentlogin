@@ -1,4 +1,4 @@
-import { AgentIdentitySchema, type GrantRequest } from "@agentlogin/contracts";
+import { AgentIdentitySchema, OriginSchema, type GrantRequest } from "@agentlogin/contracts";
 import { AgentLoginClient } from "@agentlogin/sdk";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
@@ -57,7 +57,7 @@ export function createAgentLoginMcpHandler(options: AgentLoginMcpOptions) {
         inputSchema: z.object({
           user_id: z.string().min(1).max(200),
           account_id: z.string().min(1).max(200),
-          origin: z.string().url(),
+          origin: OriginSchema,
           scopes: z.array(z.enum(["autofill_login"])).min(1).max(1),
           task_id: z.string().min(1).max(200).optional(),
           requested_ttl_seconds: z.number().int().min(30).max(900).optional()
