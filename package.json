@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @agentlogin/api --filter @agentlogin/web dev",
-    "build": "pnpm -r build",
+    "build": "pnpm -r build && node scripts/check-runtime-exports.mjs",
     "start": "node scripts/start-api.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
