@@ -9,7 +9,7 @@ This document configures the existing AgentLogin AWS KMS envelope-encryption ada
 - The adapter stores the immutable KMS key ARN returned by KMS as the key version.
 - The API's AWS SDK client uses the standard AWS credential provider chain.
 
-The adapter exists, but it must still be wired into the production credential-vault lifecycle before real credentials are accepted. Provisioning IAM credentials alone does not complete that integration.
+The adapter is wired into connected-account enrollment and credential rotation. The protected diagnostic route described below can verify live KMS permissions without creating a database credential record. A successful diagnostic is necessary but not sufficient for production readiness.
 
 ## Fixed production key
 
@@ -74,13 +74,29 @@ Set these on the **`agentlogin` API service**, not the frontend service:
 
 Mark the secret access key as a secret in Railway. Do not add AWS credentials to the web service, local source files, or GitHub.
 
+## Live synthetic KMS diagnostic
+
+A temporary, token-protected endpoint is available at `POST /internal/kms/self-test`. It creates a random synthetic 32-byte DEK in memory, calls KMS Encrypt and Decrypt, verifies the recovered bytes match, then verifies that changing the tenant encryption context causes Decrypt to fail. It does not write to Postgres and returns only boolean check results.
+
+1. Generate a random diagnostic token of at least 32 characters (for example, use a password manager).
+2. Add `KMS_DIAGNOSTIC_TOKEN` as a **temporary secret variable on the Railway API service only**. Never commit it or paste it into chat.
+3. Wait for the API deployment to become healthy.
+4. From a trusted terminal, call the endpoint with the token in the Authorization header:
+
+```sh
+curl --fail-with-body -X POST \
+  https://agentlogin-production-90b2.up.railway.app/internal/kms/self-test \
+  -H "Authorization: Bearer $KMS_DIAGNOSTIC_TOKEN"
+```
+
+5. A successful response has `status: "passed"` and all three checks true: `kms_encrypt`, `kms_decrypt`, and `encryption_context_rejection`. The response contains no key bytes, ciphertext, tenant identifiers, or AWS error details.
+6. Immediately remove `KMS_DIAGNOSTIC_TOKEN` from Railway and redeploy the API. Without a configured token of at least 32 characters, the endpoint returns 404. Do not leave the diagnostic enabled.
+
+The diagnostic route is not a health endpoint and must not be called by Railway health checks. It does not test database persistence, unrelated-key denial, CloudTrail review, key recovery, or authorization to decrypt a real user's credential.
+
 ## Verification and release gate
 
-After the runtime adapter is wired into the vault service:
-
-1. Verify the API can wrap a random 32-byte DEK with the configured key.
-2. Verify it can unwrap the same DEK only with the exact saved key ARN and matching encryption context.
-3. Verify a changed tenant, account, credential, version, or purpose fails closed.
+After the synthetic diagnostic passes:
 4. Verify an unrelated KMS key is denied.
 5. Verify CloudWatch/CloudTrail records show only the expected KMS operations and identity; never log plaintext or credentials.
 6. Test key disablement, IAM key revocation, service restart, and recovery procedures.
