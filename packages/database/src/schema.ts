@@ -169,7 +169,86 @@ export const agentCredentials = pgTable("agent_credentials", {
   tenantPolicy(t.tenantId),
 ]).enableRLS();
 
+
+
+// Tenant-scoped webhook persistence. Endpoint signing keys are stored only as
+// encrypted envelopes; plaintext signing secrets must never be persisted.
+export const webhookEndpoints = pgTable("webhook_endpoints", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
+  developerId: text("developer_id").notNull(), url: text("url").notNull(),
+  eventTypes: text("event_types").array().notNull(), status: text("status").notNull().default("active"),
+  secretCiphertext: bytea("secret_ciphertext").notNull(), secretIv: bytea("secret_iv").notNull(),
+  secretAuthTag: bytea("secret_auth_tag").notNull(), wrappedDek: bytea("wrapped_dek").notNull(),
+  keyVersion: text("key_version").notNull(), secretVersion: integer("secret_version").notNull().default(1),
+  createdAt: createdAt(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+}, (t) => [
+  unique("webhook_endpoints_tenant_id_unique").on(t.tenantId, t.id),
+  check("webhook_endpoints_url_length", sql.raw("char_length(url) BETWEEN 8 AND 2048")),
+  check("webhook_endpoints_event_types_nonempty", sql.raw("cardinality(event_types) > 0")),
+  check("webhook_endpoints_status", sql.raw("status IN ('active', 'disabled')")),
+  check("webhook_endpoints_secret_version_positive", sql.raw("secret_version > 0")),
+  check("webhook_endpoints_secret_iv_length", sql.raw("octet_length(secret_iv) = 12")),
+  check("webhook_endpoints_secret_auth_tag_length", sql.raw("octet_length(secret_auth_tag) = 16")),
+  foreignKey({ name: "webhook_endpoints_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
+  index("webhook_endpoints_tenant_status").on(t.tenantId, t.status), tenantPolicy(t.tenantId),
+]).enableRLS();
+
+export const webhookEvents = pgTable("webhook_events", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
+  eventType: text("event_type").notNull(), resourceType: text("resource_type").notNull(),
+  resourceId: text("resource_id").notNull(), payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(), createdAt: createdAt(),
+}, (t) => [
+  unique("webhook_events_tenant_id_unique").on(t.tenantId, t.id),
+  check("webhook_events_payload_object", sql.raw("jsonb_typeof(payload) = 'object'")),
+  index("webhook_events_tenant_created").on(t.tenantId, t.createdAt),
+  index("webhook_events_tenant_resource").on(t.tenantId, t.resourceType, t.resourceId),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
+  endpointId: text("endpoint_id").notNull(), eventId: text("event_id").notNull(),
+  status: text("status").notNull().default("pending"), attemptCount: integer("attempt_count").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(8),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  leaseToken: text("lease_token"), leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }), deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+  createdAt: createdAt(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  unique("webhook_deliveries_tenant_id_unique").on(t.tenantId, t.id),
+  unique("webhook_deliveries_tenant_endpoint_event_unique").on(t.tenantId, t.endpointId, t.eventId),
+  check("webhook_deliveries_status", sql.raw("status IN ('pending', 'leased', 'delivered', 'dead_lettered', 'cancelled')")),
+  check("webhook_deliveries_attempt_count", sql.raw("attempt_count >= 0 AND max_attempts > 0 AND attempt_count <= max_attempts")),
+  foreignKey({ name: "webhook_deliveries_tenant_endpoint_fk", columns: [t.tenantId, t.endpointId], foreignColumns: [webhookEndpoints.tenantId, webhookEndpoints.id] }),
+  foreignKey({ name: "webhook_deliveries_tenant_event_fk", columns: [t.tenantId, t.eventId], foreignColumns: [webhookEvents.tenantId, webhookEvents.id] }),
+  index("webhook_deliveries_due").on(t.status, t.nextAttemptAt, t.createdAt),
+  index("webhook_deliveries_tenant_endpoint_created").on(t.tenantId, t.endpointId, t.createdAt),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
+export const webhookDeliveryAttempts = pgTable("webhook_delivery_attempts", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
+  deliveryId: text("delivery_id").notNull(), attemptNumber: integer("attempt_number").notNull(),
+  outcome: text("outcome").notNull(), httpStatus: integer("http_status"), latencyMs: integer("latency_ms"),
+  responseSummary: text("response_summary"), errorCode: text("error_code"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (t) => [
+  unique("webhook_delivery_attempts_tenant_id_unique").on(t.tenantId, t.id),
+  unique("webhook_delivery_attempts_tenant_delivery_number_unique").on(t.tenantId, t.deliveryId, t.attemptNumber),
+  check("webhook_delivery_attempts_number_positive", sql.raw("attempt_number > 0")),
+  check("webhook_delivery_attempts_outcome", sql.raw("outcome IN ('succeeded', 'retryable_failure', 'permanent_failure', 'timeout')")),
+  check("webhook_delivery_attempts_http_status", sql.raw("http_status IS NULL OR http_status BETWEEN 100 AND 599")),
+  check("webhook_delivery_attempts_latency", sql.raw("latency_ms IS NULL OR latency_ms >= 0")),
+  foreignKey({ name: "webhook_delivery_attempts_tenant_delivery_fk", columns: [t.tenantId, t.deliveryId], foreignColumns: [webhookDeliveries.tenantId, webhookDeliveries.id] }),
+  index("webhook_delivery_attempts_tenant_delivery").on(t.tenantId, t.deliveryId, t.attemptNumber),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
 export const schema = {
   tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
   grants, approvals, executions, auditEvents, agentCredentials,
+  webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts,
 };
