@@ -56,30 +56,11 @@ async function inTransaction<T>(operation: (client: PoolClient) => Promise<T>): 
 
 async function claimDueDeliveries(limit = 10): Promise<QueueItem[]> {
   return inTransaction(async (client) => {
-    const selected = await client.query<{ tenant_id: string; delivery_id: string }>(
-      `SELECT tenant_id, delivery_id
-         FROM webhook_delivery_queue
-        WHERE available_at <= now()
-          AND (lease_expires_at IS NULL OR lease_expires_at < now())
-        ORDER BY available_at, created_at
-        FOR UPDATE SKIP LOCKED
-        LIMIT $1`,
+    const selected = await client.query<QueueItem>(
+      "SELECT tenant_id, delivery_id, lease_token FROM public.claim_webhook_delivery_queue($1)",
       [limit]
     );
-    const claimed: QueueItem[] = [];
-    for (const row of selected.rows) {
-      const token = randomUUID();
-      const updated = await client.query(
-        `UPDATE webhook_delivery_queue
-            SET lease_token = $3, lease_expires_at = now() + interval '45 seconds',
-                claim_count = claim_count + 1
-          WHERE tenant_id = $1 AND delivery_id = $2
-          RETURNING tenant_id, delivery_id, lease_token`,
-        [row.tenant_id, row.delivery_id, token]
-      );
-      if (updated.rows[0]) claimed.push(updated.rows[0] as QueueItem);
-    }
-    return claimed;
+    return selected.rows;
   });
 }
 
@@ -117,7 +98,7 @@ async function loadDelivery(item: QueueItem): Promise<ClaimedDelivery | null> {
         [item.tenant_id, item.delivery_id, item.lease_token]
       );
       await client.query(
-        "DELETE FROM webhook_delivery_queue WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3",
+        "SELECT public.complete_webhook_delivery_queue($1, $2, $3, NULL, true)",
         [item.tenant_id, item.delivery_id, item.lease_token]
       );
       return null;
@@ -180,10 +161,7 @@ async function recordOutcome(
       );
     } else {
       await client.query(
-        `UPDATE webhook_delivery_queue
-            SET available_at = now() + ($4::bigint * interval '1 millisecond'),
-                lease_token = NULL, lease_expires_at = NULL
-          WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3`,
+        "SELECT public.complete_webhook_delivery_queue($1, $2, $3, now() + ($4::bigint * interval '1 millisecond'), false)",
         [item.tenant_id, item.delivery_id, item.lease_token, retryDelayMs(attemptNumber)]
       );
     }
