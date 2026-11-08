@@ -10,6 +10,22 @@ export class PostgresConnectedAccountRepository {
     if (!tenantId || tenantId.trim() !== tenantId || tenantId.length > 200) throw new TypeError("A verified tenant identity is required.");
   }
 
+  async listForUser(userId: string) {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      return tx.select({
+        accountId: connectedAccounts.id,
+        provider: connectedAccounts.provider,
+        origin: connectedAccounts.origin,
+        displayLabel: connectedAccounts.displayLabel,
+        status: connectedAccounts.status,
+        createdAt: connectedAccounts.createdAt
+      }).from(connectedAccounts).where(and(
+        eq(connectedAccounts.tenantId, this.tenantId),
+        eq(connectedAccounts.userId, userId)
+      )).orderBy(connectedAccounts.createdAt);
+    });
+  }
+
   async create(input: { userId: string; provider: string; origin: string; displayLabel: string }): Promise<{ accountId: string }> {
     const accountId = newId();
     await withTenantTransaction(this.database, this.tenantId, async (tx) => {
