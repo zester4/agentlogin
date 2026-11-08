@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, PostgresConnectedAccountRepository, PostgresCredentialRecordStore } from "./index.js";
 import { AwsKmsProvider, CredentialDecryptionError, EncryptedCredentialVault } from "@agentlogin/vault";
@@ -9,7 +10,8 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
   const userId = process.env.AGENTLOGIN_TEST_USER_ID ?? "";
   const keyId = process.env.AWS_KMS_KEY_ID ?? "";
   const region = process.env.AWS_REGION ?? "";
-  const syntheticPassword = "agentlogin-synthetic-vault-check-only-7d2f9c";
+  const runId = randomBytes(8).toString("hex");
+  const syntheticPassword = "agentlogin-synthetic-vault-check-only-" + runId;
 
   let databaseHandle: ReturnType<typeof createDatabase> | undefined;
   let accountId = "";
@@ -47,7 +49,7 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
     const firstContext = {
       tenantId,
       accountId,
-      credentialId: "vcred_integration_v1",
+      credentialId: "vcred_integration_v1_" + runId,
       recordVersion: 1,
       purpose: "website_login" as const
     };
@@ -88,7 +90,7 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
 
     const secondContext = {
       ...firstContext,
-      credentialId: "vcred_integration_v2",
+      credentialId: "vcred_integration_v2_" + runId,
       recordVersion: 2
     };
     const secondPlaintext = Buffer.from(JSON.stringify({

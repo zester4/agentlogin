@@ -40,7 +40,8 @@ The API health endpoint has returned HTTP 200. The web, API, and separate MCP Ra
 - [x] Confirmed the production API deployment after AWS KMS configuration completed successfully.
 - [x] Ran the protected live KMS diagnostic: `kms_encrypt=true`, `kms_decrypt=true`, and `encryption_context_rejection=true`.
 - [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; unauthenticated POST to `/internal/kms/self-test` now returns HTTP 404.
-- [x] Added an opt-in PostgreSQL + AWS KMS lifecycle integration test; execution against Neon remains pending.
+- [x] Added an opt-in PostgreSQL + AWS KMS lifecycle integration test; ordinary CI skips it unless explicitly enabled.
+- [ ] Deploy and run the temporary protected `/internal/vault/lifecycle-self-test` endpoint against the production Neon runtime using only a dedicated synthetic tenant/user; remove its temporary token immediately afterward.
 
 ## Recently completed — PR #31 merged
 
@@ -84,7 +85,7 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 - [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; the diagnostic endpoint returned HTTP 404 after redeployment.
 
 ### Still to do
-- [ ] Run `packages/database/src/postgres-vault.integration.test.ts` against Neon with a dedicated synthetic test user and tenant, using the least-privileged runtime database role.
+- [ ] Run the live PostgreSQL + KMS lifecycle check against Neon with a dedicated synthetic test user and tenant, using the least-privileged runtime database role. The protected temporary API route exercises the same repository/vault path from the production API environment, without copying Railway secrets out of Railway.
 - [ ] Verify wrong/unrelated KMS key denial and KMS outage/failure behavior.
 - [ ] Review CloudTrail for the expected principal and KMS operations; confirm no plaintext credential or DEK appears in logs.
 - [ ] Document and test IAM access-key rotation, KMS key recovery, backup/restore, and incident response.
@@ -167,6 +168,6 @@ The live diagnostic proves KMS cryptographic access only. It does not prove that
 5. Login permission does not authorize arbitrary post-login actions.
 6. Never claim production readiness based only on a merged PR, a KMS key existing, or a healthy health endpoint.
 
-## Resume point when PC access returns
+## Resume point
 
-Resume at **AWS IAM policy creation**. The policy JSON is prepared, but the IAM policy has not yet been confirmed as created. Then create the restricted IAM user, configure the API service's AWS variables, and run live KMS verification.
+AWS KMS and the dedicated IAM service identity are configured, and the live synthetic KMS self-test passed. Next, deploy the protected synthetic vault lifecycle diagnostic, create the dedicated synthetic Neon tenant/user, run the full persistence/rotation/revocation/disconnect check, then remove all temporary diagnostic variables and confirm the endpoint returns 404. Never use real website credentials for this test.
