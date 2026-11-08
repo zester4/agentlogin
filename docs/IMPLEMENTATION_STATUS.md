@@ -6,7 +6,7 @@ Last reviewed: 2026-11-08. This is a snapshot of the repository and deployment s
 
 | Area | Implemented now | Still open / important boundary |
 |---|---|---|
-| Vault cryptography | AES-256-GCM envelope encryption with fresh 256-bit DEKs, authenticated context binding, callback-scoped decryption, and temporary-buffer clearing. AWS KMS wrap/unwrap adapter exists. | Wire the adapter into the live credential lifecycle on Railway and verify encrypt/decrypt, wrong-context denial, key mismatch, and failure behavior end to end. Do not store real credentials until verified. |
+| Vault cryptography | AES-256-GCM envelope encryption with fresh 256-bit DEKs, authenticated context binding, callback-scoped decryption, and temporary-buffer clearing. AWS KMS wrap/unwrap adapter is instantiated by the connected-account enrollment and credential-rotation API handlers. | Configure the dedicated AWS IAM identity and KMS environment variables on Railway, then verify live encrypt/decrypt, wrong-context denial, key mismatch, and failure behavior end to end. Do not store real credentials until verified. |
 | Durable credential storage | PostgreSQL credential-envelope repository persists ciphertext, IV, authentication tag, wrapped DEK, key version, and lifecycle metadata. Credential enrollment, rotation, and disconnect routes exist in the API. | The complete user-facing enrollment and secure handoff flow is not finished. Verify the production KMS path and operational recovery, deletion, and rotation procedures. |
 | Plaintext handling | Decryption is callback-scoped; plaintext buffers are cleared after callback completion. Agent-facing paths are designed to return safe metadata/results, not secrets. | JavaScript cannot guarantee erasure of every copy or garbage-collected memory. Callers must never copy, retain, serialize, log, or return plaintext. Verify all worker, error, telemetry, and artifact paths. |
 | Agent authentication | Persistent PostgreSQL agent-credential repository; opaque credentials stored as hashes; signed HMAC token format; Fastify authentication middleware; expiry, revocation, tenant, developer, and agent-state checks. | Complete adversarial and concurrency review, key-ring/rotation operations, abuse controls, and end-to-end production verification. |
@@ -27,7 +27,7 @@ Last reviewed: 2026-11-08. This is a snapshot of the repository and deployment s
 3. PostgreSQL repositories and transaction-scoped tenant context.
 4. Agent authentication wired into Fastify.
 5. User/developer OIDC authentication and membership/onboarding code paths.
-6. AWS KMS wrap/unwrap adapter implemented.
+6. AWS KMS wrap/unwrap adapter implemented and called by credential enrollment/rotation routes.
 7. Durable encrypted credential-envelope storage and lifecycle API routes.
 8. Grant, delegation, and approval persistence with API routes.
 9. Dashboard sections and approval inbox integration.
@@ -38,7 +38,7 @@ These are implementation milestones, not a declaration that every associated pro
 ## Remaining work — current priorities
 
 1. Finish Auth0 organization/tenant claim configuration and verify the real user-to-API flow.
-2. Wire AWS KMS credentials and provider into the Railway API credential lifecycle; run end-to-end and negative-path verification.
+2. Configure the AWS IAM credentials and KMS key variables on the Railway API service; run end-to-end and negative-path verification of the already-wired credential lifecycle routes.
 3. Complete secure credential enrollment and user-facing account connection/management.
 4. Build the isolated browser worker, credential-broker integration, origin/redirect/SSRF controls, and MFA/CAPTCHA handoff/resume.
 5. Complete SDK and MCP transports with authenticated identity, scoped grants, sanitized outputs, and usable examples.
