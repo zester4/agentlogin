@@ -401,7 +401,7 @@ Acceptance:
 - isolation, timeout, cleanup, and revocation tests pass.
 
 ### Milestone 5 — SDK, REST docs, MCP
-**Status: IN PROGRESS — package and integration scaffolding exist; SDK/MCP transport implementations remain stubs and are not ready to be represented as working integrations.**
+**Status: IN PROGRESS — typed TypeScript SDK and authenticated Streamable HTTP MCP transport are implemented and deployed. npm publication and authenticated remote smoke tests remain open; login execution tools remain blocked on the isolated browser worker.**
 
 Deliverables:
 - TypeScript SDK;
@@ -453,7 +453,7 @@ Still open:
 - Run the new PostgreSQL + AWS KMS lifecycle integration test against Neon using synthetic credentials; verify unrelated-key denial, KMS outage behavior, and CloudTrail identity/actions.
 - Finish the user-facing secure credential enrollment flow.
 - Build and verify the isolated browser worker and MFA/CAPTCHA user handoff.
-- Implement usable SDK and MCP transports; current transport surfaces are incomplete/stubs.
+- Publish the SDK/contracts packages and complete authenticated remote MCP smoke tests; browser login execution tools remain intentionally unavailable until the isolated worker is complete.
 - Run runtime-role database integration, adversarial, replay, concurrency, and secret-leak tests; complete independent security review.
 
 Do not treat an implemented adapter, API route, migration, or dashboard screen as proof that the full user-facing workflow is production-ready. The production credential gate in `docs/IMPLEMENTATION_STATUS.md` remains authoritative.
