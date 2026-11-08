@@ -57,6 +57,13 @@
       "when": 1794173000000,
       "tag": "0007_webhook_delivery_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794175000000,
+      "tag": "0008_secure_webhook_queue_access",
+      "breakpoints": true
     }
   ]
 }

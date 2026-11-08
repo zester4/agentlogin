@@ -262,7 +262,8 @@ export const webhookDeliveryQueue = pgTable("webhook_delivery_queue", {
   check("webhook_delivery_queue_claim_count", sql.raw("claim_count >= 0")),
   foreignKey({ name: "webhook_delivery_queue_tenant_delivery_fk", columns: [t.tenantId, t.deliveryId], foreignColumns: [webhookDeliveries.tenantId, webhookDeliveries.id] }),
   index("webhook_delivery_queue_due").on(t.availableAt, t.leaseExpiresAt, t.createdAt),
-]);
+  tenantPolicy(t.tenantId),
+]).enableRLS();
 
 export const schema = {
   tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,

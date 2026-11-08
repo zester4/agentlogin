@@ -25,6 +25,7 @@ async function main(): Promise<void> {
     "webhook_events",
     "webhook_deliveries",
     "webhook_delivery_attempts",
+    "webhook_delivery_queue",
   ] as const;
 
   const pool = new Pool({
