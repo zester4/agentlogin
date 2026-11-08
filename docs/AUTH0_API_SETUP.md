@@ -92,7 +92,7 @@ Set these variables on the **web** service only:
 | Variable | Value |
 |---|---|
 | `AUTH0_AUDIENCE` | `https://api.agentlogin.app` |
-| `AUTH0_ORGANIZATION` | The copied `org_...` Organization ID |
+| `AUTH0_ORGANIZATION` | `org_fBUW065W2Ut6KHbt` |
 | `AGENTLOGIN_API_URL` | `https://agentlogin-production-90b2.up.railway.app` |
 
 The existing `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, and `APP_BASE_URL` must also be set on the web service. `AUTH0_DOMAIN` is the tenant hostname only (no `https://`); `APP_BASE_URL` is the full web URL.
@@ -103,13 +103,13 @@ Set these variables on the **API** service only:
 
 | Variable | Value |
 |---|---|
-| `OIDC_ISSUER_URL` | `https://YOUR_AUTH0_DOMAIN/` |
+| `OIDC_ISSUER_URL` | `https://agentlogin.us.auth0.com/` |
 | `OIDC_AUDIENCE` | `https://api.agentlogin.app` |
-| `OIDC_JWKS_URL` | `https://YOUR_AUTH0_DOMAIN/.well-known/jwks.json` |
+| `OIDC_JWKS_URL` | `https://agentlogin.us.auth0.com/.well-known/jwks.json` |
 | `OIDC_TENANT_CLAIM` | `https://agentlogin.app/tenant_id` |
 | `OIDC_MAX_TOKEN_AGE` | `24h` (or a shorter value matching your Auth0 API token lifetime) |
 
-Replace `YOUR_AUTH0_DOMAIN` with the exact Auth0 tenant domain, for example `agentlogin.us.auth0.com`. Keep the trailing slash on the issuer URL. If using an Auth0 custom domain, use that same domain consistently for issuer and JWKS.
+These values use the current Auth0 tenant domain `agentlogin.us.auth0.com`. Keep the trailing slash on the issuer URL. If the Auth0 tenant is later moved to a custom domain, use that same domain consistently for issuer and JWKS.
 
 Do not put Auth0 Client Secret or AUTH0_SECRET on the API service. Do not expose any Auth0 secret or access token in a `NEXT_PUBLIC_*` variable.
 
