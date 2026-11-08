@@ -22,8 +22,27 @@ describe("AgentLogin MCP HTTP boundary", () => {
     expect(response.json()).toEqual({ status: "ok", service: "agentlogin-mcp" });
   });
 
-  it("rejects a Host header outside the allowlist", async () => {
+  it("allows Railway health probes with a platform-internal Host header", async () => {
+    const response = await app.inject({ method: "GET", url: "/health", headers: { host: "agentlogin-mcp.railway.internal" } });
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("rejects a Host header outside the allowlist on the MCP route", async () => {
     const response = await app.inject({ method: "POST", url: "/mcp", headers: { host: "evil.example" }, payload: {} });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("accepts an allowlisted MCP hostname with a port", async () => {
+    const response = await app.inject({
+      method: "POST", url: "/mcp",
+      headers: { host: "mcp.agentlogin.test:4010" },
+      payload: {}
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects a missing Host header on the MCP route", async () => {
+    const response = await app.inject({ method: "POST", url: "/mcp", headers: {}, payload: {} });
     expect(response.statusCode).toBe(403);
   });
 
