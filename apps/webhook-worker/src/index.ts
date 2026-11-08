@@ -102,6 +102,12 @@ async function loadDelivery(item: QueueItem): Promise<ClaimedDelivery | null> {
     const row = result.rows[0];
     if (!row) {
       await client.query(
+        `UPDATE webhook_deliveries
+            SET status = 'cancelled', lease_token = NULL, lease_expires_at = NULL, updated_at = now()
+          WHERE tenant_id = $1 AND id = $2 AND status IN ('pending', 'leased')`,
+        [item.tenant_id, item.delivery_id]
+      );
+      await client.query(
         "DELETE FROM webhook_delivery_queue WHERE tenant_id = $1 AND delivery_id = $2 AND lease_token = $3",
         [item.tenant_id, item.delivery_id, item.lease_token]
       );
@@ -218,9 +224,12 @@ async function deliver(item: QueueItem): Promise<void> {
     body.fill(0);
   } catch (error) {
     const timedOut = error instanceof Error && error.message.toLowerCase().includes("timed out");
+    const destinationRejected = error instanceof Error &&
+      (error.message.includes("destination") || error.message.includes("resolves to a prohibited address"));
     await recordOutcome(
-      item, delivery, timedOut ? "timeout" : "retryable_failure",
-      null, 0, null, "delivery_transport_error"
+      item, delivery,
+      destinationRejected ? "permanent_failure" : timedOut ? "timeout" : "retryable_failure",
+      null, 0, null, destinationRejected ? "destination_rejected" : "delivery_transport_error"
     );
   } finally {
     secret?.fill(0);
