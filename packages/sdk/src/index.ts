@@ -1,7 +1,9 @@
 import {
+  AgentGrantStatusSchema,
   AgentIdentitySchema,
   GrantRequestSchema,
   PendingGrantSchema,
+  type AgentGrantStatus,
   type AgentIdentity,
   type GrantRequest,
   type PendingGrant
@@ -116,6 +118,12 @@ export class AgentLoginClient {
   async getAgentIdentity(options: RequestOptions = {}): Promise<AgentIdentity> {
     const result = await this.request("GET", "v1/agent/me", undefined, options, true);
     return AgentIdentitySchema.parse(result);
+  }
+
+  async getGrantStatus(grantId: string, options: RequestOptions = {}): Promise<AgentGrantStatus> {
+    if (!grantId || grantId.trim() !== grantId || grantId.length > 300) throw new TypeError("grantId must be a non-empty grant identifier.");
+    const result = await this.request("GET", `v1/agent/grants/${encodeURIComponent(grantId)}`, undefined, options, true);
+    return AgentGrantStatusSchema.parse(result);
   }
 
   async requestGrant(userId: string, request: GrantRequest, options: RequestOptions = {}): Promise<PendingGrant> {
