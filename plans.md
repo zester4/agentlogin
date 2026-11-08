@@ -11,13 +11,13 @@ This section distinguishes repository evidence from recommended design. It is no
 ### Verified scaffold
 
 - Repository branch: scaffold/platform-foundation. The branch head was fetched before edits.
-- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft, so it cannot be updated as an open draft PR. The current branch is 32 commits ahead of the merge base and 252 commits behind main. Main's web manifest uses Next.js 16.4.5 and Auth0 SDK 4.11.0; this branch remains on Next.js 15.5.6 and the provider-neutral OIDC adapter recorded in ADR 0005. No merge/rebase or main-branch changes were made, as requested. Reconcile deliberately before opening any follow-up PR; do not silently import main's Auth0 integration.
+- Pull request #1 was already merged on 2026-11-07; it is closed, not a draft, so it cannot be updated as an open draft PR. At the latest comparison before this snapshot, the branch was 33 commits ahead of the merge base and 252 commits behind main (merge base 4118a1dec5ad037a26cbc90bad7606dc25a2c637). Recompare before opening any follow-up PR because main and this branch continue to move. Main's web manifest uses Next.js 16.4.5 and Auth0 SDK 4.11.0; this branch remains on Next.js 15.5.6 and the provider-neutral OIDC adapter recorded in ADR 0005. No merge/rebase or main-branch changes were made, as requested. Reconcile deliberately before opening any follow-up PR; do not silently import main's Auth0 integration.
 - API: Node.js 22, Fastify 5, TypeScript, Zod, Postgres.js identity repository, generic RS256 OIDC user-token verifier, developer API keys, per-agent credentials, scoped authentication middleware, tenant-scoped queries, forced PostgreSQL RLS migration, migration runner, liveness and identity readiness. Grant, vault and execution wiring remain incomplete.
 - Web: Next.js 15.5.x control-plane shell only; no authentication or account-enrollment flow.
 - MCP: tool-name constants only; no transport, authenticated agent identity, authorization, or tool execution.
 - Data: PostgreSQL identity persistence and migration runner; CI provisions disposable PostgreSQL 17, applies migrations 0001/0002 with a separate migration administrator and non-superuser runtime role, and exercises forced RLS plus explicit tenant/owner predicates. No production database has been provisioned; production hosting, backup and recovery remain open.
 - Vault and execution: TypeScript interfaces only. No encryption, KMS adapter, credential storage, browser provider, or isolated worker implementation.
-- Latest full CI: [run 42443789066](https://github.com/zester4/agentlogin/actions/runs/42443789066) on commit b493fd2 passed frozen install, TypeScript typecheck, PostgreSQL migrations, all tests (API 35, contracts 8, policy 18), and workspace build. Tests use synthetic identities and credentials only. CI resolves the branch's web build to Next.js 15.5.29; the Next.js 16/Auth0 work on main is not included in this branch.
+- Latest full CI: [run 42443889649](https://github.com/zester4/agentlogin/actions/runs/42443889649) on commit 8a3421b passed frozen install, TypeScript typecheck, PostgreSQL migrations, all tests (API 35, contracts 8, policy 18), and workspace build. Tests use synthetic identities and credentials only. CI resolves the branch's web build to Next.js 15.5.29; the Next.js 16/Auth0 work on main is not included in this branch.
 - The current branch contains no Cloudflare Worker, Wrangler configuration, Cloudflare binding, or Cloudflare service integration.
 
 ### Architecture recommendation
@@ -559,7 +559,7 @@ The repository now has a concrete scaffold stack, but production hosting, identi
 | Agent identity | Separate scoped, hashed, expiring and revocable agent credentials bound to developer-owned agents | IMPLEMENTED BASELINE / NEEDS REVIEW |
 | SDK | TypeScript first; client scaffold only | SCAFFOLD ONLY |
 | Agent integration | REST + MCP; MCP names only, no transport or authorization wiring | PROPOSED / SCAFFOLD |
-| CI | pnpm 10.20.0 frozen install, typecheck, migrations, 61 tests, and workspace build pass on [run 42443789066](https://github.com/zester4/agentlogin/actions/runs/42443789066) | PASSING / POSTGRES VERIFIED IN CI |
+| CI | pnpm 10.20.0 frozen install, typecheck, migrations, 61 tests, and workspace build pass on [run 42443889649](https://github.com/zester4/agentlogin/actions/runs/42443889649) | PASSING / POSTGRES VERIFIED IN CI |
 | Chusky integration/browser | Explicitly excluded | NON-NEGOTIABLE |
 | OAuth/API connectors | Add after core grant and website-login model | PROPOSED |
 
