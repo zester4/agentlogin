@@ -30,7 +30,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
   if (auth) {
     agentAuthenticationPlugin(app, auth);
     userAuthenticationPlugin(app, { database: auth.database });
-    app.register(agentRoutes);
+    app.register(agentRoutes, { database: auth.database });
     app.register(onboardingRoutes, { database: auth.database });
     app.register(userRoutes);
     app.register(developerRoutes, { database: auth.database });
