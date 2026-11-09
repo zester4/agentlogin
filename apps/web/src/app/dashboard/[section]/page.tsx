@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { auth0 } from "../../../lib/auth0";
 import { Icon } from "../../ui-icon";
 import { ThemeToggle } from "../../theme-toggle";
-import { decideApproval, suspendAgent } from "./actions";
+import { decideApproval } from "./actions";
+import { AgentSuspendControl } from "./agent-suspend-control";
 
 const sections = {
   accounts: {
@@ -186,12 +187,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
                   </div>
                   <div className="agent-row-actions">
                     <span className={agent.status === "active" ? "live-status active" : "live-status"}>{agent.status}</span>
-                    {agent.status === "active" ? (
-                      <form action={suspendAgent}>
-                        <input type="hidden" name="agent_id" value={agent.agent_id} />
-                        <button className="button button-outline" type="submit">Suspend agent</button>
-                      </form>
-                    ) : null}
+                    {agent.status === "active" ? <AgentSuspendControl agentId={agent.agent_id} /> : null}
                   </div>
                 </article>
               ))}</div>
