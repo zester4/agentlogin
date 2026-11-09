@@ -10,7 +10,7 @@ const sections = {
     label: "YOUR ACCOUNTS", title: "Connected accounts",
     description: "See the websites and services you have connected to AgentLogin.",
     icon: "globe" as const, number: "01",
-    state: "ACCOUNT CONNECTIONS COMING SOON",
+    state: "ENROLLMENT LOCKED — SECURITY REVIEW IN PROGRESS",
     emptyTitle: "Your connected accounts will appear here.",
     emptyBody: "You will be able to add websites and services here. Your passwords will stay private, even when an AI agent signs in for you.",
     next: "We are finishing the secure account-connection process."
@@ -155,6 +155,10 @@ export default async function DashboardSectionPage({ params }: { params: Promise
             <span className="section-kicker">CONNECTED ACCOUNTS</span>
             <h2>Connected account directory</h2>
             <p>Only safe account metadata is displayed here. Passwords and encrypted credential material are never sent to the dashboard.</p>
+            <div className="live-data-notice" role="status">
+              <strong>New account enrollment is temporarily disabled.</strong>
+              <span>We are completing the remaining production security checks before accepting any real passwords. Do not send credentials through an AI agent or support message.</span>
+            </div>
             {liveDataError ? <p className="live-data-notice">{liveDataError}</p> : accounts.length ? (
               <div className="live-data-list">{accounts.map((account) => (
                 <article className="live-data-row" key={account.account_id}>
