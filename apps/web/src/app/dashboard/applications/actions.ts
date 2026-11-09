@@ -1,6 +1,8 @@
 "use server";
 
 import { auth0 } from "../../../lib/auth0";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export type ApplicationActionState = {
   error?: string;
@@ -52,4 +54,25 @@ export async function createApplicationAction(
   } catch {
     return { error: "AgentLogin could not reach the API. Try again in a moment." };
   }
+}
+
+export async function revokeApplicationAction(formData: FormData): Promise<void> {
+  const applicationId = String(formData.get("application_id") ?? "");
+  if (!applicationId || applicationId.length > 200) redirect("/dashboard/applications?error=invalid_application");
+  const session = await auth0.getSession();
+  if (!session) redirect("/auth/login");
+  const apiBase = process.env.AGENTLOGIN_API_URL;
+  const access = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
+  if (!apiBase || !access?.token) redirect("/dashboard/applications?error=api_unavailable");
+  try {
+    const response = await fetch(new URL(`/v1/developer-applications/${encodeURIComponent(applicationId)}`, apiBase), {
+      method: "DELETE", headers: { Authorization: `Bearer ${access.token}` }, cache: "no-store"
+    });
+    if (!response.ok) redirect("/dashboard/applications?error=revoke_failed");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("NEXT_REDIRECT")) throw error;
+    redirect("/dashboard/applications?error=revoke_failed");
+  }
+  revalidatePath("/dashboard/applications");
+  redirect("/dashboard/applications?revoked=1");
 }
