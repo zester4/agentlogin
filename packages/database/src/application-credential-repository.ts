@@ -2,9 +2,11 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { applicationAccessTokens, developerApplications, developerMemberships, developers, tenants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
-import type { ApplicationCredentialRepository, ApplicationAccessTokenRecord, DeveloperApplicationRecord } from "@agentlogin/identity";
 
-export class PostgresApplicationCredentialRepository implements ApplicationCredentialRepository {
+type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
+type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
+
+export class PostgresApplicationCredentialRepository {
   constructor(private readonly database: Database, private readonly tenantId: string) {
     if (!tenantId || tenantId.trim() !== tenantId || tenantId.length > 200) throw new TypeError("A verified tenant identity is required.");
   }
