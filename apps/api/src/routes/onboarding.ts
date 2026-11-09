@@ -26,7 +26,22 @@ export async function onboardingRoutes(app: FastifyInstance, options: { database
         user_id: result.userId, developer_id: result.developerId,
         membership_role: result.membershipRole
       });
-    } catch {
+    } catch (error) {
+      // Keep credentials and identity claims out of logs. PostgreSQL's code,
+      // table, and constraint identify the failing operation without logging
+      // request headers, tokens, SQL parameters, or row contents.
+      const databaseError = error as {
+        code?: unknown;
+        constraint?: unknown;
+        table?: unknown;
+        message?: unknown;
+      };
+      request.log.error({
+        errorCode: typeof databaseError?.code === "string" ? databaseError.code : undefined,
+        table: typeof databaseError?.table === "string" ? databaseError.table : undefined,
+        constraint: typeof databaseError?.constraint === "string" ? databaseError.constraint : undefined,
+        reason: error instanceof Error ? error.message.slice(0, 300) : "Unknown onboarding error"
+      }, "Workspace onboarding failed");
       return reply.code(403).send({ error: { code: "onboarding_failed", message: "Workspace onboarding could not be completed." } });
     }
   });
