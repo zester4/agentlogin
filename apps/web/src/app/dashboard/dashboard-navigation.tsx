@@ -25,7 +25,7 @@ export function DashboardNavigation({ name, email }: { name: string; email: stri
   const [mobileOpen, setMobileOpen] = useState(false);
   const initial = (name || email || "A").slice(0, 1).toUpperCase();
 
-  const nav = (items: typeof primary, label: string) => (
+  const nav = (items: ReadonlyArray<{ label: string; href: string; icon: "grid" | "globe" | "bot" | "ticket" | "inbox" | "activity" | "shield" | "users" | "code" }>, label: string) => (
     <nav className="dashboard-nav-list" aria-label={label}>
       {items.map((item) => {
         const active = item.href === "/dashboard"
