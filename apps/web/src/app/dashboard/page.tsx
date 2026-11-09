@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "../../lib/auth0";
 import { Icon } from "../ui-icon";
 import { ThemeToggle } from "../theme-toggle";
+import { DashboardNavigation } from "./dashboard-navigation";
 
 const navigation = [
   { label: "Overview", href: "#overview", icon: "grid" as const, active: true },
@@ -87,38 +88,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="workspace-shell workspace-shell-v2" id="overview">
-      <aside className="workspace-sidebar workspace-sidebar-v2">
-        <Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt="" /><span>AgentLogin</span></Link>
-        <div className="workspace-switcher">
-          <span className="workspace-switcher-mark">A</span>
-          <span><small>YOUR ACCOUNT</small><strong>Personal account</strong></span>
-          <Icon name="chevron" />
-        </div>
-        <div className="sidebar-label">YOUR ACCOUNT</div>
-        <nav className="workspace-nav" aria-label="Your account">
-          {navigation.map((item) => (
-            <a key={item.label} className={item.active ? "side-link active" : "side-link"} href={item.href}>
-              <Icon name={item.icon} /> <span>{item.label}</span>
-              {item.label === "Approvals" ? <small className="nav-count">—</small> : null}
-            </a>
-          ))}
-        </nav>
-        <div className="sidebar-label sidebar-label-spaced">SETTINGS</div>
-        <nav className="workspace-nav" aria-label="Management navigation">
-          {management.map((item) => <a key={item.label} className="side-link" href={item.href}><Icon name={item.icon} /> <span>{item.label}</span></a>)}
-        </nav>
-        <div className="sidebar-help">
-          <span className="help-icon"><Icon name="book" /></span>
-          <strong>Build with AgentLogin</strong>
-          <p>Connect your AI assistant to AgentLogin in a few simple steps.</p>
-          <Link href="/developers">Getting started <Icon name="arrow" /></Link>
-        </div>
-        <div className="sidebar-bottom sidebar-bottom-v2">
-          <span className="avatar">{initial}</span>
-          <div><strong>{displayName}</strong><small>{session.user.email || "Authenticated account"}</small></div>
-          <a href="/auth/logout" aria-label="Sign out"><Icon name="logout" /></a>
-        </div>
-      </aside>
+      <DashboardNavigation name={displayName} email={session.user.email || "Authenticated account"} />
 
       <section className="workspace-main workspace-main-v2">
         <header className="workspace-topbar">
