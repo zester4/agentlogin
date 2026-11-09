@@ -123,3 +123,30 @@ export async function createAgent(
     return { status: "error", message: "AgentLogin is temporarily unavailable. No credential was displayed." };
   }
 }
+
+
+export async function revokeGrant(formData: FormData): Promise<void> {
+  const grantId = formData.get("grant_id");
+  if (typeof grantId !== "string" || !/^[A-Za-z0-9_-]{8,300}$/.test(grantId)) {
+    redirect("/dashboard/grants?result=invalid");
+  }
+  const apiBase = process.env.AGENTLOGIN_API_URL;
+  if (!apiBase) redirect("/dashboard/grants?result=api_unconfigured");
+  const session = await auth0.getSession();
+  if (!session) redirect("/auth/login");
+  const tokenResult = await auth0.getAccessToken().catch(() => null);
+  if (!tokenResult?.token) redirect("/dashboard/grants?result=auth0_unconfigured");
+  try {
+    const response = await fetch(new URL(`/v1/grants/${encodeURIComponent(grantId)}/revoke`, apiBase), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenResult.token}` },
+      cache: "no-store"
+    });
+    if (!response.ok) redirect("/dashboard/grants?result=revoke_failed");
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    redirect("/dashboard/grants?result=api_unavailable");
+  }
+  revalidatePath("/dashboard/grants");
+  redirect("/dashboard/grants?result=revoked");
+}
