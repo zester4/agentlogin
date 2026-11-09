@@ -83,6 +83,20 @@ export class PostgresAgentCredentialRepository {
   async rotate(record: NewPersistedAgentCredential): Promise<void> {
     if (record.tenantId !== this.authenticatedTenantId) throw new Error("Tenant context mismatch.");
     await withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
+      // Serialize rotations for this agent. Without a stable parent-row lock,
+      // two concurrent transactions can each revoke the previous token set
+      // and then both insert a new active credential.
+      const [lockedAgent] = await tx
+        .select({ id: agents.id })
+        .from(agents)
+        .where(and(
+          eq(agents.tenantId, this.authenticatedTenantId),
+          eq(agents.developerId, record.developerId),
+          eq(agents.id, record.agentId),
+        ))
+        .for("update");
+      if (!lockedAgent) throw new Error("Agent not found for credential rotation.");
+
       const previous = await tx.update(agentCredentials).set({ revokedAt: record.createdAt }).where(and(
         eq(agentCredentials.tenantId, this.authenticatedTenantId),
         eq(agentCredentials.agentId, record.agentId),
