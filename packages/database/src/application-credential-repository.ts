@@ -34,6 +34,35 @@ export class PostgresApplicationCredentialRepository {
   }
 
 
+
+  async revokeApplication(userId: string, applicationId: string): Promise<boolean> {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      const [managed] = await tx.select({ applicationId: developerApplications.id })
+        .from(developerApplications).innerJoin(developerMemberships, and(
+          eq(developerApplications.tenantId, developerMemberships.tenantId),
+          eq(developerApplications.developerId, developerMemberships.developerId)
+        )).where(and(
+          eq(developerApplications.tenantId, this.tenantId),
+          eq(developerApplications.id, applicationId),
+          eq(developerMemberships.userId, userId),
+          eq(developerMemberships.status, "active")
+        )).limit(1);
+      if (!managed) return false;
+      const now = new Date();
+      await tx.update(developerApplications).set({ status: "revoked", revokedAt: now }).where(and(
+        eq(developerApplications.tenantId, this.tenantId),
+        eq(developerApplications.id, applicationId),
+        eq(developerApplications.status, "active")
+      ));
+      await tx.update(applicationAccessTokens).set({ revokedAt: now }).where(and(
+        eq(applicationAccessTokens.tenantId, this.tenantId),
+        eq(applicationAccessTokens.applicationId, applicationId),
+        isNull(applicationAccessTokens.revokedAt)
+      ));
+      return true;
+    });
+  }
+
   async listApplications(userId: string, developerId: string) {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
       return tx.select({
