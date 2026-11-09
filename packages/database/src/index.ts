@@ -13,3 +13,4 @@ export * from "./connected-account-repository.js";
 export * from "./delegation-repository.js";
 export * from "./webhook-repository.js";
 export * from "./application-credential-repository.js";
+export * from "./credential-lease-repository.js";

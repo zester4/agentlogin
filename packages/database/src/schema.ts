@@ -299,9 +299,37 @@ export const applicationAccessTokens = pgTable("application_access_tokens", {
   tenantPolicy(t.tenantId),
 ]).enableRLS();
 
+
+export const credentialLeases = pgTable("credential_leases", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull().references(() => tenants.id),
+  tokenHash: bytea("token_hash").notNull().unique(),
+  userId: text("user_id").notNull(), agentId: text("agent_id").notNull(),
+  grantId: text("grant_id").notNull(), accountId: text("account_id").notNull(),
+  credentialRef: text("credential_ref").notNull(), credentialId: text("credential_id").notNull(),
+  recordVersion: integer("record_version").notNull(), origin: text("origin").notNull(),
+  executionId: text("execution_id").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }), createdAt: createdAt(),
+}, (t) => [
+  unique("credential_leases_tenant_id_unique").on(t.tenantId, t.id),
+  check("credential_leases_token_hash_length", sql.raw("octet_length(token_hash) = 32")),
+  check("credential_leases_record_version_positive", sql.raw("record_version > 0")),
+  check("credential_leases_expiry_after_issue", sql.raw("expires_at > created_at")),
+  foreignKey({ name: "credential_leases_tenant_user_fk", columns: [t.tenantId, t.userId], foreignColumns: [users.tenantId, users.id] }),
+  foreignKey({ name: "credential_leases_tenant_agent_fk", columns: [t.tenantId, t.agentId], foreignColumns: [agents.tenantId, agents.id] }),
+  foreignKey({ name: "credential_leases_tenant_grant_fk", columns: [t.tenantId, t.grantId], foreignColumns: [grants.tenantId, grants.id] }),
+  foreignKey({ name: "credential_leases_tenant_account_fk", columns: [t.tenantId, t.accountId], foreignColumns: [connectedAccounts.tenantId, connectedAccounts.id] }),
+  foreignKey({ name: "credential_leases_tenant_credential_fk", columns: [t.tenantId, t.credentialRef], foreignColumns: [credentials.tenantId, credentials.id] }),
+  index("credential_leases_active_lookup").on(t.tenantId, t.id, t.expiresAt).where(sql`${t.consumedAt} IS NULL AND ${t.revokedAt} IS NULL`),
+  index("credential_leases_execution_lookup").on(t.tenantId, t.executionId),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
 export const schema = {
   tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
   grants, approvals, executions, auditEvents, agentCredentials,
   webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts, webhookDeliveryQueue,
-  developerApplications, applicationAccessTokens,
+  developerApplications, applicationAccessTokens, credentialLeases,
 };
