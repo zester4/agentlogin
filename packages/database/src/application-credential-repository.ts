@@ -3,8 +3,8 @@ import type { Database } from "./client.js";
 import { applicationAccessTokens, developerApplications, developerMemberships, developers, tenants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
-type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
-type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
+type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: string; developerStatus: string; tenantStatus: "active" | "suspended" | "closed" };
+type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: string; developerStatus: string; tenantStatus: "active" | "suspended" | "closed" };
 
 export class PostgresApplicationCredentialRepository {
   constructor(private readonly database: Database, private readonly tenantId: string) {
@@ -21,6 +21,7 @@ export class PostgresApplicationCredentialRepository {
         )).where(and(
           eq(developerMemberships.tenantId, this.tenantId),
           eq(developerMemberships.developerId, input.developerId),
+          eq(developerMemberships.userId, input.userId),
           eq(developerMemberships.status, "active"),
           eq(developers.status, "active")
         )).limit(1);
@@ -51,7 +52,7 @@ export class PostgresApplicationCredentialRepository {
     });
   }
 
-  async insertAccessToken(input: { tokenId: string; tenantId: string; applicationId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date }): Promise<void> {
+  async insertAccessToken(input: { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date }): Promise<void> {
     if (input.tenantId !== this.tenantId) throw new TypeError("Tenant mismatch.");
     await withTenantTransaction(this.database, this.tenantId, async (tx) => {
       await tx.insert(applicationAccessTokens).values({
