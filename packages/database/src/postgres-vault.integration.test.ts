@@ -1,16 +1,55 @@
-import { randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { sql, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDatabase, PostgresConnectedAccountRepository, PostgresCredentialRecordStore } from "./index.js";
-import { AwsKmsProvider, CredentialDecryptionError, EncryptedCredentialVault } from "@agentlogin/vault";
+import {
+  createDatabase,
+  PostgresConnectedAccountRepository,
+  PostgresCredentialRecordStore,
+  tenants,
+  users,
+  connectedAccounts,
+  credentials,
+  auditEvents
+} from "./index.js";
+import {
+  CredentialDecryptionError,
+  EncryptedCredentialVault,
+  type CredentialContext,
+  type KeyManagementProvider,
+  type WrappedDataKey
+} from "@agentlogin/vault";
 
-const enabled = process.env.AGENTLOGIN_VAULT_INTEGRATION === "1";
+const connectionString = process.env.TEST_DATABASE_URL;
 
-describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycle", () => {
-  const tenantId = process.env.AGENTLOGIN_TEST_TENANT_ID ?? "";
-  const userId = process.env.AGENTLOGIN_TEST_USER_ID ?? "";
-  const keyId = process.env.AWS_KMS_KEY_ID ?? "";
-  const region = process.env.AWS_REGION ?? "";
+class TestKeyManagementProvider implements KeyManagementProvider {
+  private readonly masterKey = randomBytes(32);
+  private readonly keyVersion = "ci-test-kms-key-v1";
+
+  async wrapKey(dek: Uint8Array, context: CredentialContext): Promise<WrappedDataKey> {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", this.masterKey, iv);
+    cipher.setAAD(Buffer.from(JSON.stringify(context), "utf8"));
+    const ciphertext = Buffer.concat([cipher.update(dek), cipher.final()]);
+    const wrappedDek = Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
+    return { wrappedDek: new Uint8Array(wrappedDek), keyVersion: this.keyVersion };
+  }
+
+  async unwrapKey(wrappedDek: Uint8Array, keyVersion: string, context: CredentialContext): Promise<Uint8Array> {
+    if (keyVersion !== this.keyVersion || wrappedDek.byteLength !== 60) {
+      throw new Error("Test key management rejected the wrapped key.");
+    }
+    const input = Buffer.from(wrappedDek);
+    const decipher = createDecipheriv("aes-256-gcm", this.masterKey, input.subarray(0, 12));
+    decipher.setAAD(Buffer.from(JSON.stringify(context), "utf8"));
+    decipher.setAuthTag(input.subarray(12, 28));
+    return new Uint8Array(Buffer.concat([decipher.update(input.subarray(28)), decipher.final()]));
+  }
+}
+
+describe.skipIf(!connectionString)("PostgreSQL credential vault lifecycle (isolated CI KMS boundary)", () => {
   const runId = randomBytes(8).toString("hex");
+  const tenantId = "vault-ci-tenant-" + runId;
+  const userId = "vault-ci-user-" + runId;
   const syntheticPassword = "agentlogin-synthetic-vault-check-only-" + runId;
 
   let databaseHandle: ReturnType<typeof createDatabase> | undefined;
@@ -19,33 +58,48 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
   let records: PostgresCredentialRecordStore | undefined;
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL || !tenantId || !userId || !keyId || !region) {
-      throw new Error(
-        "Set DATABASE_URL, AGENTLOGIN_TEST_TENANT_ID, AGENTLOGIN_TEST_USER_ID, AWS_KMS_KEY_ID, and AWS_REGION."
-      );
-    }
-    databaseHandle = createDatabase();
+    if (!connectionString) throw new Error("TEST_DATABASE_URL is required.");
+    databaseHandle = createDatabase(connectionString);
+
+    await databaseHandle.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+      await tx.insert(tenants).values({ id: tenantId, name: "Synthetic vault CI tenant" });
+      await tx.insert(users).values({
+        id: userId,
+        tenantId,
+        authSubject: "vault-ci-subject-" + runId,
+        status: "active"
+      });
+    });
+
     const accounts = new PostgresConnectedAccountRepository(databaseHandle.db, tenantId);
     ({ accountId } = await accounts.create({
       userId,
       provider: "agentlogin-vault-integration-test",
       origin: "https://vault-integration.invalid",
-      displayLabel: "Temporary AgentLogin vault integration test"
+      displayLabel: "Temporary synthetic AgentLogin vault test account"
     }));
     records = new PostgresCredentialRecordStore(databaseHandle.db, tenantId);
-    vault = new EncryptedCredentialVault(records, new AwsKmsProvider(keyId, region));
+    vault = new EncryptedCredentialVault(records, new TestKeyManagementProvider());
   }, 30_000);
 
   afterAll(async () => {
-    if (databaseHandle && accountId) {
-      await new PostgresConnectedAccountRepository(databaseHandle.db, tenantId)
-        .disconnect(accountId, userId)
-        .catch(() => false);
+    if (databaseHandle) {
+      await databaseHandle.db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
+        if (accountId) {
+          await tx.delete(credentials).where(eq(credentials.tenantId, tenantId));
+          await tx.delete(connectedAccounts).where(eq(connectedAccounts.id, accountId));
+        }
+        await tx.delete(auditEvents).where(eq(auditEvents.tenantId, tenantId));
+        await tx.delete(users).where(eq(users.id, userId));
+        await tx.delete(tenants).where(eq(tenants.id, tenantId));
+      });
+      await databaseHandle.close();
     }
-    await databaseHandle?.close();
   }, 30_000);
 
-  it("stores ciphertext, unwraps only in callback, rotates, and rejects revoked credentials", async () => {
+  it("stores ciphertext, decrypts only inside the callback, rotates, revokes, and isolates tenants", async () => {
     const firstContext = {
       tenantId,
       accountId,
@@ -67,7 +121,7 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
     expect(persisted?.envelope.iv).toHaveLength(12);
     expect(persisted?.envelope.authTag).toHaveLength(16);
     expect(persisted?.envelope.wrappedDek.byteLength).toBeGreaterThan(0);
-    expect(persisted?.envelope.keyVersion).toContain(":key/");
+    expect(persisted?.envelope.keyVersion).toBe("ci-test-kms-key-v1");
     expect(Buffer.from(persisted!.envelope.ciphertext).includes(Buffer.from(syntheticPassword))).toBe(false);
     expect(Buffer.from(persisted!.envelope.wrappedDek).includes(Buffer.from(syntheticPassword))).toBe(false);
 
@@ -77,8 +131,7 @@ describe.skipIf(!enabled)("production-shaped PostgreSQL + AWS KMS vault lifecycl
       firstContext,
       async (secret) => {
         callbackBuffer = secret;
-        const parsed = JSON.parse(Buffer.from(secret).toString("utf8")) as { username: string; password: string };
-        return parsed;
+        return JSON.parse(Buffer.from(secret).toString("utf8")) as { username: string; password: string };
       }
     );
     expect(recovered).toEqual({
