@@ -14,6 +14,8 @@ import { delegationRoutes } from "./routes/delegations.js";
 import { activityRoutes } from "./routes/activity.js";
 import { kmsDiagnosticRoutes } from "./routes/kms-diagnostic.js";
 import { vaultLifecycleDiagnosticRoutes } from "./routes/vault-lifecycle-diagnostic.js";
+import { applicationRoutes } from "./routes/applications.js";
+import { applicationAuthenticationPlugin } from "./plugins/application-auth.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
   const app = Fastify({
@@ -29,6 +31,11 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     requestIdHeader: "x-request-id"
   });
 
+  app.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_request, body, done) => {
+    try { done(null, Object.fromEntries(new URLSearchParams(body as string))); }
+    catch (error) { done(error as Error); }
+  });
+
   app.register(healthRoutes, { pool });
   // Internal diagnostics are inert (404) unless a temporary high-entropy token
   // is configured. They use synthetic data only and never return credential material.
@@ -37,10 +44,12 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
   if (auth) {
     agentAuthenticationPlugin(app, auth);
     userAuthenticationPlugin(app, { database: auth.database });
+    applicationAuthenticationPlugin(app, { database: auth.database });
     app.register(agentRoutes, { database: auth.database });
     app.register(onboardingRoutes, { database: auth.database });
     app.register(userRoutes);
     app.register(developerRoutes, { database: auth.database });
+    app.register(applicationRoutes, { database: auth.database });
     app.register(connectedAccountRoutes, { database: auth.database });
     app.register(grantRoutes, { database: auth.database });
     app.register(delegationRoutes, { database: auth.database });
