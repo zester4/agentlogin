@@ -265,8 +265,43 @@ export const webhookDeliveryQueue = pgTable("webhook_delivery_queue", {
   tenantPolicy(t.tenantId),
 ]).enableRLS();
 
+
+export const developerApplications = pgTable("developer_applications", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull().references(() => tenants.id),
+  developerId: text("developer_id").notNull(), name: text("name").notNull(),
+  clientId: text("client_id").notNull(), clientSecretHash: bytea("client_secret_hash").notNull(),
+  status: text("status").notNull().default("active"), createdAt: createdAt(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, (t) => [
+  unique("developer_applications_tenant_id_unique").on(t.tenantId, t.id),
+  unique("developer_applications_client_id_unique").on(t.clientId),
+  check("developer_applications_secret_hash_length", sql.raw("octet_length(client_secret_hash) = 32")),
+  check("developer_applications_status", sql.raw("status IN ('active', 'suspended', 'revoked')")),
+  foreignKey({ name: "developer_applications_tenant_developer_fk", columns: [t.tenantId, t.developerId], foreignColumns: [developers.tenantId, developers.id] }),
+  index("developer_applications_tenant_developer").on(t.tenantId, t.developerId),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
+export const applicationAccessTokens = pgTable("application_access_tokens", {
+  id: text("id").primaryKey(), tenantId: text("tenant_id").notNull(),
+  applicationId: text("application_id").notNull(), tokenHash: bytea("token_hash").notNull(),
+  scopes: text("scopes").array().notNull(), createdAt: createdAt(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+}, (t) => [
+  unique("application_access_tokens_tenant_id_unique").on(t.tenantId, t.id),
+  unique("application_access_tokens_token_hash_unique").on(t.tokenHash),
+  check("application_access_tokens_hash_length", sql.raw("octet_length(token_hash) = 32")),
+  check("application_access_tokens_expiry_after_issue", sql.raw("expires_at > created_at")),
+  foreignKey({ name: "application_access_tokens_tenant_application_fk", columns: [t.tenantId, t.applicationId], foreignColumns: [developerApplications.tenantId, developerApplications.id] }),
+  index("application_access_tokens_active_lookup").on(t.tenantId, t.id, t.expiresAt).where(sql`${t.revokedAt} IS NULL`),
+  tenantPolicy(t.tenantId),
+]).enableRLS();
+
 export const schema = {
   tenants, users, developers, developerMemberships, agents, connectedAccounts, credentials, delegations,
   grants, approvals, executions, auditEvents, agentCredentials,
   webhookEndpoints, webhookEvents, webhookDeliveries, webhookDeliveryAttempts, webhookDeliveryQueue,
+  developerApplications, applicationAccessTokens,
 };
