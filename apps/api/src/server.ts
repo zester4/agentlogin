@@ -1,6 +1,7 @@
 import { createDatabase } from "@agentlogin/database";
 import { buildApp } from "./app.js";
 import { decodeAgentSigningKey } from "./plugins/agent-auth.js";
+import { decodeWorkerTicketSigningKey } from "@agentlogin/execution";
 
 const database = createDatabase();
 const signingKey = decodeAgentSigningKey(process.env.AGENT_TOKEN_SIGNING_KEY);
