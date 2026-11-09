@@ -90,7 +90,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
   const apiToken = apiTokenResult?.token;
   let accounts: Array<{ account_id: string; provider: string; origin: string; display_label: string; status: string; created_at: string }> = [];
-  let agents: Array<{ agent_id: string; developer_id: string; developer_name: string; name: string; identity_type: string; status: string; created_at: string }> = [];
+  let agents: Array<{ agent_id: string; developer_id: string; developer_name: string; can_manage: boolean; name: string; identity_type: string; status: string; created_at: string }> = [];
   let grants: Array<{ grant_id: string; agent_id: string; agent_name: string; account_id: string; account_label: string; origin: string; scopes: string[]; task_id: string | null; issued_at: string; expires_at: string; revoked_at: string | null; approval_decision: string | null; decided_at: string | null }> = [];
   let activity: Array<{ event_id: string; event_type: string; actor_type: string; decision: string | null; resource_ref: string | null; correlation_id: string | null; created_at: string }> = [];
   let approvals: Array<{ grantId: string; approvalId: string; agentId: string; agentName: string; accountId: string; accountLabel: string; origin: string; scopes: string[]; taskId: string | null; expiresAt: string; requestedAt: string }> = [];
@@ -194,7 +194,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
                   </div>
                   <div className="agent-row-actions">
                     <span className={agent.status === "active" ? "live-status active" : "live-status"}>{agent.status}</span>
-                    {agent.status === "active" ? <AgentSuspendControl agentId={agent.agent_id} /> : null}
+                    {agent.status === "active" && agent.can_manage ? <AgentSuspendControl agentId={agent.agent_id} /> : null}
                   </div>
                 </article>
               ))}</div>
