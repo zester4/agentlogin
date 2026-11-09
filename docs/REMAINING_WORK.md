@@ -1,6 +1,6 @@
 # AgentLogin — Remaining Work
 
-**Last reviewed:** 8 November 2026 (after vault lifecycle test, PR #49, and four-service production deployment)  
+**Last reviewed:** 9 November 2026 (after PR #54 server-side enrollment lock and KMS operational runbook)  
 **Repository:** [zester4/agentlogin](https://github.com/zester4/agentlogin)  
 **Purpose:** Current checklist for the remaining setup, integration, and production-readiness work.
 
@@ -175,7 +175,8 @@ The 8-check lifecycle test verified the synthetic persistence/encryption lifecyc
 - [ ] Test grant binding to tenant, user, authenticated agent, connected account, exact origin, scopes, expiry, policy version, approval, and task context.
 - [ ] Test race-safe approval decisions and grant revocation.
 - [ ] Test no secret leakage through API responses, dashboard HTML, logs, traces, errors, screenshots, DOM/accessibility output, artifacts, or worker IPC.
-- [ ] Define KMS key rotation, access-key rotation, backup/restore, deletion, incident response, and monitoring procedures.
+- [x] Document KMS key rotation, access-key rotation, backup/restore, key recovery, and incident-response procedures in [KMS Operational Security Runbook](./KMS_OPERATIONAL_SECURITY.md).
+- [ ] Execute the runbook's live AWS checks and controlled recovery exercises; obtain independent security sign-off.
 - [ ] Complete adversarial and independent security review; resolve all critical/high findings.
 - [ ] Keep real customer credential enrollment disabled until every production credential gate is verified.
 
