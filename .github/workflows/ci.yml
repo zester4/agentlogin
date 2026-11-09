@@ -11,15 +11,54 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agentlogin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d agentlogin"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agentlogin
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/agentlogin
+      TEST_DATABASE_URL: postgresql://agentlogin_runtime:ci-only-runtime-password@localhost:5432/agentlogin
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Provision isolated test database roles
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE agentlogin_runtime
+            LOGIN PASSWORD 'ci-only-runtime-password'
+            NOSUPERUSER NOBYPASSRLS;
+          CREATE ROLE agentlogin_webhook_queue_executor
+            NOLOGIN NOSUPERUSER NOBYPASSRLS;
+          GRANT agentlogin_webhook_queue_executor TO postgres;
+          SQL
       - run: pnpm install --no-frozen-lockfile
       # Build workspace dependencies first because public package exports resolve to dist/.
       - run: pnpm build
+      - name: Apply migrations and enforce RLS
+        run: pnpm db:migrate
+      - name: Grant least-privilege runtime table access
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 <<'SQL'
+          GRANT USAGE ON SCHEMA public TO agentlogin_runtime;
+          GRANT SELECT, INSERT, UPDATE, DELETE
+            ON ALL TABLES IN SCHEMA public TO agentlogin_runtime;
+          REVOKE UPDATE, DELETE
+            ON TABLE public.webhook_delivery_queue FROM agentlogin_runtime;
+          SQL
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
