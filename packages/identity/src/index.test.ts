@@ -75,6 +75,33 @@ describe("opaque agent credentials", () => {
     await expect(service.authenticate(issued.token)).rejects.toBeInstanceOf(AgentAuthenticationError);
   });
 
+  it("rejects a credential at the exact expiry boundary", async () => {
+    const repo = new MemoryCredentials();
+    let current = new Date("2026-11-07T12:00:00.000Z");
+    const service = new AgentCredentialService(repo, key, () => new Date(current));
+    const expiresAt = new Date("2026-11-07T12:00:01.000Z");
+    const issued = await service.issue({ tenantId: "ten_1", developerId: "dev_1", agentId: "agt_1", expiresAt });
+    current = expiresAt;
+    await expect(service.authenticate(issued.token)).rejects.toBeInstanceOf(AgentAuthenticationError);
+  });
+
+  it("allows concurrent bearer-token requests but rejects every request after revocation", async () => {
+    const repo = new MemoryCredentials();
+    const service = new AgentCredentialService(repo, key, now);
+    const issued = await service.issue({ tenantId: "ten_1", developerId: "dev_1", agentId: "agt_1", expiresAt: new Date("2026-11-08T12:00:00Z") });
+
+    const principals = await Promise.all([
+      service.authenticate(issued.token),
+      service.authenticate(issued.token),
+      service.authenticate(issued.token),
+    ]);
+    expect(principals).toHaveLength(3);
+    expect(principals.every((principal) => principal.credentialId === issued.credentialId)).toBe(true);
+
+    await service.revoke(issued.credentialId, "ten_1");
+    await expect(service.authenticate(issued.token)).rejects.toBeInstanceOf(AgentAuthenticationError);
+  });
+
   it("rejects suspended agents", async () => {
     const repo = new MemoryCredentials();
     const service = new AgentCredentialService(repo, key, now);
