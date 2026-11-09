@@ -16,7 +16,7 @@ describe("short-lived worker tickets", () => {
   it("rejects tampering and a different signing key", () => {
     const token = createWorkerTicket(binding, key, { now });
     const [header, payload, sig] = token.split(".");
-    expect(() => verifyWorkerTicket(header + "." + payload + "." + sig.slice(0, -1) + "A", key, { now })).toThrow();
+    expect(() => verifyWorkerTicket(header + "." + payload + "." + (sig[0] === "A" ? "B" : "A") + sig.slice(1), key, { now })).toThrow();
     expect(() => verifyWorkerTicket(token, Buffer.alloc(32, 8), { now })).toThrow();
   });
 
