@@ -6,6 +6,17 @@ function isLoopback(hostname) {
   return hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]" || hostname === "localhost";
 }
 
+async function discardSyntheticSession(fetchImpl, baseUrl, sessionCookie) {
+  try {
+    await fetchImpl(baseUrl + "/logout", {
+      method: "POST", redirect: "manual", headers: { cookie: sessionCookie },
+      signal: AbortSignal.timeout(2_000)
+    });
+  } catch {
+    // Best-effort cleanup; synthetic sessions also have a short expiry.
+  }
+}
+
 /**
  * Test-only HTTP provider for the local synthetic site.
  * It deliberately accepts only loopback HTTP and never follows redirects.
@@ -118,6 +129,7 @@ export class SyntheticHttpLoginProvider {
     }
     if (handoff.expiresAt.getTime() <= Date.now()) {
       this.handoffs.delete(handoffRef);
+      await discardSyntheticSession(this.fetchImpl, this.baseUrl, handoff.sessionCookie);
       return { status: "login_failed", reasonCode: "challenge_detected" };
     }
 
@@ -133,9 +145,11 @@ export class SyntheticHttpLoginProvider {
         signal: AbortSignal.timeout(timeoutMs)
       });
       if (response.status === 401) {
+        await discardSyntheticSession(this.fetchImpl, this.baseUrl, handoff.sessionCookie);
         return { status: "login_failed", reasonCode: "challenge_detected" };
       }
       if (response.status !== 200 || response.headers.get("location")) {
+        await discardSyntheticSession(this.fetchImpl, this.baseUrl, handoff.sessionCookie);
         return { status: "login_failed", reasonCode: "site_unavailable" };
       }
 
@@ -149,6 +163,7 @@ export class SyntheticHttpLoginProvider {
         ? { status: "login_succeeded" }
         : { status: "login_failed", reasonCode: "challenge_detected" };
     } catch {
+      await discardSyntheticSession(this.fetchImpl, this.baseUrl, handoff.sessionCookie);
       return { status: "login_failed", reasonCode: "site_unavailable" };
     }
   }
