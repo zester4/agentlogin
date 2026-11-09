@@ -10,7 +10,7 @@ class MemoryApplications implements ApplicationCredentialRepository {
   tokens = new Map<string, ApplicationAccessTokenRecord>();
   async insertApplication(input: { applicationId: string; tenantId: string; userId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }) {
     this.applications.set(input.applicationId, {
-      applicationId: input.applicationId, tenantId: input.tenantId, developerId: input.developerId,
+      applicationId: input.applicationId, tenantId: input.tenantId, developerId: input.developerId, clientId: input.clientId,
       clientSecretHash: input.clientSecretHash, applicationStatus: "active", developerStatus: "active", tenantStatus: "active"
     });
   }
