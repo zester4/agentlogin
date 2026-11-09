@@ -1,6 +1,6 @@
 # AgentLogin — Remaining Work
 
-**Last reviewed:** 9 November 2026 (after PR #54 server-side enrollment lock and KMS operational runbook)  
+**Last reviewed:** 9 November 2026 (after live runtime-role tenant RLS verification)  
 **Repository:** [zester4/agentlogin](https://github.com/zester4/agentlogin)  
 **Purpose:** Current checklist for the remaining setup, integration, and production-readiness work.
 
@@ -21,7 +21,9 @@ The API health endpoint returns HTTP 200. After the PR #57 deployment and a fres
 - [x] Neon Postgres project and separate runtime/migration database roles.
 - [x] Drizzle baseline migration generated and applied.
 - [x] Tenant-scoped PostgreSQL repositories and transaction-local tenant context.
-- [x] Row-level security enabled and FORCE RLS verified on the current tenant-owned tables.
+- [x] Row-level security enabled and FORCE RLS verified on all 18 tenant-owned tables.
+- [x] Live rollback-only cross-tenant test on Neon `main`, using `agentlogin_runtime`, verified tenant A/B read isolation, blocked cross-tenant update/delete/insert, and fail-closed behavior without tenant context; owner-side verification confirmed zero synthetic rows remained.
+- [x] Added opt-in real-table integration coverage in `packages/database/src/rls.integration.test.ts` (`TEST_DATABASE_URL`); CI execution with a dedicated runtime-role test database remains pending.
 - [x] Persistent agent credential repository, signed HMAC agent tokens, and Fastify agent authentication.
 - [x] Auth0/OIDC user-token verification code, trusted tenant-claim validation, membership lookup, and onboarding API.
 - [x] AES-256-GCM envelope encryption and callback-scoped decryption.
@@ -183,7 +185,8 @@ This consolidates the immediate Auth0 proof into one visible dashboard signal. I
 
 ## 5. Security and production-readiness gates
 
-- [ ] Complete cross-tenant integration tests against Neon using the actual non-owner runtime role.
+- [x] Verify tenant/user row isolation against Neon `main` using the actual non-owner `agentlogin_runtime` role; rollback-only test passed and left zero synthetic rows.
+- [ ] Run the opt-in integration test in CI with `TEST_DATABASE_URL` and expand coverage across the remaining tenant-owned tables and repository/API paths.
 - [ ] Test agent token expiry, rotation, revocation, replay, and concurrent use.
 - [ ] Test grant binding to tenant, user, authenticated agent, connected account, exact origin, scopes, expiry, policy version, approval, and task context.
 - [ ] Test race-safe approval decisions and grant revocation.
@@ -204,4 +207,4 @@ This consolidates the immediate Auth0 proof into one visible dashboard signal. I
 
 ## Resume point
 
-The synthetic Neon + AWS KMS vault lifecycle test passed all 8 checks; synthetic records and temporary diagnostic variables were removed, and the diagnostic endpoint returns 404. Next priorities: finish Auth0 tenant-claim verification, secure user-facing enrollment, isolated browser execution, authenticated SDK/MCP release checks, and the remaining webhook API/SSE/security gates. Never use real website credentials until the production credential gate is satisfied.
+The synthetic Neon + AWS KMS vault lifecycle test passed all 8 checks; the runtime-role tenant/user RLS isolation test also passed on Neon `main`, and its rollback left zero synthetic rows. Next priorities: finish Auth0 tenant-claim verification, secure user-facing enrollment, isolated browser execution, authenticated SDK/MCP release checks, and the remaining webhook API/SSE/security gates. Never use real website credentials until the production credential gate is satisfied.
