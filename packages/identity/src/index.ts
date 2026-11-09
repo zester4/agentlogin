@@ -259,7 +259,7 @@ export class ApplicationCredentialService {
     const tokenId = randomBytes(16).toString("base64url");
     const secret = randomBytes(32).toString("base64url");
     const expiresAt = new Date(this.now().getTime() + this.accessTokenTtlSeconds * 1000);
-    const scopes = ["agents:manage", "grants:request"];
+    const scopes = ["agents:manage"];
     await repository.insertAccessToken({
       tokenId, tenantId, applicationId: application.applicationId,
       tokenHash: applicationHash(secret), scopes, expiresAt
