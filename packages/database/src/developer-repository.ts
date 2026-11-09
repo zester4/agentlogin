@@ -22,6 +22,24 @@ export class PostgresDeveloperRepository {
     return { developerId };
   }
 
+
+  async listManagedDevelopers(userId: string) {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      return tx.select({
+        developerId: developers.id, name: developers.name, status: developers.status,
+        role: developerMemberships.role, createdAt: developers.createdAt
+      }).from(developers).innerJoin(developerMemberships, and(
+        eq(developers.tenantId, developerMemberships.tenantId),
+        eq(developers.id, developerMemberships.developerId)
+      )).where(and(
+        eq(developers.tenantId, this.tenantId),
+        eq(developerMemberships.userId, userId),
+        eq(developerMemberships.status, "active"),
+        eq(developers.status, "active")
+      )).orderBy(desc(developers.createdAt)).limit(50);
+    });
+  }
+
   async createAgent(input: {
     userId: string; developerId: string; name: string; identityType: string;
   }): Promise<{ agentId: string }> {
