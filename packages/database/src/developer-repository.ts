@@ -53,6 +53,7 @@ export class PostgresDeveloperRepository {
         agentId: agents.id,
         developerId: developers.id,
         developerName: developers.name,
+        membershipRole: developerMemberships.role,
         name: agents.name,
         identityType: agents.identityType,
         status: agents.status,
