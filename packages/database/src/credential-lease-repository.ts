@@ -54,6 +54,37 @@ export class PostgresCredentialLeaseRepository {
     const token = randomBytes(32).toString("base64url");
     const tokenHash = hashCredentialLeaseToken(token);
     await withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
+      const [authorized] = await tx.select({ grantId: grants.id }).from(grants)
+        .innerJoin(connectedAccounts, and(
+          eq(connectedAccounts.tenantId, grants.tenantId),
+          eq(connectedAccounts.id, grants.accountId),
+          eq(connectedAccounts.userId, grants.userId),
+          eq(connectedAccounts.origin, grants.origin),
+          eq(connectedAccounts.status, "active"),
+        ))
+        .innerJoin(credentials, and(
+          eq(credentials.tenantId, connectedAccounts.tenantId),
+          eq(credentials.accountId, connectedAccounts.id),
+          eq(credentials.id, input.credentialRef),
+          eq(credentials.credentialId, input.credentialId),
+          eq(credentials.recordVersion, input.recordVersion),
+          eq(credentials.credentialType, "website_login"),
+          eq(credentials.status, "active"),
+          isNull(credentials.revokedAt),
+        ))
+        .where(and(
+          eq(grants.tenantId, this.authenticatedTenantId),
+          eq(grants.id, input.grantId),
+          eq(grants.userId, input.userId),
+          eq(grants.agentId, input.agentId),
+          eq(grants.accountId, input.accountId),
+          eq(grants.origin, input.origin),
+          gt(grants.expiresAt, now),
+          isNull(grants.revokedAt),
+        ))
+        .for("update")
+        .limit(1);
+      if (!authorized) throw new Error("The grant or credential binding is no longer active.");
       await tx.insert(credentialLeases).values({
         id: leaseId, tenantId: this.authenticatedTenantId, tokenHash,
         userId: input.userId, agentId: input.agentId, grantId: input.grantId,
