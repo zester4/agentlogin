@@ -11,6 +11,7 @@ import { developerRoutes } from "./routes/developers.js";
 import { connectedAccountRoutes } from "./routes/connected-accounts.js";
 import { grantRoutes } from "./routes/grants.js";
 import { delegationRoutes } from "./routes/delegations.js";
+import { activityRoutes } from "./routes/activity.js";
 import { kmsDiagnosticRoutes } from "./routes/kms-diagnostic.js";
 import { vaultLifecycleDiagnosticRoutes } from "./routes/vault-lifecycle-diagnostic.js";
 
@@ -43,6 +44,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     app.register(connectedAccountRoutes, { database: auth.database });
     app.register(grantRoutes, { database: auth.database });
     app.register(delegationRoutes, { database: auth.database });
+    app.register(activityRoutes, { database: auth.database });
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
   app.setErrorHandler((error, request, reply) => {
