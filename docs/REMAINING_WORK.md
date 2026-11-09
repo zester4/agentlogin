@@ -22,7 +22,7 @@ The API health endpoint returns HTTP 200. After the PR #57 deployment and a fres
 - [x] Drizzle baseline migration generated and applied.
 - [x] Tenant-scoped PostgreSQL repositories and transaction-local tenant context.
 - [x] Row-level security enabled and FORCE RLS verified on all 18 tenant-owned tables.
-- [x] Live rollback-only cross-tenant test on Neon `main`, using `agentlogin_runtime`, verified tenant A/B read isolation across all 17 `tenant_id` tables plus the `tenants` table, blocked cross-tenant user update/delete/insert, and fail-closed behavior without tenant context; owner-side verification confirmed zero synthetic rows remained.
+- [x] Live rollback-only cross-tenant test on Neon `main`, using `agentlogin_runtime`, verified tenant A/B read isolation across all 17 `tenant_id` tables plus the `tenants` table, blocked cross-tenant update/delete across all 16 mutable tenant tables plus `tenants`, blocked cross-tenant insert, and fail-closed behavior without tenant context; owner-side verification confirmed zero synthetic rows remained.
 - [x] Added opt-in real-table integration coverage in `packages/database/src/rls.integration.test.ts` (`TEST_DATABASE_URL`); CI execution with a dedicated runtime-role test database remains pending.
 - [x] Persistent agent credential repository, signed HMAC agent tokens, and Fastify agent authentication.
 - [x] Auth0/OIDC user-token verification code, trusted tenant-claim validation, membership lookup, and onboarding API.
