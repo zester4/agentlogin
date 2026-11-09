@@ -13,7 +13,7 @@ const connectionString = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!connectionString);
 
 integration("connected-account repository tenant isolation", () => {
-  let handle: ReturnType<typeof createDatabase>;
+  let handle: ReturnType<typeof createDatabase> | undefined;
 
   beforeAll(() => {
     if (!connectionString) throw new Error("TEST_DATABASE_URL is required");
@@ -25,6 +25,7 @@ integration("connected-account repository tenant isolation", () => {
   });
 
   it("scopes list and disconnect operations to the authenticated tenant", async () => {
+    if (!handle) throw new Error("Database integration handle was not initialized");
     const suffix = crypto.randomUUID();
     const tenantA = `repo-rls-a-${suffix}`;
     const tenantB = `repo-rls-b-${suffix}`;
