@@ -1,6 +1,6 @@
 # AgentLogin — Remaining Work
 
-**Last reviewed:** 8 November 2026 (after live AWS KMS verification)  
+**Last reviewed:** 8 November 2026 (after vault lifecycle test, PR #49, and four-service production deployment)  
 **Repository:** [zester4/agentlogin](https://github.com/zester4/agentlogin)  
 **Purpose:** Current checklist for the remaining setup, integration, and production-readiness work.
 
@@ -14,7 +14,7 @@
 - Web framework: Next.js 16.4.5 / React 19.3.1
 - API: Fastify
 
-The API health endpoint has returned HTTP 200. The web, API, and separate MCP Railway services have deployed successfully. Live authenticated MCP smoke testing and Auth0 organization-claim verification remain open.
+The API health endpoint returns HTTP 200. Railway API, web, MCP, and webhook worker services are all online. The webhook worker is deployed but intentionally disabled. Live authenticated MCP smoke testing and Auth0 organization-claim verification remain open.
 
 ## Completed foundations
 
@@ -41,7 +41,7 @@ The API health endpoint has returned HTTP 200. The web, API, and separate MCP Ra
 - [x] Ran the protected live KMS diagnostic: `kms_encrypt=true`, `kms_decrypt=true`, and `encryption_context_rejection=true`.
 - [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; unauthenticated POST to `/internal/kms/self-test` now returns HTTP 404.
 - [x] Added an opt-in PostgreSQL + AWS KMS lifecycle integration test; ordinary CI skips it unless explicitly enabled.
-- [ ] Deploy and run the temporary protected `/internal/vault/lifecycle-self-test` endpoint against the production Neon runtime using only a dedicated synthetic tenant/user; remove its temporary token immediately afterward.
+- [x] Ran the production synthetic Neon + AWS KMS vault lifecycle test; all 8 checks passed. Removed synthetic data and temporary diagnostic variables; confirmed the diagnostic endpoint returns 404.
 
 ## Recently completed — PR #31 merged
 
@@ -67,6 +67,18 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 - [x] Deploy a separate MCP Railway service and configure its hostname/origin allowlists.
 - [ ] Run authenticated remote MCP smoke tests with a dedicated synthetic agent credential.
 - [ ] Implement standard OAuth 2.1 discovery/authorization for remote MCP clients if automatic OAuth onboarding is required; current MCP HTTP auth accepts AgentLogin opaque agent tokens supplied by the host.
+
+## Durable webhooks and dashboard synchronization — PRs #41, #42, #44, #47, #48, #49 merged
+
+- [x] Tenant-scoped webhook endpoint/event/delivery/attempt schema and enqueue primitive.
+- [x] Queue migration and lease-based worker implementation.
+- [x] Queue RLS + FORCE RLS; runtime cannot directly UPDATE/DELETE queue rows.
+- [x] Dedicated NOLOGIN executor role owns SECURITY DEFINER claim/complete functions; `CREATE` on public schema revoked and verified false.
+- [x] API, web, MCP, and worker services deployed online; API migration succeeded; worker remains disabled.
+- [ ] Verify event enqueueing is integrated atomically into all intended domain state transitions.
+- [ ] Complete tenant-authenticated webhook endpoint CRUD, test, delivery history, replay, and SDK helpers.
+- [ ] Complete dashboard SSE invalidation stream, cursor recovery, reconnect/backoff, and polling fallback.
+- [ ] Complete HMAC, stale timestamp, DNS rebinding/private-IP, retries, lease recovery, replay, redaction, and end-to-end delivery tests before enabling the worker.
 
 ## Current follow-up work
 
