@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AgentLoginAuthenticationError,
+  AgentLoginApplicationClient,
   AgentLoginClient,
   AgentLoginPermissionError,
   AgentLoginValidationError
@@ -74,5 +75,57 @@ describe("AgentLoginClient", () => {
     expect(() => new AgentLoginClient({
       baseUrl: "https://api.agentlogin.test", agentToken: "one", tokenProvider: () => "two"
     })).toThrow("not both");
+  });
+});
+
+
+describe("AgentLoginApplicationClient", () => {
+  it("exchanges client credentials and registers an agent without sending the secret in the body", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "al_app_test", token_type: "Bearer", expires_in: 900, scope: "agents:manage"
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        agent_id: "agt_new",
+        credential: { token: "al_agent_once", expires_at: "2026-11-10T00:00:00.000Z", display_once: true }
+      }), { status: 201 }));
+    const client = new AgentLoginApplicationClient({
+      baseUrl: "https://api.agentlogin.test",
+      clientId: "al_client_test",
+      clientSecret: "al_secret_private",
+      fetch: fetcher
+    });
+    const result = await client.registerAgent({ name: "Support agent", identity_type: "browser" });
+    expect(result.agent_id).toBe("agt_new");
+    expect(result.credential.token).toBe("al_agent_once");
+    const tokenCall = fetcher.mock.calls[0]!;
+    expect(String(tokenCall[0])).toBe("https://api.agentlogin.test/oauth/token");
+    expect(tokenCall[1]?.headers).toEqual(expect.objectContaining({
+      Authorization: `Basic ${Buffer.from("al_client_test:al_secret_private").toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    }));
+    expect(String(tokenCall[1]?.body)).toBe("grant_type=client_credentials");
+    const registrationCall = fetcher.mock.calls[1]!;
+    expect(String(registrationCall[0])).toBe("https://api.agentlogin.test/v1/app/agents");
+    expect(registrationCall[1]?.headers).toEqual(expect.objectContaining({ Authorization: "Bearer al_app_test" }));
+    expect(String(registrationCall[1]?.body)).not.toContain("al_secret_private");
+  });
+
+  it("caches a short-lived application token across agent registrations", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "al_app_cached", token_type: "Bearer", expires_in: 900 }), { status: 200 }))
+      .mockResolvedValue(new Response(JSON.stringify({
+        agent_id: "agt_new", credential: { token: "al_agent_once", expires_at: "2026-11-10T00:00:00.000Z", display_once: true }
+      }), { status: 201 }));
+    const client = new AgentLoginApplicationClient({ baseUrl: "https://api.agentlogin.test", clientId: "al_client_x", clientSecret: "al_secret_y", fetch: fetcher });
+    await client.registerAgent({ name: "One", identity_type: "browser" });
+    await client.registerAgent({ name: "Two", identity_type: "browser" });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it("requires HTTPS outside localhost", () => {
+    expect(() => new AgentLoginApplicationClient({
+      baseUrl: "http://api.agentlogin.test", clientId: "al_client_x", clientSecret: "al_secret_y"
+    })).toThrow("HTTPS is required");
   });
 });
