@@ -23,6 +23,28 @@ function basicCredentials(header: string | undefined): { clientId: string; clien
 }
 
 export async function applicationRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
+
+  app.get("/v1/developers", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const developers = await new PostgresDeveloperRepository(options.database, request.userPrincipal.tenantId)
+      .listManagedDevelopers(request.userPrincipal.userId);
+    return reply.send({ developers: developers.map((item) => ({
+      developer_id: item.developerId, name: item.name, status: item.status,
+      role: item.role, created_at: item.createdAt.toISOString()
+    })) });
+  });
+
+  app.get("/v1/developers/:developerId/applications", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const developerId = (request.params as { developerId: string }).developerId;
+    const applications = await new PostgresApplicationCredentialRepository(options.database, request.userPrincipal.tenantId)
+      .listApplications(request.userPrincipal.userId, developerId);
+    return reply.send({ applications: applications.map((item) => ({
+      application_id: item.applicationId, name: item.name, client_id: item.clientId,
+      status: item.status, created_at: item.createdAt.toISOString()
+    })) });
+  });
+
   app.post("/oauth/token", async (request, reply) => {
     const parsedBody = TokenBody.safeParse(request.body);
     const credentials = basicCredentials(request.headers.authorization);
