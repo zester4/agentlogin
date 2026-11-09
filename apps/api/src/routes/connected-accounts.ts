@@ -19,6 +19,22 @@ const CredentialRotationBody = z.object({
   password: z.string().min(1).max(4096)
 }).strict();
 
+// Credential writes are denied unless an operator explicitly enables the
+// server-side release gate after every production security check has passed.
+// Missing, misspelled, or truthy-but-not-exact values remain locked.
+export function isCredentialEnrollmentEnabled(value: string | undefined): boolean {
+  return value === "true";
+}
+
+function credentialEnrollmentLocked(reply: import("fastify").FastifyReply) {
+  return reply.code(423).send({
+    error: {
+      code: "credential_enrollment_locked",
+      message: "Credential enrollment and rotation are temporarily disabled pending production security review."
+    }
+  });
+}
+
 export async function connectedAccountRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
   app.get("/v1/connected-accounts", { preHandler: app.authenticateUser }, async (request, reply) => {
     if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
@@ -37,6 +53,7 @@ export async function connectedAccountRoutes(app: FastifyInstance, options: { da
   });
 
   app.post("/v1/connected-accounts", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!isCredentialEnrollmentEnabled(process.env.CREDENTIAL_ENROLLMENT_ENABLED)) return credentialEnrollmentLocked(reply);
     const parsed = AccountBody.safeParse(request.body);
     if (!parsed.success || !request.userPrincipal) {
       return reply.code(400).send({ error: { code: "invalid_connected_account", message: "The account enrollment request is invalid." } });
@@ -108,6 +125,7 @@ export async function connectedAccountRoutes(app: FastifyInstance, options: { da
   });
 
   app.post("/v1/connected-accounts/:accountId/credentials/rotate", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!isCredentialEnrollmentEnabled(process.env.CREDENTIAL_ENROLLMENT_ENABLED)) return credentialEnrollmentLocked(reply);
     const parsed = CredentialRotationBody.safeParse(request.body);
     if (!parsed.success || !request.userPrincipal) {
       return reply.code(400).send({ error: { code: "invalid_credential_rotation", message: "The credential rotation request is invalid." } });
