@@ -27,8 +27,12 @@ export class PostgresUserRepository {
   async findActiveBySubject(authSubject: string): Promise<AuthenticatedUser | null> {
     if (!authSubject || authSubject.length > 255) return null;
     return withTenantTransaction(this.database, this.authenticatedTenantId, async (tx) => {
-      const [row] = await tx.select({ id: users.id, authSubject: users.authSubject, status: users.status })
-        .from(users).where(and(
+      const [row] = await tx.select({ id: users.id, authSubject: users.authSubject })
+        .from(users).innerJoin(developerMemberships, and(
+          eq(developerMemberships.tenantId, users.tenantId),
+          eq(developerMemberships.userId, users.id),
+          eq(developerMemberships.status, "active")
+        )).where(and(
           eq(users.tenantId, this.authenticatedTenantId),
           eq(users.authSubject, authSubject),
           eq(users.status, "active")
