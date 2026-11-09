@@ -401,7 +401,7 @@ Acceptance:
 - isolation, timeout, cleanup, and revocation tests pass.
 
 ### Milestone 5 — SDK, REST docs, MCP
-**Status: IN PROGRESS — typed TypeScript SDK and authenticated Streamable HTTP MCP transport are implemented and deployed. npm publication and authenticated remote smoke tests remain open; login execution tools remain blocked on the isolated browser worker.**
+**Status: IN PROGRESS — typed TypeScript SDK and authenticated Streamable HTTP MCP transport are implemented and deployed. npm publication and authenticated remote smoke tests remain open; login execution tools remain blocked on the isolated browser worker. Durable webhook database/worker foundations are merged and deployed disabled; endpoint-management APIs/SDK and dashboard SSE remain open.**
 
 Deliverables:
 - TypeScript SDK;
@@ -441,12 +441,12 @@ Acceptance:
 The current state of the repository is summarized in [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md). The snapshot distinguishes code that exists from production configuration and end-to-end verification.
 
 Implemented foundations include:
-- Neon PostgreSQL, Drizzle baseline migration, tenant-scoped repositories, and FORCE RLS on all 12 current tenant-owned tables.
+- Neon PostgreSQL, Drizzle migrations, tenant-scoped repositories, and FORCE RLS on current tenant-owned tables plus the separate webhook delivery queue.
 - Persistent agent credential repository, signed HMAC agent tokens, and Fastify authentication middleware.
 - Auth0/OIDC user/developer authentication path, tenant membership model, and onboarding/agent-management API routes. Auth0 organization tenant-claim configuration and deployed verification remain open.
 - AWS KMS wrap/unwrap adapter, AES-256-GCM envelope encryption, durable credential-envelope storage, and credential lifecycle API routes. Railway KMS configuration is live; synthetic Encrypt/Decrypt and altered-tenant-context rejection passed. The diagnostic token was removed and its endpoint returns 404. The database-backed credential lifecycle has not yet been run end to end.
 - Persistent grants, delegations, approvals, policy checks, API routes, and dashboard approval inbox integration.
-- Railway web/API deployment and health checks.
+- Railway API, web, MCP, and webhook worker services are deployed; all four production services are online. API pre-deploy migrations succeeded after PR #49.
 
 Still open:
 - Complete trusted Auth0 organization/tenant claim setup and verify real user-to-API authorization.
@@ -454,6 +454,8 @@ Still open:
 - Finish the user-facing secure credential enrollment flow.
 - Build and verify the isolated browser worker and MFA/CAPTCHA user handoff.
 - Publish the SDK/contracts packages and complete authenticated remote MCP smoke tests; browser login execution tools remain intentionally unavailable until the isolated worker is complete.
+- Durable webhook schema, queue worker, queue RLS/FORCE RLS, dedicated NOLOGIN executor, and HMAC/KMS/SSRF protections are implemented and deployed with worker disabled. PRs #41, #42, #44, #47, #48, and #49 are merged.
+- Complete webhook API/SDK management, domain-event transaction wiring, dashboard SSE/polling, and end-to-end security/reliability tests.
 - Run runtime-role database integration, adversarial, replay, concurrency, and secret-leak tests; complete independent security review.
 
 Do not treat an implemented adapter, API route, migration, or dashboard screen as proof that the full user-facing workflow is production-ready. The production credential gate in `docs/IMPLEMENTATION_STATUS.md` remains authoritative.
