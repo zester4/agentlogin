@@ -1,7 +1,8 @@
 import Fastify from "fastify";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  createLocalJWKSet,
+  createRemoteJWKSet,
+  customFetch,
   exportJWK,
   generateKeyPair,
   SignJWT,
@@ -23,8 +24,16 @@ describe("OIDC JWT verification against a JWKS", () => {
     const pair = await generateKeyPair("RS256", { extractable: true });
     privateKey = pair.privateKey;
     const publicJwk = await exportJWK(pair.publicKey);
-    jwks = createLocalJWKSet({
+    const responseBody = JSON.stringify({
       keys: [{ ...publicJwk, kid: "agentlogin-auth0-test-key", use: "sig", alg: "RS256" }],
+    });
+    // Exercise jose's production remote-JWKS resolver while keeping the test
+    // deterministic and offline; only the HTTPS response transport is stubbed.
+    jwks = createRemoteJWKSet(new URL(JWKS_URL), {
+      [customFetch]: async () => new Response(responseBody, {
+        status: 200,
+        headers: { "content-type": "application/json", "cache-control": "public, max-age=60" },
+      }),
     });
   });
 
