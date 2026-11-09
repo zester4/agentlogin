@@ -80,7 +80,19 @@ The MCP server does **not** expose:
 - Account listing or credential enrollment on behalf of a user.
 - \`login_with_grant\`, execution-status polling, or user-action/MFA completion.
 
-Those operations are not yet backed by a complete production execution API and isolated browser worker. Do not add placeholder tools that appear callable but cannot safely complete their advertised action.
+Those operations are not yet backed by a complete production login-execution API. AgentLogin is the authorization and account-access product; it does not expose a browser product. An execution provider may be used internally only where a website requires automated form login. Do not add placeholder tools that appear callable but cannot safely complete their advertised action.
+
+## Local synthetic login site
+
+A loopback-only synthetic website is available for deterministic integration tests. It uses disposable test credentials, in-memory sessions, an MFA challenge, and no real customer data. Start it with:
+
+```bash
+pnpm --filter @agentlogin/test-site start
+```
+
+Open `http://127.0.0.1:4173/login`. Test-only credentials and scenarios are documented in `apps/test-site/README.md`. Run its tests with `pnpm --filter @agentlogin/test-site test`.
+
+This fixture verifies the website's own success, invalid-password, MFA, and logout behavior. **It does not yet prove that AgentLogin's API, SDK, or MCP can perform a login**; the authenticated execution endpoint and provider integration remain to be implemented and tested end-to-end.
 
 ## Authentication and transport security
 
