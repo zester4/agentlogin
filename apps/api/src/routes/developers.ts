@@ -22,6 +22,7 @@ export async function developerRoutes(app: FastifyInstance, options: { database:
         agent_id: agent.agentId,
         developer_id: agent.developerId,
         developer_name: agent.developerName,
+        can_manage: agent.membershipRole === "owner" || agent.membershipRole === "admin",
         name: agent.name,
         identity_type: agent.identityType,
         status: agent.status,
