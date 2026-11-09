@@ -108,7 +108,7 @@ export async function createAgent(
     });
     if (!response.ok) return { status: "error", message: "Agent registration failed. Check your workspace permissions and try again." };
     const result = await response.json() as { agent_id?: string; credential?: { token?: string; expires_at?: string; display_once?: boolean } };
-    if (!result.agent_id || !result.credential?.token || result.credential.display_once !== true) {
+    if (!result.agent_id || !result.credential?.token || !result.credential.expires_at || result.credential.display_once !== true) {
       return { status: "error", message: "Agent registration returned an incomplete credential response. Contact support before retrying." };
     }
     revalidatePath("/dashboard/agents");
