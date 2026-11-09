@@ -45,6 +45,16 @@ export async function applicationRoutes(app: FastifyInstance, options: { databas
     })) });
   });
 
+
+  app.delete("/v1/developer-applications/:applicationId", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const applicationId = (request.params as { applicationId: string }).applicationId;
+    const revoked = await new PostgresApplicationCredentialRepository(options.database, request.userPrincipal.tenantId)
+      .revokeApplication(request.userPrincipal.userId, applicationId);
+    if (!revoked) return reply.code(404).send({ error: { code: "application_not_found", message: "The application was not found or cannot be managed by this user." } });
+    return reply.send({ application_id: applicationId, status: "revoked" });
+  });
+
   app.post("/oauth/token", async (request, reply) => {
     const parsedBody = TokenBody.safeParse(request.body);
     const credentials = basicCredentials(request.headers.authorization);
