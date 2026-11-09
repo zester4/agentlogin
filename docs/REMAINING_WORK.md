@@ -14,7 +14,7 @@
 - Web framework: Next.js 16.4.5 / React 19.3.1
 - API: Fastify
 
-The API health endpoint returns HTTP 200. Railway API, web, MCP, and webhook worker services are all online. The webhook worker is deployed but intentionally disabled. Live authenticated MCP smoke testing and Auth0 organization-claim verification remain open.
+The API health endpoint returns HTTP 200. After the PR #57 deployment and a fresh user sign-in on 9 November 2026, production logs confirmed `POST /v1/onboarding` and `GET /v1/user/me` both returned HTTP 200. This verifies the authenticated Auth0-to-API request path accepted the signed-in session; the exact dashboard status label still needs user-visible confirmation. Railway API, web, MCP, and webhook worker services are online. The webhook worker is deployed but intentionally disabled. Authenticated MCP smoke testing and Auth0 negative-path checks remain open.
 
 ## Completed foundations
 
@@ -119,7 +119,9 @@ The 8-check lifecycle test verified the synthetic persistence/encryption lifecyc
 - [x] After server-side first-use onboarding succeeds, call `GET /v1/user/me` with the same server-held Auth0 access token.
 - [x] Mark identity verified only when the API responds successfully with `authenticated: true`; keep tenant/user identifiers and the bearer token out of browser props and UI.
 - [x] Fail closed for the status indicator: missing API configuration, token, onboarding failure, API rejection, or network failure leaves the dashboard at “GETTING STARTED”.
-- [ ] Deploy this change and verify the production dashboard reaches “IDENTITY VERIFIED” after a fresh sign-in.
+- [x] Deploy this change; PR #57 merged and all four Railway services reached successful deployments.
+- [x] Confirm production `POST /v1/onboarding` and `GET /v1/user/me` both returned HTTP 200 after a fresh sign-in (9 November 2026).
+- [ ] Confirm the exact dashboard status label displays “IDENTITY VERIFIED” in the user's browser.
 - [ ] Run negative checks for missing tenant claim, wrong issuer/audience, expired token, inactive membership, and cross-tenant access. Do not use real website credentials.
 
 This consolidates the immediate Auth0 proof into one visible dashboard signal. It does not clear the broader credential-enrollment, KMS, browser-isolation, webhook, or independent-security release gates below.
@@ -135,18 +137,17 @@ This consolidates the immediate Auth0 proof into one visible dashboard signal. I
 - [x] User added as an Organization member.
 - [x] API verifies issuer, audience, signature, HTTPS JWKS, token expiry/age, and namespaced tenant claim.
 - [x] Auth0 Post-Login Action code and Login-flow attachment documented.
-- [ ] Deploy the Post-Login Action and attach it to the Login flow in the Auth0 dashboard.
+- [x] Production authenticated onboarding and `GET /v1/user/me` returned HTTP 200 after fresh sign-in, demonstrating the API accepted the Auth0 tenant-bound identity.
 - [x] Dashboard server-side Auth0 audience/Organization request code exists.
 
 ### Still to do
-- [ ] On PC, create/deploy the Post-Login Action that emits `https://agentlogin.app/tenant_id` from `event.organization.id`.
-- [ ] Attach the Action to the Auth0 Login flow and apply it.
+- [x] Production authenticated onboarding and `GET /v1/user/me` returned HTTP 200 after fresh sign-in, demonstrating the configured Auth0 tenant-bound identity was accepted by the API. The exact Auth0 Action configuration should still be independently inspected before treating the console setup as fully documented.
 - [ ] Verify the Auth0 web application callback, logout, and web-origin URLs.
 - [x] Set the API OIDC variables on Railway, including `OIDC_MAX_TOKEN_AGE=24h`.
 - [x] Set the web audience, Organization ID, and API base URL on Railway.
 - [x] Confirmed the web/API deployments triggered by the Railway environment changes succeeded.
 - [ ] Verify existing Auth0 session/client variables are present and correctly configured.
-- [ ] Sign out and sign in again; verify `GET /v1/user/me` returns the expected tenant and user.
+- [x] Sign out and sign in again; production `GET /v1/user/me` returned HTTP 200. The API log does not expose response fields, so expected tenant/user values and the visible dashboard label remain unconfirmed.
 - [ ] Verify token renewal/age behavior against the Auth0 API access-token lifetime and Next.js SDK renewal behavior. The API maximum token age is now configurable with `OIDC_MAX_TOKEN_AGE` (default `24h`); align it with the actual Auth0 token lifetime.
 - [ ] Test missing organization, missing tenant claim, wrong issuer/audience, expired token, inactive membership, and cross-tenant access.
 
