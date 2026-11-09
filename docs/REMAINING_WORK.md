@@ -97,12 +97,12 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 - [x] Removed the temporary `KMS_DIAGNOSTIC_TOKEN`; the diagnostic endpoint returned HTTP 404 after redeployment.
 
 ### Still to do
-- [ ] Run the live PostgreSQL + KMS lifecycle check against Neon with a dedicated synthetic test user and tenant, using the least-privileged runtime database role. The protected temporary API route exercises the same repository/vault path from the production API environment, without copying Railway secrets out of Railway.
+- [x] Ran the live synthetic Neon + KMS vault lifecycle test; all 8 checks passed. Synthetic records and temporary diagnostic variables were removed, and the temporary diagnostic endpoint returns 404.
 - [ ] Verify wrong/unrelated KMS key denial and KMS outage/failure behavior.
 - [ ] Review CloudTrail for the expected principal and KMS operations; confirm no plaintext credential or DEK appears in logs.
 - [ ] Document and test IAM access-key rotation, KMS key recovery, backup/restore, and incident response.
 
-The live diagnostic proves KMS cryptographic access only. It does not prove that a credential was persisted in PostgreSQL or that the connected-account API lifecycle is production-ready.
+The 8-check lifecycle test verified the synthetic persistence/encryption lifecycle. It does not make the user-facing credential enrollment flow or real-customer credential acceptance production-ready.
 
 ## 2. Auth0 and user identity
 
@@ -135,7 +135,7 @@ The live diagnostic proves KMS cryptographic access only. It does not prove that
 - [x] API returns connected-account metadata only; it does not return credential ciphertext or plaintext.
 - [x] Pending approval API returns grant/approval metadata scoped to the authenticated user and tenant.
 - [x] Approval decisions are sent from a Next.js server action; the bearer token is not exposed to browser JavaScript.
-- [x] Dashboard onboarding integration is implemented on the current branch; merge and verify it.
+- [x] Dashboard first-use onboarding integration merged in PR #31; production Auth0 end-to-end verification remains open.
 - [ ] Verify connected-account listing with a real authenticated test account.
 - [ ] Verify pending approval listing and approve/deny actions end to end.
 - [ ] Verify that another user or tenant cannot view or decide the approval.
@@ -182,4 +182,4 @@ The live diagnostic proves KMS cryptographic access only. It does not prove that
 
 ## Resume point
 
-AWS KMS and the dedicated IAM service identity are configured, and the live synthetic KMS self-test passed. Next, deploy the protected synthetic vault lifecycle diagnostic, create the dedicated synthetic Neon tenant/user, run the full persistence/rotation/revocation/disconnect check, then remove all temporary diagnostic variables and confirm the endpoint returns 404. Never use real website credentials for this test.
+The synthetic Neon + AWS KMS vault lifecycle test passed all 8 checks; synthetic records and temporary diagnostic variables were removed, and the diagnostic endpoint returns 404. Next priorities: finish Auth0 tenant-claim verification, secure user-facing enrollment, isolated browser execution, authenticated SDK/MCP release checks, and the remaining webhook API/SSE/security gates. Never use real website credentials until the production credential gate is satisfied.
