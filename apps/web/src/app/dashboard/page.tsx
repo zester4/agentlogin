@@ -33,6 +33,9 @@ export default async function DashboardPage() {
   const apiBase = process.env.AGENTLOGIN_API_URL;
   const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
   let identityVerified = false;
+  let metrics: { accounts: number | null; agents: number | null; grants: number | null; approvals: number | null } = {
+    accounts: null, agents: null, grants: null, approvals: null
+  };
 
   if (apiBase && apiTokenResult?.token) {
     try {
@@ -56,6 +59,22 @@ export default async function DashboardPage() {
         if (identityResponse.ok) {
           const identity = await identityResponse.json().catch(() => null);
           identityVerified = identity?.authenticated === true;
+          if (identityVerified) {
+            const paths = ["/v1/connected-accounts", "/v1/agents", "/v1/grants", "/v1/grants/pending"];
+            const responses = await Promise.all(paths.map((path) => fetch(new URL(path, apiBase), { headers, cache: "no-store" }).catch(() => null)));
+            const payloads = await Promise.all(responses.map((response) => response?.ok ? response.json().catch(() => null) : null));
+            const count = (payload: unknown, field: string): number | null => {
+              if (!payload || typeof payload !== "object") return null;
+              const value = (payload as Record<string, unknown>)[field];
+              return Array.isArray(value) ? value.length : null;
+            };
+            metrics = {
+              accounts: count(payloads[0], "accounts"),
+              agents: count(payloads[1], "agents"),
+              grants: count(payloads[2], "grants"),
+              approvals: count(payloads[3], "pending")
+            };
+          }
         }
       }
     } catch {
@@ -117,15 +136,15 @@ export default async function DashboardPage() {
         </section>
 
         <section className="workspace-metrics" aria-label="Your account at a glance">
-          <article className="metric-card"><div><span>CONNECTED ACCOUNTS</span><Icon name="globe" /></div><strong>—</strong><small>Account connections are coming soon</small></article>
-          <article className="metric-card"><div><span>YOUR AI AGENTS</span><Icon name="bot" /></div><strong>—</strong><small>Agent management is coming soon</small></article>
-          <article className="metric-card"><div><span>AGENT ACCESS</span><Icon name="ticket" /></div><strong>—</strong><small>Agent access is coming soon</small></article>
-          <article className="metric-card"><div><span>PENDING APPROVALS</span><Icon name="inbox" /></div><strong>—</strong><small>Approval requests will appear here</small></article>
+          <article className="metric-card"><div><span>CONNECTED ACCOUNTS</span><Icon name="globe" /></div><strong>{metrics.accounts ?? "—"}</strong><small>{metrics.accounts === null ? "Account data unavailable" : "Account records in your workspace"}</small></article>
+          <article className="metric-card"><div><span>YOUR AI AGENTS</span><Icon name="bot" /></div><strong>{metrics.agents ?? "—"}</strong><small>{metrics.agents === null ? "Agent data unavailable" : "Registered agent identities"}</small></article>
+          <article className="metric-card"><div><span>AGENT ACCESS</span><Icon name="ticket" /></div><strong>{metrics.grants ?? "—"}</strong><small>{metrics.grants === null ? "Grant data unavailable" : "Access grants owned by you"}</small></article>
+          <article className="metric-card"><div><span>PENDING APPROVALS</span><Icon name="inbox" /></div><strong>{metrics.approvals ?? "—"}</strong><small>{metrics.approvals === null ? "Approval data unavailable" : "Requests awaiting your decision"}</small></article>
         </section>
 
         <section className="workspace-section-heading">
           <div><span className="section-kicker">KEEPING YOUR ACCOUNTS SAFE</span><h2>Your AgentLogin overview</h2></div>
-          <span className="workspace-preview-label">YOUR ACCOUNT IS BEING SET UP</span>
+          <span className="workspace-preview-label">{identityVerified ? "LIVE ACCOUNT OVERVIEW" : "ACCOUNT SETUP IN PROGRESS"}</span>
         </section>
 
         <section className="workspace-overview-grid">
