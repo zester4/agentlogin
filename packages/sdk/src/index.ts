@@ -191,3 +191,100 @@ export class AgentLoginClient {
     throw lastError instanceof Error ? lastError : new Error("AgentLogin request failed.");
   }
 }
+
+
+import { Buffer } from "node:buffer";
+
+export type AgentLoginApplicationClientOptions = {
+  baseUrl: string;
+  clientId: string;
+  clientSecret: string;
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+};
+
+export type RegisteredAgent = {
+  agent_id: string;
+  credential: { token: string; expires_at: string; display_once: true };
+};
+
+/**
+ * Server-side OAuth client-credentials integration. Keep clientSecret on a
+ * trusted backend. This client only creates agent identities; use the returned
+ * one-time agent credential with AgentLoginClient and store it in a secret manager.
+ */
+export class AgentLoginApplicationClient {
+  private readonly baseUrl: URL;
+  private readonly fetcher: typeof fetch;
+  private readonly timeoutMs: number;
+  private accessToken: string | null = null;
+  private accessTokenExpiresAt = 0;
+
+  constructor(private readonly options: AgentLoginApplicationClientOptions) {
+    const base = new URL(options.baseUrl);
+    if (!["https:", "http:"].includes(base.protocol) || base.username || base.password || base.search || base.hash) {
+      throw new TypeError("baseUrl must be an HTTP(S) URL without credentials, query, or fragment.");
+    }
+    if (base.protocol !== "https:" && !["localhost", "127.0.0.1", "::1"].includes(base.hostname)) {
+      throw new TypeError("HTTPS is required for non-local AgentLogin API URLs.");
+    }
+    if (!options.clientId.startsWith("al_client_") || !options.clientSecret.startsWith("al_secret_")) {
+      throw new TypeError("A valid AgentLogin client ID and client secret are required.");
+    }
+    this.baseUrl = new URL(base.toString().endsWith("/") ? base.toString() : base.toString() + "/");
+    this.fetcher = options.fetch ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? 15_000;
+    if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 120_000) {
+      throw new RangeError("timeoutMs must be an integer between 1 and 120000.");
+    }
+  }
+
+  async registerAgent(input: { name: string; identity_type: string }, options: RequestOptions = {}): Promise<RegisteredAgent> {
+    if (!input.name?.trim() || input.name.trim().length > 120 ||
+        !input.identity_type?.trim() || input.identity_type.trim().length > 50) {
+      throw new TypeError("Agent name and identity_type are required.");
+    }
+    const token = await this.getAccessToken(options);
+    const response = await this.fetcher(new URL("v1/app/agents", this.baseUrl), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ name: input.name.trim(), identity_type: input.identity_type.trim() }),
+      signal: options.signal ?? AbortSignal.timeout(options.timeoutMs ?? this.timeoutMs)
+    });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok) throw safeError(response, payload as ErrorPayload);
+    const credential = payload.credential as Record<string, unknown> | undefined;
+    if (typeof payload.agent_id !== "string" || typeof credential?.token !== "string" ||
+        typeof credential.expires_at !== "string" || credential.display_once !== true) {
+      throw new AgentLoginApiError("AgentLogin returned an invalid agent registration response.", 502, "invalid_response");
+    }
+    return {
+      agent_id: payload.agent_id,
+      credential: { token: credential.token, expires_at: credential.expires_at, display_once: true }
+    };
+  }
+
+  private async getAccessToken(options: RequestOptions): Promise<string> {
+    if (this.accessToken && this.accessTokenExpiresAt > Date.now() + 30_000) return this.accessToken;
+    const basic = Buffer.from(`${this.options.clientId}:${this.options.clientSecret}`, "utf8").toString("base64");
+    const body = new URLSearchParams({ grant_type: "client_credentials" });
+    const response = await this.fetcher(new URL("oauth/token", this.baseUrl), {
+      method: "POST",
+      headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body,
+      signal: options.signal ?? AbortSignal.timeout(options.timeoutMs ?? this.timeoutMs)
+    });
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (!response.ok) throw safeError(response, { error: {
+      code: typeof payload.error === "string" ? payload.error : "oauth_token_failed",
+      message: typeof payload.error_description === "string" ? payload.error_description : "Application authentication failed."
+    } });
+    if (typeof payload.access_token !== "string" || payload.token_type !== "Bearer" ||
+        typeof payload.expires_in !== "number" || !Number.isFinite(payload.expires_in) || payload.expires_in <= 0) {
+      throw new AgentLoginApiError("AgentLogin returned an invalid OAuth token response.", 502, "invalid_response");
+    }
+    this.accessToken = payload.access_token;
+    this.accessTokenExpiresAt = Date.now() + payload.expires_in * 1000;
+    return this.accessToken;
+  }
+}
