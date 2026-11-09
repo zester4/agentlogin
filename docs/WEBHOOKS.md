@@ -1,12 +1,29 @@
 # Webhooks and live synchronization
 
-Status: **architecture approved; delivery service not yet implemented**. Do not advertise webhooks as available until delivery and replay tests pass.
+Status: **database foundation and disabled delivery worker implemented and deployed; API/SDK management, dashboard live sync, and end-to-end verification remain incomplete**. Do not advertise webhooks as available or enable production delivery until the remaining gates pass.
 
 ## Decision
 
 AgentLogin needs webhooks for server-to-server integrations. They are not required for every integration: developers can use the REST API/SDK and poll grant status. Webhooks are the efficient path when developers need prompt notification without repeated polling.
 
 Webhooks are not the source of truth. The API and database remain authoritative. A webhook tells a consumer that something changed; the consumer fetches the current resource using its own authenticated API credential.
+
+## Implementation status (8 November 2026)
+
+Merged and deployed foundations:
+- Tenant-scoped endpoint, event, delivery, attempt, and durable queue schema/migrations.
+- Transactional `enqueueWebhookEvent(tx, input)` repository primitive.
+- Queue RLS and FORCE RLS; runtime role has no direct queue UPDATE/DELETE privileges.
+- Dedicated `NOLOGIN` queue executor owns narrowly scoped SECURITY DEFINER claim/complete functions. It has `BYPASSRLS` only for those queue functions and no schema CREATE privilege.
+- Worker claims leased jobs, records attempts, retries/backoffs, and handles completion/dead-letter paths.
+- HMAC signing, KMS context `webhook_signing_secret`, and HTTPS/SSRF-safe outbound request protections are implemented.
+- Railway API, web, MCP, and webhook worker services are online. The worker is deliberately disabled and does not poll the queue.
+
+Still incomplete:
+- Confirm every intended domain state transition writes its event in the same transaction.
+- Implement tenant-authenticated endpoint CRUD, test delivery, history, and replay APIs/SDK helpers.
+- Implement dashboard SSE invalidation, cursor recovery, reconnect/backoff, and bounded polling fallback.
+- Complete production-like end-to-end delivery and adversarial tests before enabling the worker.
 
 ## Event flow
 
@@ -72,11 +89,11 @@ The dashboard should expose endpoint setup, one-time secret reveal, event select
 
 ## Implementation sequence
 
-1. Database schema/migration for endpoint, event outbox, delivery, and attempt records with tenant keys and RLS.
-2. Transactional event emitter integrated into grant, approval, connected-account, and execution state transitions.
-3. Worker with leases, SSRF-safe destination validation, HMAC signing, retry/backoff, dead-letter handling, and metrics.
+1. Database schema/migrations and queue isolation — implemented and deployed.
+2. Transactional event emitter — repository primitive exists; verify integration into every intended domain transition.
+3. Delivery worker — implemented and deployed disabled; finish adversarial and end-to-end verification.
 4. Developer API and SDK types/helpers; never expose endpoint secrets after creation.
-5. Dashboard endpoint management and safe SSE invalidation stream.
+5. Dashboard endpoint management and safe SSE invalidation stream with cursor/reconnect/polling fallback.
 6. Integration tests for commit atomicity, tenant isolation, signature validation, stale timestamps, DNS rebinding/private IPs, duplicates, retries, ordering, replay, secret redaction, and SSE reconnect/fallback.
 
 ## Important boundaries
