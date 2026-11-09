@@ -77,6 +77,59 @@ describe("SyntheticHttpLoginProvider", () => {
     assert.equal(provider.handoffs.size, 0);
   });
 
+  it("completes MFA and returns only a safe authenticated outcome", async () => {
+    const broker = makeBroker({ email: "agentlogin-test@example.com", password: "agentlogin-synthetic-password" });
+    const provider = new SyntheticHttpLoginProvider({ baseUrl, leaseBroker: broker, scenario: "mfa" });
+    const started = await provider.executeLogin(makeRequest());
+    assert.equal(started.status, "mfa_required");
+
+    const completed = await provider.completeMfa({
+      executionId: "execution_test", handoffRef: started.handoffRef, code: "246810"
+    });
+    assert.deepEqual(completed, { status: "login_succeeded" });
+    assert.equal(JSON.stringify(completed).includes("agentlogin_test_session"), false);
+    assert.equal(provider.handoffs.size, 0);
+    assert.deepEqual(await provider.completeMfa({
+      executionId: "execution_test", handoffRef: started.handoffRef, code: "246810"
+    }), { status: "login_failed", reasonCode: "challenge_detected" });
+  });
+
+  it("consumes an MFA handoff after an incorrect code and rejects replay", async () => {
+    const broker = makeBroker({ email: "agentlogin-test@example.com", password: "agentlogin-synthetic-password" });
+    const provider = new SyntheticHttpLoginProvider({ baseUrl, leaseBroker: broker, scenario: "mfa" });
+    const started = await provider.executeLogin(makeRequest());
+    assert.equal(started.status, "mfa_required");
+
+    assert.deepEqual(await provider.completeMfa({
+      executionId: "execution_test", handoffRef: started.handoffRef, code: "000000"
+    }), { status: "login_failed", reasonCode: "challenge_detected" });
+    assert.equal(provider.handoffs.size, 0);
+    assert.deepEqual(await provider.completeMfa({
+      executionId: "execution_test", handoffRef: started.handoffRef, code: "246810"
+    }), { status: "login_failed", reasonCode: "challenge_detected" });
+  });
+
+  it("rejects unknown, expired, and cross-execution MFA handoffs", async () => {
+    const broker = makeBroker({ email: "agentlogin-test@example.com", password: "agentlogin-synthetic-password" });
+    const provider = new SyntheticHttpLoginProvider({ baseUrl, leaseBroker: broker, scenario: "mfa" });
+    assert.deepEqual(await provider.completeMfa({
+      executionId: "execution_test", handoffRef: "mfa_unknown", code: "246810"
+    }), { status: "login_failed", reasonCode: "challenge_detected" });
+
+    const started = await provider.executeLogin(makeRequest());
+    assert.equal(started.status, "mfa_required");
+    assert.deepEqual(await provider.completeMfa({
+      executionId: "another_execution", handoffRef: started.handoffRef, code: "246810"
+    }), { status: "login_failed", reasonCode: "unsupported_flow" });
+    assert.equal(provider.handoffs.size, 1);
+
+    provider.handoffs.get(started.handoffRef).expiresAt = new Date(Date.now() - 1);
+    assert.deepEqual(await provider.completeMfa({
+      executionId: "execution_test", handoffRef: started.handoffRef, code: "246810"
+    }), { status: "login_failed", reasonCode: "challenge_detected" });
+    assert.equal(provider.handoffs.size, 0);
+  });
+
   it("rejects an origin mismatch before consuming a lease", async () => {
     const broker = makeBroker({ email: "agentlogin-test@example.com", password: "agentlogin-synthetic-password" });
     const provider = new SyntheticHttpLoginProvider({ baseUrl, leaseBroker: broker });
