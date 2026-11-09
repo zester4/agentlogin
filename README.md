@@ -92,3 +92,17 @@ The SDK and MCP implementation status, supported operations, authentication setu
 Read [AGENT.md](./AGENT.md), [plans.md](./plans.md), [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), [docs/SECURITY.md](./docs/SECURITY.md), [docs/DATABASE.md](./docs/DATABASE.md), [CONTRIBUTING.md](./CONTRIBUTING.md), and the [architecture decision records](./docs/adr/).
 
 Licensed under [Apache License 2.0](./LICENSE). Copyright 2026 Seyyid Annan.
+
+
+## User dashboard management APIs
+
+The authenticated dashboard uses the following user-scoped endpoints:
+
+- `GET /v1/agents` lists agents in the caller's active developer workspaces. It returns identity and lifecycle metadata only; agent tokens are never returned.
+- `POST /v1/developers/:developerId/agents` registers an agent and returns its opaque agent credential once. Store that token in your own secret manager.
+- `POST /v1/agents/:agentId/suspend` suspends an agent for an authorized developer owner/admin and revokes its active agent credentials.
+- `GET /v1/grants` lists grants owned by the authenticated user, including approval, expiry and revocation metadata.
+- `GET /v1/activity` lists audit events created by the authenticated user or associated with grants owned by that user. Secret-bearing event metadata is not returned.
+- `POST /v1/grants/:grantId/revoke` revokes a grant owned by the authenticated user.
+
+The dashboard never displays stored website passwords or credential ciphertext. Credential enrollment remains locked until the production security release gates have been completed and an operator explicitly enables it.
