@@ -72,8 +72,17 @@ export class SyntheticHttpLoginProvider {
           return { status: "login_failed", reasonCode: "site_unavailable" };
         }
 
-        const cookies = response.headers.getSetCookie?.() ?? [response.headers.get("set-cookie") ?? ""];
-        const sessionCookie = cookies.map((value) => value.split(";")[0])
+        // Some Fetch implementations expose getSetCookie() but return an empty array
+        // even when get("set-cookie") contains the response cookie. Read both sources.
+        const cookies = [];
+        if (typeof response.headers.getSetCookie === "function") {
+          const separateCookies = response.headers.getSetCookie();
+          if (Array.isArray(separateCookies)) cookies.push(...separateCookies);
+        }
+        const combinedCookie = response.headers.get("set-cookie");
+        if (combinedCookie) cookies.push(combinedCookie);
+        const sessionCookie = cookies
+          .map((value) => value.match(/(?:^|,\\s*)(agentlogin_test_session=[^;,]+)/)?.[1] ?? value.split(";")[0])
           .find((value) => value.startsWith("agentlogin_test_session="));
         if (!sessionCookie) return { status: "login_failed", reasonCode: "unsupported_flow" };
 
