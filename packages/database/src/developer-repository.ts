@@ -47,6 +47,24 @@ export class PostgresDeveloperRepository {
     return { agentId };
   }
 
+
+  async createAgentForApplication(input: { developerId: string; name: string; identityType: string }): Promise<{ agentId: string }> {
+    const agentId = newId("agt");
+    await withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      const [developer] = await tx.select({ id: developers.id }).from(developers).where(and(
+        eq(developers.tenantId, this.tenantId),
+        eq(developers.id, input.developerId),
+        eq(developers.status, "active")
+      )).limit(1);
+      if (!developer) throw new Error("Developer workspace is unavailable.");
+      await tx.insert(agents).values({
+        id: agentId, tenantId: this.tenantId, developerId: input.developerId,
+        name: input.name, identityType: input.identityType, status: "active"
+      });
+    });
+    return { agentId };
+  }
+
   async listManagedAgents(userId: string) {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
       return tx.select({
