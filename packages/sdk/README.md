@@ -59,3 +59,32 @@ This is a server-side/agent-runtime SDK. It does not retrieve credentials, cooki
 - API base URL must be HTTPS in production.
 
 See the [SDK/MCP guide](https://github.com/zester4/agentlogin/blob/main/docs/SDK_MCP.md) and [security model](https://github.com/zester4/agentlogin/blob/main/docs/SECURITY.md).
+
+
+## Developer application authentication
+
+For trusted backend integrations, create a developer application through the authenticated API and use its one-time client secret only on your server:
+
+```ts
+import { AgentLoginApplicationClient, AgentLoginClient } from "@agentlogin/sdk";
+
+const application = new AgentLoginApplicationClient({
+  baseUrl: process.env.AGENTLOGIN_API_URL!,
+  clientId: process.env.AGENTLOGIN_CLIENT_ID!,
+  clientSecret: process.env.AGENTLOGIN_CLIENT_SECRET!
+});
+
+const registered = await application.registerAgent({
+  name: "Support agent",
+  identity_type: "browser"
+});
+
+// Persist the returned one-time credential in your secret manager.
+const agent = new AgentLoginClient({
+  baseUrl: process.env.AGENTLOGIN_API_URL!,
+  agentToken: registered.credential.token
+});
+const identity = await agent.getAgentIdentity();
+```
+
+The application client uses the OAuth 2.0 client-credentials grant and caches the short-lived application access token in memory. The client secret is sent only in HTTP Basic authentication to the token endpoint, never in the request body. Do not use this class in browser bundles or client-side applications. Agent credentials returned by registration must be stored securely by the integrating backend.
