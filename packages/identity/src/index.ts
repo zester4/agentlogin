@@ -174,7 +174,7 @@ export type ApplicationAccessTokenRecord = {
   tenantStatus: "active" | "suspended" | "closed";
 };
 export interface ApplicationCredentialRepository {
-  insertApplication(input: { applicationId: string; tenantId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }): Promise<void>;
+  insertApplication(input: { applicationId: string; tenantId: string; userId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }): Promise<void>;
   findApplication(applicationId: string, tenantId: string): Promise<DeveloperApplicationRecord | null>;
   insertAccessToken(input: { tokenId: string; tenantId: string; applicationId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date }): Promise<void>;
   findAccessToken(tokenId: string, tenantId: string): Promise<ApplicationAccessTokenRecord | null>;
@@ -224,9 +224,9 @@ export class ApplicationCredentialService {
     this.signingKey = Buffer.from(signingKey);
   }
 
-  async create(input: { tenantId: string; developerId: string; name: string }): Promise<IssuedApplicationCredentials> {
+  async create(input: { tenantId: string; userId: string; developerId: string; name: string }): Promise<IssuedApplicationCredentials> {
     if (!input.tenantId || input.tenantId.trim() !== input.tenantId || input.tenantId.length > 200 ||
-        !input.developerId || !input.name.trim() || input.name.trim().length > 120) {
+        !input.userId || !input.developerId || !input.name.trim() || input.name.trim().length > 120) {
       throw new TypeError("Invalid application creation request.");
     }
     const applicationId = randomBytes(18).toString("base64url");
