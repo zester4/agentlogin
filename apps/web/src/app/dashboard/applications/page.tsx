@@ -32,7 +32,7 @@ export default async function ApplicationsPage() {
           const appResponse = await fetch(new URL(`/v1/developers/${encodeURIComponent(developers[0].developer_id)}/applications`, apiBase), { headers, cache: "no-store" });
           if (appResponse.ok) applications = (await appResponse.json() as { applications?: Application[] }).applications ?? [];
         }
-      } else loadError = "Developer workspace data is temporarily unavailable.";
+      } else loadError = "Organization details are temporarily unavailable.";
     } catch { loadError = "Could not reach the AgentLogin API."; }
   } else loadError = "Developer API access is not configured.";
 

@@ -25,7 +25,7 @@ const sections = {
     icon: "bot" as const, number: "02",
     state: "AGENT DIRECTORY",
     emptyTitle: "No AI agents registered yet.",
-    emptyBody: "Agents registered in your developer workspace will appear here with safe identity and status metadata.",
+    emptyBody: "Agents registered for your organization will appear here with safe identity and status metadata.",
     next: "Register an agent through the AgentLogin developer API; credential values are never listed here."
   },
   grants: {
@@ -160,7 +160,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
             <div className="section-page-icon"><Icon name="bot" /></div>
             <span className="section-kicker">REGISTERED AGENTS</span>
             <h2>Agent directory</h2>
-            <p>Review the agents registered in your developer workspace. Only identity and lifecycle metadata is displayed; agent tokens are never returned by this directory.</p>
+            <p>Review the agents registered for your organization. Only identity and lifecycle metadata is displayed; agent tokens are never returned by this directory.</p>
             <AgentCreateForm />
             {liveDataError ? <p className="live-data-notice" role="status">{liveDataError}</p> : agents.length ? (
               <div className="live-data-list">{agents.map((agent) => (

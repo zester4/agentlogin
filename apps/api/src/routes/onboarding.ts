@@ -41,8 +41,8 @@ export async function onboardingRoutes(app: FastifyInstance, options: { database
         table: typeof databaseError?.table === "string" ? databaseError.table : undefined,
         constraint: typeof databaseError?.constraint === "string" ? databaseError.constraint : undefined,
         reason: error instanceof Error ? error.message.slice(0, 300) : "Unknown onboarding error"
-      }, "Workspace onboarding failed");
-      return reply.code(403).send({ error: { code: "onboarding_failed", message: "Workspace onboarding could not be completed." } });
+      }, "Organization setup failed");
+      return reply.code(403).send({ error: { code: "onboarding_failed", message: "Organization setup could not be completed." } });
     }
   });
 }

@@ -74,7 +74,7 @@ export class PostgresDeveloperRepository {
         eq(developers.id, input.developerId),
         eq(developers.status, "active")
       )).limit(1);
-      if (!developer) throw new Error("Developer workspace is unavailable.");
+      if (!developer) throw new Error("Organization is unavailable.");
       await tx.insert(agents).values({
         id: agentId, tenantId: this.tenantId, developerId: input.developerId,
         name: input.name, identityType: input.identityType, status: "active"

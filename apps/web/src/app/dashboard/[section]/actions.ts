@@ -96,9 +96,9 @@ export async function createAgent(
       body: JSON.stringify({}),
       cache: "no-store"
     });
-    if (!onboarding.ok) return { status: "error", message: "Your workspace is not ready for agent registration." };
+    if (!onboarding.ok) return { status: "error", message: "Your organization is not ready for agent registration." };
     const workspace = await onboarding.json() as { developer_id?: string };
-    if (!workspace.developer_id) return { status: "error", message: "Your developer workspace could not be identified." };
+    if (!workspace.developer_id) return { status: "error", message: "Your organization could not be identified." };
 
     const response = await fetch(new URL(`/v1/developers/${encodeURIComponent(workspace.developer_id)}/agents`, apiBase), {
       method: "POST",
@@ -106,7 +106,7 @@ export async function createAgent(
       body: JSON.stringify({ name: name.trim(), identity_type: identityType }),
       cache: "no-store"
     });
-    if (!response.ok) return { status: "error", message: "Agent registration failed. Check your workspace permissions and try again." };
+    if (!response.ok) return { status: "error", message: "Agent registration failed. You don't have permission to add agents to this organization." };
     const result = await response.json() as { agent_id?: string; credential?: { token?: string; expires_at?: string; display_once?: boolean } };
     if (!result.agent_id || !result.credential?.token || !result.credential.expires_at || result.credential.display_once !== true) {
       return { status: "error", message: "Agent registration returned an incomplete credential response. Contact support before retrying." };

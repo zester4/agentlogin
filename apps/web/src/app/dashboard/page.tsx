@@ -151,7 +151,7 @@ export default async function DashboardPage() {
           <Link className="button button-outline" href="/security">How we protect you <Icon name="arrow" /></Link>
         </section>
 
-        <footer className="workspace-footer"><span>AGENTLOGIN</span><span>SECURE ACCESS FOR AUTONOMOUS WORK</span><Link href="/settings">ACCOUNT SETTINGS <Icon name="arrow" /></Link></footer>
+        <footer className="workspace-footer"><span>AGENTLOGIN</span><span>SECURE ACCESS FOR YOUR TEAM</span><Link href="/settings">ACCOUNT SETTINGS <Icon name="arrow" /></Link></footer>
       </section>
     </main>
   );

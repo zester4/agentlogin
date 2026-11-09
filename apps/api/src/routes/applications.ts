@@ -106,7 +106,7 @@ export async function applicationRoutes(app: FastifyInstance, options: { databas
         display_once: true
       });
     } catch {
-      return reply.code(403).send({ error: { code: "application_creation_denied", message: "The application could not be created in this developer workspace." } });
+      return reply.code(403).send({ error: { code: "application_creation_denied", message: "You do not have permission to create applications for this organization." } });
     }
   });
 
