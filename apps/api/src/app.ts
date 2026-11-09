@@ -59,6 +59,10 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     if (auth.coordinatorForTenant) {
       app.register(executionRoutes, { database: auth.database, coordinatorForTenant: auth.coordinatorForTenant });
     }
+    // Keep the internal broker absent unless its dedicated worker key is configured.
+    if (auth.workerTicketSigningKey) {
+      app.register(credentialBrokerRoutes, { database: auth.database, signingKey: auth.workerTicketSigningKey });
+    }
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
   app.setErrorHandler((error, request, reply) => {
