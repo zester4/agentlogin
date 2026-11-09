@@ -16,9 +16,8 @@ export async function createApplicationAction(
   formData: FormData
 ): Promise<ApplicationActionState> {
   const applicationName = String(formData.get("application_name") ?? "").trim();
-  const workspaceName = String(formData.get("workspace_name") ?? "").trim();
-  if (!applicationName || applicationName.length > 120 || workspaceName.length > 120) {
-    return { error: "Enter a valid application name and workspace name." };
+  if (!applicationName || applicationName.length > 120) {
+    return { error: "Enter a valid application name." };
   }
   const session = await auth0.getSession();
   if (!session) return { error: "Your session expired. Sign in again." };
@@ -28,27 +27,26 @@ export async function createApplicationAction(
 
   const headers = { Authorization: `Bearer ${access.token}`, "Content-Type": "application/json" };
   try {
-    await fetch(new URL("/v1/onboarding", apiBase), { method: "POST", headers, body: "{}", cache: "no-store" });
-    const listResponse = await fetch(new URL("/v1/developers", apiBase), { headers, cache: "no-store" });
-    if (!listResponse.ok) return { error: "Could not load your developer workspace. Try again." };
-    const list = await listResponse.json() as { developers?: Array<{ developer_id: string }> };
-    let developerId = list.developers?.[0]?.developer_id;
+    const onboardingResponse = await fetch(new URL("/v1/onboarding", apiBase), { method: "POST", headers, body: "{}", cache: "no-store" });
+    if (!onboardingResponse.ok) return { error: "We couldn't finish setting up your organization. Please try again." };
+    const onboarding = await onboardingResponse.json().catch(() => null) as { developer_id?: string } | null;
+    let developerId = onboarding?.developer_id;
     if (!developerId) {
-      const createWorkspace = await fetch(new URL("/v1/developers", apiBase), {
-        method: "POST", headers,
-        body: JSON.stringify({ name: workspaceName || "My developer workspace" }), cache: "no-store"
-      });
-      if (!createWorkspace.ok) return { error: "Could not create your developer workspace." };
-      const created = await createWorkspace.json() as { developer_id?: string };
-      developerId = created.developer_id;
+      const listResponse = await fetch(new URL("/v1/developers", apiBase), { headers, cache: "no-store" });
+      if (!listResponse.ok) return { error: "We couldn't load your organization. Please try again." };
+      const list = await listResponse.json() as { developers?: Array<{ developer_id: string }> };
+      developerId = list.developers?.[0]?.developer_id;
     }
-    if (!developerId) return { error: "Developer workspace setup did not return an identifier." };
+    if (!developerId) return { error: "Your organization setup is incomplete. Please contact support." };
     const response = await fetch(new URL(`/v1/developers/${encodeURIComponent(developerId)}/applications`, apiBase), {
       method: "POST", headers, body: JSON.stringify({ name: applicationName }), cache: "no-store"
     });
     const payload = await response.json().catch(() => null) as { client_id?: string; client_secret?: string } | null;
     if (!response.ok || !payload?.client_id || !payload.client_secret) {
-      return { error: "Application credentials could not be created. Check your workspace permissions and try again." };
+      if (response.status === 503) return { error: "Application credentials are temporarily unavailable. Please try again shortly." };
+      if (response.status === 403) return { error: "You don't have permission to create applications for this organization." };
+      if (response.status === 401) return { error: "Your sign-in has expired. Sign in again and retry." };
+      return { error: "We couldn't create these application credentials. Please try again." };
     }
     return { clientId: payload.client_id, clientSecret: payload.client_secret, applicationName };
   } catch {
