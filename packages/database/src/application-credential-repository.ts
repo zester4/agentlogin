@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { applicationAccessTokens, developerApplications, developerMemberships, developers, tenants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
@@ -45,7 +45,8 @@ export class PostgresApplicationCredentialRepository {
           eq(developerApplications.tenantId, this.tenantId),
           eq(developerApplications.id, applicationId),
           eq(developerMemberships.userId, userId),
-          eq(developerMemberships.status, "active")
+          eq(developerMemberships.status, "active"),
+          or(eq(developerMemberships.role, "owner"), eq(developerMemberships.role, "admin"))
         )).limit(1);
       if (!managed) return false;
       const now = new Date();
