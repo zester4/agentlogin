@@ -64,15 +64,14 @@ export async function revokeApplicationAction(formData: FormData): Promise<void>
   const apiBase = process.env.AGENTLOGIN_API_URL;
   const access = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
   if (!apiBase || !access?.token) redirect("/dashboard/applications?error=api_unavailable");
+  let revoked = false;
   try {
     const response = await fetch(new URL(`/v1/developer-applications/${encodeURIComponent(applicationId)}`, apiBase), {
       method: "DELETE", headers: { Authorization: `Bearer ${access.token}` }, cache: "no-store"
     });
-    if (!response.ok) redirect("/dashboard/applications?error=revoke_failed");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("NEXT_REDIRECT")) throw error;
-    redirect("/dashboard/applications?error=revoke_failed");
-  }
+    revoked = response.ok;
+  } catch { revoked = false; }
+  if (!revoked) redirect("/dashboard/applications?error=revoke_failed");
   revalidatePath("/dashboard/applications");
   redirect("/dashboard/applications?revoked=1");
 }
