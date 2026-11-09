@@ -68,14 +68,7 @@ const sections = {
 
 type SectionKey = keyof typeof sections;
 
-const navigation = [
-  { label: "Overview", href: "/dashboard", icon: "grid" as const },
-  { label: "Connected accounts", href: "/dashboard/accounts", icon: "globe" as const, key: "accounts" },
-  { label: "Agents", href: "/dashboard/agents", icon: "bot" as const, key: "agents" },
-  { label: "Agent access", href: "/dashboard/grants", icon: "ticket" as const, key: "grants" },
-  { label: "Approvals", href: "/dashboard/approvals", icon: "inbox" as const, key: "approvals" },
-  { label: "Activity", href: "/dashboard/activity", icon: "activity" as const, key: "activity" },
-];
+
 
 export default async function DashboardSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const session = await auth0.getSession();
@@ -85,7 +78,6 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   const key = section as SectionKey;
   const item = sections[key];
   const displayName = session.user.name || session.user.email?.split("@")[0] || "there";
-  const initial = (session.user.name || session.user.email || "A").slice(0, 1).toUpperCase();
 
   const apiBase = process.env.AGENTLOGIN_API_URL;
   const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
