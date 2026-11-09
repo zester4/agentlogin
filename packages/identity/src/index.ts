@@ -160,7 +160,7 @@ export class AgentCredentialService {
  * tokens are stored as SHA-256 hashes; tenant claims are HMAC-authenticated
  * before they are used to select an RLS tenant context. */
 export type DeveloperApplicationRecord = {
-  applicationId: string; tenantId: string; developerId: string;
+  applicationId: string; tenantId: string; developerId: string; clientId: string;
   clientSecretHash: Uint8Array;
   applicationStatus: string;
   developerStatus: string;
@@ -252,7 +252,7 @@ export class ApplicationCredentialService {
     }
     const repository = this.repositoryFor(tenantId);
     const application = await repository.findApplication(parsed[2]!, tenantId);
-    if (!application || !applicationStatusActive(application) ||
+    if (!application || application.clientId !== input.clientId || !applicationStatusActive(application) ||
         !applicationEqual(application.clientSecretHash, applicationHash(input.clientSecret))) {
       throw new ApplicationCredentialAuthenticationError();
     }
