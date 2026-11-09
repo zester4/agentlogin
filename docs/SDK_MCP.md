@@ -110,3 +110,57 @@ Those operations are not yet backed by a complete production execution API and i
 - [ ] Deploy the MCP service separately and configure its hostname/origin allowlists; verify live health and authenticated remote MCP behavior.
 - [ ] Publish the SDK and contracts only after the release checklist passes.
 - [ ] Webhooks are not yet implemented; see [webhook architecture](./WEBHOOKS.md).
+
+
+## Developer application OAuth (server-side)
+
+Developer workspaces can issue an application credential pair for trusted backend integrations. Create the pair with an authenticated user access token:
+
+```http
+POST /v1/developers/{developerId}/applications
+Authorization: Bearer <user-access-token>
+Content-Type: application/json
+
+{"name":"My agent integration"}
+```
+
+The response contains `client_id` and `client_secret`. The secret is displayed once; AgentLogin stores only its SHA-256 hash. Keep both values in a server-side secret manager. Do not expose them in browser JavaScript, an MCP prompt, logs, or source control.
+
+Exchange the credentials using the OAuth 2.0 client-credentials grant:
+
+```http
+POST /oauth/token
+Authorization: Basic base64(client_id:client_secret)
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+```
+
+Access tokens are opaque, tenant-bound, database-backed bearer tokens with a 15-minute lifetime. They are currently issued with the `agents:manage` scope. The application token can register an agent; the newly issued agent credential is then used for agent identity and scoped grant requests.
+
+```ts
+import { AgentLoginApplicationClient, AgentLoginClient } from "@agentlogin/sdk";
+
+const application = new AgentLoginApplicationClient({
+  baseUrl: process.env.AGENTLOGIN_API_URL!,
+  clientId: process.env.AGENTLOGIN_CLIENT_ID!,
+  clientSecret: process.env.AGENTLOGIN_CLIENT_SECRET!
+});
+
+const registered = await application.registerAgent({
+  name: "Support agent",
+  identity_type: "browser"
+});
+
+// Store registered.credential.token in your secret manager.
+const agent = new AgentLoginClient({
+  baseUrl: process.env.AGENTLOGIN_API_URL!,
+  agentToken: registered.credential.token
+});
+
+const identity = await agent.getAgentIdentity();
+```
+
+The API requires a separate `APPLICATION_TOKEN_SIGNING_KEY` containing 32 random bytes encoded as base64url. Configure it in the API environment before enabling application credential issuance. This key is distinct from `AGENT_TOKEN_SIGNING_KEY`.
+
+This does **not** yet provide MCP OAuth 2.1 authorization discovery, authorization-code login, or browser login execution. The SDK package is still unpublished; follow `docs/SDK_RELEASE.md` before announcing an npm release.
