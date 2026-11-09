@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "../../../lib/auth0";
 import { Icon } from "../../ui-icon";
 import { ThemeToggle } from "../../theme-toggle";
+import { DashboardNavigation } from "../dashboard-navigation";
 import { decideApproval } from "./actions";
 import { AgentSuspendControl } from "./agent-suspend-control";
 import { AgentCreateForm } from "./agent-create-form";
@@ -139,22 +140,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
 
   return (
     <main className="workspace-shell workspace-shell-v2">
-      <aside className="workspace-sidebar workspace-sidebar-v2">
-        <Link className="brand" href="/"><img src="/agentlogin-mark.svg" alt="" /><span>AgentLogin</span></Link>
-        <div className="workspace-switcher"><span className="workspace-switcher-mark">A</span><span><small>YOUR ACCOUNT</small><strong>Personal account</strong></span><Icon name="chevron" /></div>
-        <div className="sidebar-label">YOUR ACCOUNT</div>
-        <nav className="workspace-nav" aria-label="Your account">
-          {navigation.map((entry) => <Link key={entry.label} className={entry.key === key ? "side-link active" : "side-link"} href={entry.href}><Icon name={entry.icon} /><span>{entry.label}</span></Link>)}
-        </nav>
-        <div className="sidebar-label sidebar-label-spaced">SETTINGS</div>
-        <nav className="workspace-nav" aria-label="Management navigation">
-          <Link className={key === "security" ? "side-link active" : "side-link"} href="/dashboard/security"><Icon name="shield" /><span>Your security</span></Link>
-          <Link className="side-link" href="/settings"><Icon name="users" /><span>Team & members</span></Link>
-          <Link className="side-link" href="/developers"><Icon name="code" /><span>For developers</span></Link>
-        </nav>
-        <div className="sidebar-help"><span className="help-icon"><Icon name="book" /></span><strong>Build with AgentLogin</strong><p>Connect your AI assistant to AgentLogin in a few simple steps.</p><Link href="/developers">Getting started <Icon name="arrow" /></Link></div>
-        <div className="sidebar-bottom sidebar-bottom-v2"><span className="avatar">{initial}</span><div><strong>{displayName}</strong><small>{session.user.email || "Authenticated account"}</small></div><a href="/auth/logout" aria-label="Sign out"><Icon name="logout" /></a></div>
-      </aside>
+      <DashboardNavigation name={displayName} email={session.user.email || "Authenticated account"} />
       <section className="workspace-main workspace-main-v2">
         <header className="workspace-topbar"><div className="workspace-breadcrumb"><Link href="/dashboard">YOUR ACCOUNT</Link><b>/</b><strong>{item.label}</strong></div><div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> SIGNED IN</span><Link href="/settings" aria-label="Account settings"><Icon name="settings" /></Link></div></header>
         <section className="workspace-welcome section-page-welcome"><div><span className="section-kicker">YOUR ACCOUNT / {item.number}</span><h1>{item.title}</h1><p>{item.description}</p></div><span className="workspace-coming">{item.state}</span></section>
