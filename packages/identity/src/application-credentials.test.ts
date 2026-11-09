@@ -47,7 +47,7 @@ describe("developer application OAuth credentials", () => {
     expect(token.expires_in).toBe(900);
     await expect(service.authenticate(token.access_token)).resolves.toMatchObject({
       tenantId: "ten_1", developerId: "dev_1", applicationId: credentials.applicationId,
-      scopes: ["agents:manage", "grants:request"]
+      scopes: ["agents:manage"]
     });
     expect(Buffer.from(repository.applications.get(credentials.applicationId)!.clientSecretHash).toString("utf8")).not.toContain(credentials.clientSecret);
   });
