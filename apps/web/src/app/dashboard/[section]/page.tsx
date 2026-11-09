@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "../../../lib/auth0";
 import { Icon } from "../../ui-icon";
 import { ThemeToggle } from "../../theme-toggle";
-import { decideApproval } from "./actions";
+import { decideApproval, suspendAgent } from "./actions";
 
 const sections = {
   accounts: {
@@ -19,10 +19,10 @@ const sections = {
     label: "YOUR AI AGENTS", title: "Your AI agents",
     description: "See the AI agents you have connected and decide what each one can access.",
     icon: "bot" as const, number: "02",
-    state: "AGENT MANAGEMENT COMING SOON",
-    emptyTitle: "No AI agents connected yet.",
-    emptyBody: "Your connected AI agents will appear here. You will be able to review their access and disconnect them whenever you choose.",
-    next: "We are finishing the tools for managing your AI agents."
+    state: "AGENT DIRECTORY",
+    emptyTitle: "No AI agents registered yet.",
+    emptyBody: "Agents registered in your developer workspace will appear here with safe identity and status metadata.",
+    next: "Register an agent through the AgentLogin developer API; credential values are never listed here."
   },
   grants: {
     label: "AGENT ACCESS", title: "Agent access",
@@ -37,7 +37,7 @@ const sections = {
     label: "YOUR APPROVALS", title: "Requests waiting for you",
     description: "Review requests from your AI agents before they take an action that needs your permission.",
     icon: "inbox" as const, number: "04",
-    state: "APPROVALS COMING SOON",
+    state: "LIVE APPROVAL INBOX",
     emptyTitle: "You're all caught up.",
     emptyBody: "When an AI agent needs your permission, you will see what it wants to do and which account it needs to use before you decide.",
     next: "We are finishing your approval inbox."
@@ -87,9 +87,10 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
   const apiToken = apiTokenResult?.token;
   let accounts: Array<{ account_id: string; provider: string; origin: string; display_label: string; status: string; created_at: string }> = [];
+  let agents: Array<{ agent_id: string; developer_id: string; developer_name: string; name: string; identity_type: string; status: string; created_at: string }> = [];
   let approvals: Array<{ grantId: string; approvalId: string; agentId: string; agentName: string; accountId: string; accountLabel: string; origin: string; scopes: string[]; taskId: string | null; expiresAt: string; requestedAt: string }> = [];
   let liveDataError = !apiBase ? "We are still connecting your account information. Please try again soon." : !apiToken ? "We could not load your information just now. Please try again in a moment." : "";
-  if (apiToken && apiBase && (key === "accounts" || key === "approvals")) {
+  if (apiToken && apiBase && (key === "accounts" || key === "approvals" || key === "agents")) {
     try {
       // Provisioning is idempotent: the API derives tenant and user identity
       // from the verified Auth0 token, never from browser-supplied identifiers.
@@ -109,7 +110,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
           ? "We are still finishing your account setup. Please try again soon."
           : "We could not finish setting up your account. Please try again in a moment.";
       } else {
-        const endpoint = key === "accounts" ? "/v1/connected-accounts" : "/v1/grants/pending";
+        const endpoint = key === "accounts" ? "/v1/connected-accounts" : key === "approvals" ? "/v1/grants/pending" : "/v1/agents";
         const response = await fetch(new URL(endpoint, apiBase), {
           headers: { Authorization: `Bearer ${apiToken}` },
           cache: "no-store"
@@ -118,9 +119,10 @@ export default async function DashboardSectionPage({ params }: { params: Promise
           ? "We are still finishing this part of AgentLogin. Please try again soon."
           : "We could not load this information. Please try again in a moment.";
         else {
-          const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals };
+          const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals; agents?: typeof agents };
           if (key === "accounts") accounts = payload.accounts ?? [];
-          else approvals = payload.pending ?? [];
+          else if (key === "approvals") approvals = payload.pending ?? [];
+          else agents = payload.agents ?? [];
         }
       }
     } catch {
@@ -167,6 +169,33 @@ export default async function DashboardSectionPage({ params }: { params: Promise
                 </article>
               ))}</div>
             ) : <p className="live-data-notice">No connected accounts yet.</p>}
+          </section>
+        ) : key === "agents" ? (
+          <section className="section-page-card live-data-card">
+            <div className="section-page-icon"><Icon name="bot" /></div>
+            <span className="section-kicker">REGISTERED AGENTS</span>
+            <h2>Agent directory</h2>
+            <p>Review the agents registered in your developer workspace. Only identity and lifecycle metadata is displayed; agent tokens are never returned by this directory.</p>
+            {liveDataError ? <p className="live-data-notice" role="status">{liveDataError}</p> : agents.length ? (
+              <div className="live-data-list">{agents.map((agent) => (
+                <article className="live-data-row" key={agent.agent_id}>
+                  <div>
+                    <strong>{agent.name}</strong>
+                    <small>{agent.identity_type} · {agent.developer_name} · {agent.agent_id}</small>
+                    <small>Added {new Date(agent.created_at).toLocaleString()}</small>
+                  </div>
+                  <div className="agent-row-actions">
+                    <span className={agent.status === "active" ? "live-status active" : "live-status"}>{agent.status}</span>
+                    {agent.status === "active" ? (
+                      <form action={suspendAgent}>
+                        <input type="hidden" name="agent_id" value={agent.agent_id} />
+                        <button className="button button-outline" type="submit">Suspend agent</button>
+                      </form>
+                    ) : null}
+                  </div>
+                </article>
+              ))}</div>
+            ) : <p className="live-data-notice">{sections.agents.emptyTitle} {sections.agents.emptyBody}</p>}
           </section>
         ) : key === "approvals" ? (
           <section className="section-page-card live-data-card">
