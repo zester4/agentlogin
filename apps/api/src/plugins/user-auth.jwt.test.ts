@@ -17,7 +17,7 @@ const JWKS_URL = "https://agentlogin-test.us.auth0.com/.well-known/jwks.json";
 const TENANT_CLAIM = "https://agentlogin.app/tenant_id";
 
 describe("OIDC JWT verification against a JWKS", () => {
-  let privateKey: CryptoKey;
+  let privateKey: Awaited<ReturnType<typeof generateKeyPair>>["privateKey"];
   let jwks: JWTVerifyGetKey;
 
   beforeAll(async () => {
