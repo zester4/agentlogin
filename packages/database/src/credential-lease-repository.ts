@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { credentialLeases, credentials, connectedAccounts, grants } from "./schema.js";
