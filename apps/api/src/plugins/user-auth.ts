@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from "jose";
 import { PostgresUserRepository, type AuthenticatedUser, type Database } from "@agentlogin/database";
 
 export type OidcIdentity = { tenantId: string; authSubject: string; displayName?: string };
@@ -16,9 +16,9 @@ declare module "fastify" {
 
 type OidcVerifier = {
   issuer: string; audience: string; tenantClaim: string;
-  jwks: ReturnType<typeof createRemoteJWKSet>;
+  jwks: JWTVerifyGetKey;
 };
-function verifierFromEnvironment(): OidcVerifier | null {
+function verifierFromEnvironment(jwksOverride?: JWTVerifyGetKey): OidcVerifier | null {
   const issuer = process.env.OIDC_ISSUER_URL;
   const audience = process.env.OIDC_AUDIENCE;
   const jwksUrl = process.env.OIDC_JWKS_URL;
@@ -28,7 +28,7 @@ function verifierFromEnvironment(): OidcVerifier | null {
     const issuerUrl = new URL(issuer);
     const jwks = new URL(jwksUrl);
     if (issuerUrl.protocol !== "https:" || jwks.protocol !== "https:") return null;
-    return { issuer: issuerUrl.toString(), audience, tenantClaim, jwks: createRemoteJWKSet(jwks) };
+    return { issuer: issuerUrl.toString(), audience, tenantClaim, jwks: jwksOverride ?? createRemoteJWKSet(jwks) };
   } catch { return null; }
 }
 function identityFromPayload(payload: JWTPayload, tenantClaim: string): OidcIdentity | null {
@@ -41,8 +41,8 @@ function identityFromPayload(payload: JWTPayload, tenantClaim: string): OidcIden
   return { tenantId, authSubject, ...(displayName ? { displayName } : {}) };
 }
 
-export function userAuthenticationPlugin(app: FastifyInstance, options: { database: Database }): void {
-  const verifier = verifierFromEnvironment();
+export function userAuthenticationPlugin(app: FastifyInstance, options: { database: Database; jwks?: JWTVerifyGetKey }): void {
+  const verifier = verifierFromEnvironment(options.jwks);
   app.decorateRequest("oidcIdentity", null);
   app.decorateRequest("userPrincipal", null);
 
@@ -59,7 +59,7 @@ export function userAuthenticationPlugin(app: FastifyInstance, options: { databa
     try {
       const { payload } = await jwtVerify(authorization.slice(7), verifier.jwks, {
         issuer: verifier.issuer, audience: verifier.audience,
-        algorithms: ["RS256", "ES256"], clockTolerance: 5, maxTokenAge: process.env.OIDC_MAX_TOKEN_AGE ?? "24h"
+        algorithms: ["RS256"], clockTolerance: 5, maxTokenAge: process.env.OIDC_MAX_TOKEN_AGE ?? "24h"
       });
       const identity = identityFromPayload(payload, verifier.tenantClaim);
       if (!identity) {
