@@ -82,8 +82,8 @@ export function verifyWorkerTicket(
   let header: Record<string, unknown>;
   let payload: Record<string, unknown>;
   try {
-    header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
-    payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    header = JSON.parse(Buffer.from(encodedHeader, "base64url").toString("utf8"));
+    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
   } catch {
     throw new TypeError("Invalid worker ticket.");
   }
