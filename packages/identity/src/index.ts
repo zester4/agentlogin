@@ -3,8 +3,8 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 export type AgentCredentialRecord = {
   credentialId: string; tenantId: string; developerId: string; agentId: string;
   tokenHash: Uint8Array; createdAt: Date; expiresAt: Date; revokedAt: Date | null;
-  tenantStatus: "active" | "suspended" | "closed";
-  developerStatus: "active" | "suspended" | "closed";
+  tenantStatus: string;
+  developerStatus: string;
   agentStatus: "active" | "suspended" | "revoked";
 };
 export type NewAgentCredential = Pick<AgentCredentialRecord,
@@ -162,16 +162,16 @@ export class AgentCredentialService {
 export type DeveloperApplicationRecord = {
   applicationId: string; tenantId: string; developerId: string;
   clientSecretHash: Uint8Array;
-  applicationStatus: "active" | "suspended" | "revoked";
-  developerStatus: "active" | "suspended" | "closed";
-  tenantStatus: "active" | "suspended" | "closed";
+  applicationStatus: string;
+  developerStatus: string;
+  tenantStatus: string;
 };
 export type ApplicationAccessTokenRecord = {
-  tokenId: string; tenantId: string; applicationId: string;
+  tokenId: string; tenantId: string; applicationId: string; developerId: string;
   tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null;
-  applicationStatus: "active" | "suspended" | "revoked";
-  developerStatus: "active" | "suspended" | "closed";
-  tenantStatus: "active" | "suspended" | "closed";
+  applicationStatus: string;
+  developerStatus: string;
+  tenantStatus: string;
 };
 export interface ApplicationCredentialRepository {
   insertApplication(input: { applicationId: string; tenantId: string; userId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }): Promise<void>;
@@ -234,7 +234,7 @@ export class ApplicationCredentialService {
     const clientId = `al_client_${tenant}.${applicationId}.${applicationSignature(this.signingKey, "client", applicationId, tenant)}`;
     const clientSecret = `al_secret_${randomBytes(32).toString("base64url")}`;
     await this.repositoryFor(input.tenantId).insertApplication({
-      applicationId, tenantId: input.tenantId, developerId: input.developerId,
+      applicationId, tenantId: input.tenantId, userId: input.userId, developerId: input.developerId,
       name: input.name.trim(), clientId, clientSecretHash: applicationHash(clientSecret)
     });
     return { applicationId, clientId, clientSecret, displayOnce: true };
@@ -287,7 +287,7 @@ export class ApplicationCredentialService {
       throw new ApplicationCredentialAuthenticationError();
     }
     await repository.updateAccessTokenLastUsed(record.tokenId, tenantId, this.now());
-    return { tenantId, developerId: record.applicationId ? (await repository.findApplication(record.applicationId, tenantId))?.developerId ?? "" : "",
+    return { tenantId, developerId: record.developerId,
       applicationId: record.applicationId, tokenId: record.tokenId, scopes: record.scopes };
   }
 
