@@ -32,16 +32,35 @@ export default async function DashboardPage() {
   // endpoint reuses existing membership and never accepts browser tenant IDs.
   const apiBase = process.env.AGENTLOGIN_API_URL;
   const apiTokenResult = apiBase ? await auth0.getAccessToken().catch(() => null) : null;
+  let identityVerified = false;
+
   if (apiBase && apiTokenResult?.token) {
-    await fetch(new URL("/v1/onboarding", apiBase), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiTokenResult.token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({}),
-      cache: "no-store"
-    }).catch(() => null);
+    try {
+      const headers = { Authorization: `Bearer ${apiTokenResult.token}` };
+      const onboardingResponse = await fetch(new URL("/v1/onboarding", apiBase), {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+        cache: "no-store"
+      });
+
+      // Onboarding creates/reuses the local membership. Only then can the
+      // stricter user endpoint confirm that the signed tenant claim resolves
+      // to an active AgentLogin membership. Keep identity fields server-side.
+      if (onboardingResponse.ok) {
+        const identityResponse = await fetch(new URL("/v1/user/me", apiBase), {
+          method: "GET",
+          headers,
+          cache: "no-store"
+        });
+        if (identityResponse.ok) {
+          const identity = await identityResponse.json().catch(() => null);
+          identityVerified = identity?.authenticated === true;
+        }
+      }
+    } catch {
+      // Dashboard access remains available, but identity is not marked verified.
+    }
   }
 
   const displayName = session.user.name || session.user.email?.split("@")[0] || "there";
@@ -94,7 +113,7 @@ export default async function DashboardPage() {
             <h1>Good to see you, {displayName}.</h1>
             <p>Your agents. Your accounts. Your rules.</p>
           </div>
-          <div className="welcome-date"><span>ACCOUNT STATUS</span><strong><i /> GETTING STARTED</strong></div>
+          <div className="welcome-date"><span>ACCOUNT STATUS</span><strong><i /> {identityVerified ? "IDENTITY VERIFIED" : "GETTING STARTED"}</strong></div>
         </section>
 
         <section className="workspace-metrics" aria-label="Your account at a glance">
