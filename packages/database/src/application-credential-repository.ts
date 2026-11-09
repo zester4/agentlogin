@@ -4,14 +4,14 @@ import { applicationAccessTokens, developerApplications, developerMemberships, d
 import { withTenantTransaction } from "./tenant.js";
 
 type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
-type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
+type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: "active" | "suspended" | "revoked"; developerStatus: "active" | "suspended" | "closed"; tenantStatus: "active" | "suspended" | "closed" };
 
 export class PostgresApplicationCredentialRepository {
   constructor(private readonly database: Database, private readonly tenantId: string) {
     if (!tenantId || tenantId.trim() !== tenantId || tenantId.length > 200) throw new TypeError("A verified tenant identity is required.");
   }
 
-  async insertApplication(input: { applicationId: string; tenantId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }): Promise<void> {
+  async insertApplication(input: { applicationId: string; tenantId: string; userId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }): Promise<void> {
     if (input.tenantId !== this.tenantId) throw new TypeError("Tenant mismatch.");
     await withTenantTransaction(this.database, this.tenantId, async (tx) => {
       const [membership] = await tx.select({ role: developerMemberships.role })
@@ -66,7 +66,7 @@ export class PostgresApplicationCredentialRepository {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
       const [row] = await tx.select({
         tokenId: applicationAccessTokens.id, tenantId: applicationAccessTokens.tenantId,
-        applicationId: applicationAccessTokens.applicationId, tokenHash: applicationAccessTokens.tokenHash,
+        applicationId: applicationAccessTokens.applicationId, developerId: developerApplications.developerId, tokenHash: applicationAccessTokens.tokenHash,
         scopes: applicationAccessTokens.scopes, expiresAt: applicationAccessTokens.expiresAt,
         revokedAt: applicationAccessTokens.revokedAt, applicationStatus: developerApplications.status,
         developerStatus: developers.status, tenantStatus: tenants.status
