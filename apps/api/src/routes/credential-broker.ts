@@ -36,7 +36,7 @@ export async function credentialBrokerRoutes(
       return reply.code(401).send({ error: { code: "worker_unauthorized", message: "A valid internal worker ticket is required." } });
     }
 
-    let claims;
+    let claims: ReturnType<typeof verifyWorkerTicket>;
     try {
       claims = verifyWorkerTicket(authorization.slice(7), options.signingKey);
     } catch {
