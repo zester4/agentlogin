@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { applicationAccessTokens, developerApplications, developerMemberships, developers, tenants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
@@ -30,6 +30,26 @@ export class PostgresApplicationCredentialRepository {
         id: input.applicationId, tenantId: this.tenantId, developerId: input.developerId,
         name: input.name, clientId: input.clientId, clientSecretHash: Buffer.from(input.clientSecretHash), status: "active"
       });
+    });
+  }
+
+
+  async listApplications(userId: string, developerId: string) {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      return tx.select({
+        applicationId: developerApplications.id, name: developerApplications.name,
+        clientId: developerApplications.clientId, status: developerApplications.status,
+        createdAt: developerApplications.createdAt
+      }).from(developerApplications).innerJoin(developerMemberships, and(
+        eq(developerApplications.tenantId, developerMemberships.tenantId),
+        eq(developerApplications.developerId, developerMemberships.developerId)
+      )).where(and(
+        eq(developerApplications.tenantId, this.tenantId),
+        eq(developerApplications.developerId, developerId),
+        eq(developerMemberships.userId, userId),
+        eq(developerMemberships.status, "active"),
+        eq(developerApplications.status, "active")
+      )).orderBy(desc(developerApplications.createdAt)).limit(100);
     });
   }
 
