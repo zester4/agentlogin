@@ -218,7 +218,6 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   createdAt: createdAt(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique("webhook_deliveries_tenant_id_unique").on(t.tenantId, t.id),
-  unique("webhook_deliveries_tenant_endpoint_event_unique").on(t.tenantId, t.endpointId, t.eventId),
   check("webhook_deliveries_status", sql.raw("status IN ('pending', 'leased', 'delivered', 'dead_lettered', 'cancelled')")),
   check("webhook_deliveries_attempt_count", sql.raw("attempt_count >= 0 AND max_attempts > 0 AND attempt_count <= max_attempts")),
   foreignKey({ name: "webhook_deliveries_tenant_endpoint_fk", columns: [t.tenantId, t.endpointId], foreignColumns: [webhookEndpoints.tenantId, webhookEndpoints.id] }),
