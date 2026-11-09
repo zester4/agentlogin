@@ -6,20 +6,6 @@ import { Icon } from "../ui-icon";
 import { ThemeToggle } from "../theme-toggle";
 import { DashboardNavigation } from "./dashboard-navigation";
 
-const navigation = [
-  { label: "Overview", href: "#overview", icon: "grid" as const, active: true },
-  { label: "Connected accounts", href: "/dashboard/accounts", icon: "globe" as const },
-  { label: "Agents", href: "/dashboard/agents", icon: "bot" as const },
-  { label: "Agent access", href: "/dashboard/grants", icon: "ticket" as const },
-  { label: "Approvals", href: "/dashboard/approvals", icon: "inbox" as const },
-  { label: "Activity", href: "/dashboard/activity", icon: "activity" as const },
-];
-const management = [
-  { label: "Your security", href: "/dashboard/security", icon: "shield" as const },
-  { label: "Team & members", href: "/settings", icon: "users" as const },
-  { label: "For developers", href: "/developers", icon: "code" as const },
-];
-
 function ComingSoon({ children }: { children: ReactNode }) {
   return <span className="workspace-coming">{children}</span>;
 }
@@ -84,7 +70,6 @@ export default async function DashboardPage() {
   }
 
   const displayName = session.user.name || session.user.email?.split("@")[0] || "there";
-  const initial = (session.user.name || session.user.email || "A").slice(0, 1).toUpperCase();
 
   return (
     <main className="workspace-shell workspace-shell-v2" id="overview">
