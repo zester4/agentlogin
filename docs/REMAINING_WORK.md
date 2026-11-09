@@ -22,8 +22,8 @@ The API health endpoint returns HTTP 200. After the PR #57 deployment and a fres
 - [x] Drizzle baseline migration generated and applied.
 - [x] Tenant-scoped PostgreSQL repositories and transaction-local tenant context.
 - [x] Row-level security enabled and FORCE RLS verified on all 18 tenant-owned tables.
-- [x] Live rollback-only cross-tenant test on Neon `main`, using `agentlogin_runtime`, verified tenant A/B read isolation, blocked cross-tenant update/delete/insert, and fail-closed behavior without tenant context; owner-side verification confirmed zero synthetic rows remained.
-- [x] Added opt-in real-table integration coverage in `packages/database/src/rls.integration.test.ts` (`TEST_DATABASE_URL`); CI execution with a dedicated runtime-role test database remains pending.
+- [x] Live rollback-only cross-tenant test on Neon `main`, using `agentlogin_runtime`, verified tenant A/B read isolation across all 17 `tenant_id` tables plus the `tenants` table, blocked cross-tenant update/delete across all 16 mutable tenant tables plus `tenants`, blocked cross-tenant insert, and fail-closed behavior without tenant context; owner-side verification confirmed zero synthetic rows remained.
+- [x] Added opt-in real-table integration coverage in `packages/database/src/rls.integration.test.ts` and `connected-account-repository.integration.test.ts` (`TEST_DATABASE_URL`); CI execution with a dedicated runtime-role test database remains pending.
 - [x] Persistent agent credential repository, signed HMAC agent tokens, and Fastify agent authentication.
 - [x] Auth0/OIDC user-token verification code, trusted tenant-claim validation, membership lookup, and onboarding API.
 - [x] AES-256-GCM envelope encryption and callback-scoped decryption.
@@ -185,8 +185,8 @@ This consolidates the immediate Auth0 proof into one visible dashboard signal. I
 
 ## 5. Security and production-readiness gates
 
-- [x] Verify tenant/user row isolation against Neon `main` using the actual non-owner `agentlogin_runtime` role; rollback-only test passed and left zero synthetic rows.
-- [ ] Run the opt-in integration test in CI with `TEST_DATABASE_URL` and expand coverage across the remaining tenant-owned tables and repository/API paths.
+- [x] Verify row isolation across all 18 tenant-owned tables against Neon `main` using the actual non-owner `agentlogin_runtime` role; rollback-only test passed and left zero synthetic rows.
+- [ ] Run the opt-in integration tests with a dedicated `TEST_DATABASE_URL` in CI and add authenticated Fastify/API-level cross-tenant tests; the connected-account repository path now has direct integration coverage.
 - [ ] Test agent token expiry, rotation, revocation, replay, and concurrent use.
 - [ ] Test grant binding to tenant, user, authenticated agent, connected account, exact origin, scopes, expiry, policy version, approval, and task context.
 - [ ] Test race-safe approval decisions and grant revocation.
