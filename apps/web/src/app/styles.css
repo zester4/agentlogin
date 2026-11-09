@@ -575,3 +575,45 @@ html[data-theme="light"] .dashboard-mobile-menu{background:#fff;color:#222}
 .workspace-shell-v2:has(> .dashboard-sidebar.is-collapsed){grid-template-columns:76px minmax(0,1fr)}
 @media(max-width:900px){.workspace-shell-v2:has(> .dashboard-sidebar){grid-template-columns:76px minmax(0,1fr)}}
 @media(max-width:680px){.workspace-shell-v2:has(> .dashboard-sidebar){display:block}}
+
+
+/* Developer application credential management */
+.application-create-panel{display:grid;gap:18px;margin:22px 0;padding:22px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.application-create-panel h2{margin:8px 0;font-size:19px;letter-spacing:-.035em}
+.application-create-panel>div>p{max-width:650px;margin:0;color:var(--muted);font-size:12px;line-height:1.7}
+.application-create-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:12px}
+.application-create-form label{display:grid;gap:7px;min-width:0}
+.application-create-form label span,.application-secret-once>div>span{font:9px var(--mono);letter-spacing:.08em;color:var(--muted)}
+.application-create-form input{width:100%;min-height:42px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:12px var(--sans);outline:none}
+.application-create-form input:focus{border-color:var(--yellow);box-shadow:0 0 0 3px rgba(245,229,27,.1)}
+.application-create-form .button{min-height:42px;white-space:nowrap;border-radius:7px}
+.application-create-form button:disabled{opacity:.6;cursor:wait}
+.application-error,.application-load-error{display:flex;align-items:center;gap:9px;padding:12px 14px;border:1px solid rgba(190,100,70,.35);border-radius:8px;color:#d78e72;font-size:12px}
+.application-load-error{margin:14px 0}
+.application-load-error svg{width:15px;height:15px;flex:none}
+.application-secret-once{display:grid;gap:12px;padding:16px;border:1px solid rgba(179,190,85,.4);border-radius:8px;background:rgba(179,190,85,.05)}
+.application-secret-once>strong{font-size:13px;color:var(--yellow)}
+.application-secret-once>p{margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+.application-secret-once>div{display:grid;grid-template-columns:120px minmax(0,1fr) auto;align-items:center;gap:10px}
+.application-secret-once code{display:block;min-width:0;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:10px/1.5 var(--mono);overflow-wrap:anywhere;user-select:all}
+.application-secret-once button{min-height:34px;padding:7px 11px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--text);font-size:10px;cursor:pointer}
+.application-secret-once button:hover{border-color:var(--yellow)}
+.application-list-panel{margin-top:20px}
+.application-list{display:grid;gap:8px;margin-top:15px}
+.application-list-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px;border:1px solid var(--line);border-radius:8px}
+.application-list-row>div{display:grid;gap:5px;min-width:0}
+.application-list-row strong{font-size:12px}
+.application-list-row small{overflow-wrap:anywhere;color:var(--muted);font:10px/1.5 var(--mono)}
+html[data-theme="light"] .application-create-panel,html[data-theme="light"] .application-list-row{background:#fff;border-color:#dce0d6}
+html[data-theme="light"] .application-create-form input,html[data-theme="light"] .application-secret-once code{background:#f8f9f5;border-color:#dce0d6;color:#171a15}
+html[data-theme="light"] .application-secret-once{background:#f8f9f2;border-color:#dce0d6}
+@media(max-width:800px){.application-create-form{grid-template-columns:1fr 1fr}.application-create-form .button{grid-column:1/-1}}
+@media(max-width:560px){
+ .application-create-panel{padding:15px}
+ .application-create-form{grid-template-columns:1fr}
+ .application-create-form .button{grid-column:auto;width:100%}
+ .application-secret-once>div{grid-template-columns:1fr auto}
+ .application-secret-once>div>span{grid-column:1/-1}
+ .application-secret-once code{grid-column:1}
+ .application-list-row{align-items:flex-start;flex-direction:column}
+}

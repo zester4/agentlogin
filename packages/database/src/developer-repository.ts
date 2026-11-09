@@ -22,6 +22,24 @@ export class PostgresDeveloperRepository {
     return { developerId };
   }
 
+
+  async listManagedDevelopers(userId: string) {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      return tx.select({
+        developerId: developers.id, name: developers.name, status: developers.status,
+        role: developerMemberships.role, createdAt: developers.createdAt
+      }).from(developers).innerJoin(developerMemberships, and(
+        eq(developers.tenantId, developerMemberships.tenantId),
+        eq(developers.id, developerMemberships.developerId)
+      )).where(and(
+        eq(developers.tenantId, this.tenantId),
+        eq(developerMemberships.userId, userId),
+        eq(developerMemberships.status, "active"),
+        eq(developers.status, "active")
+      )).orderBy(desc(developers.createdAt)).limit(50);
+    });
+  }
+
   async createAgent(input: {
     userId: string; developerId: string; name: string; identityType: string;
   }): Promise<{ agentId: string }> {
@@ -39,6 +57,24 @@ export class PostgresDeveloperRepository {
           eq(developers.status, "active")
         )).limit(1);
       if (!membership || !["owner", "admin"].includes(membership.role)) throw new Error("Developer management permission required.");
+      await tx.insert(agents).values({
+        id: agentId, tenantId: this.tenantId, developerId: input.developerId,
+        name: input.name, identityType: input.identityType, status: "active"
+      });
+    });
+    return { agentId };
+  }
+
+
+  async createAgentForApplication(input: { developerId: string; name: string; identityType: string }): Promise<{ agentId: string }> {
+    const agentId = newId("agt");
+    await withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      const [developer] = await tx.select({ id: developers.id }).from(developers).where(and(
+        eq(developers.tenantId, this.tenantId),
+        eq(developers.id, input.developerId),
+        eq(developers.status, "active")
+      )).limit(1);
+      if (!developer) throw new Error("Developer workspace is unavailable.");
       await tx.insert(agents).values({
         id: agentId, tenantId: this.tenantId, developerId: input.developerId,
         name: input.name, identityType: input.identityType, status: "active"

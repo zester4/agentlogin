@@ -3,8 +3,8 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 export type AgentCredentialRecord = {
   credentialId: string; tenantId: string; developerId: string; agentId: string;
   tokenHash: Uint8Array; createdAt: Date; expiresAt: Date; revokedAt: Date | null;
-  tenantStatus: "active" | "suspended" | "closed";
-  developerStatus: "active" | "suspended" | "closed";
+  tenantStatus: string;
+  developerStatus: string;
   agentStatus: "active" | "suspended" | "revoked";
 };
 export type NewAgentCredential = Pick<AgentCredentialRecord,
@@ -152,5 +152,146 @@ export class AgentCredentialService {
     return typeof this.repository === "function"
       ? this.repository(verifiedTenantId)
       : this.repository;
+  }
+}
+
+
+/** OAuth-style developer application credentials. Client secrets and access
+ * tokens are stored as SHA-256 hashes; tenant claims are HMAC-authenticated
+ * before they are used to select an RLS tenant context. */
+export type DeveloperApplicationRecord = {
+  applicationId: string; tenantId: string; developerId: string; clientId: string;
+  clientSecretHash: Uint8Array;
+  applicationStatus: string;
+  developerStatus: string;
+  tenantStatus: string;
+};
+export type ApplicationAccessTokenRecord = {
+  tokenId: string; tenantId: string; applicationId: string; developerId: string;
+  tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null;
+  applicationStatus: string;
+  developerStatus: string;
+  tenantStatus: string;
+};
+export interface ApplicationCredentialRepository {
+  insertApplication(input: { applicationId: string; tenantId: string; userId: string; developerId: string; name: string; clientId: string; clientSecretHash: Uint8Array }): Promise<void>;
+  findApplication(applicationId: string, tenantId: string): Promise<DeveloperApplicationRecord | null>;
+  insertAccessToken(input: { tokenId: string; tenantId: string; applicationId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date }): Promise<void>;
+  findAccessToken(tokenId: string, tenantId: string): Promise<ApplicationAccessTokenRecord | null>;
+  updateAccessTokenLastUsed(tokenId: string, tenantId: string, at: Date): Promise<void>;
+}
+export type ApplicationPrincipal = { tenantId: string; developerId: string; applicationId: string; tokenId: string; scopes: string[] };
+export type IssuedApplicationCredentials = { applicationId: string; clientId: string; clientSecret: string; displayOnce: true };
+export type IssuedApplicationAccessToken = { access_token: string; token_type: "Bearer"; expires_in: number; scope: string };
+
+function applicationHash(value: string): Buffer { return createHash("sha256").update(value, "utf8").digest(); }
+function applicationEqual(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength && timingSafeEqual(Buffer.from(left), Buffer.from(right));
+}
+function applicationTenant(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+function applicationTenantDecode(value: string): string | null {
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf8");
+    return decoded && applicationTenant(decoded) === value && decoded.trim() === decoded &&
+      decoded.length <= 200 && !/[\u0000-\u001f\u007f]/.test(decoded) ? decoded : null;
+  } catch { return null; }
+}
+function applicationSignature(key: Uint8Array, kind: "client" | "token", id: string, tenant: string): string {
+  return createHmac("sha256", key).update(`${kind}.${id}.${tenant}`, "utf8").digest("base64url");
+}
+function applicationStatusActive(record: { applicationStatus: string; developerStatus: string; tenantStatus: string }): boolean {
+  return record.applicationStatus === "active" && record.developerStatus === "active" && record.tenantStatus === "active";
+}
+
+export class ApplicationCredentialAuthenticationError extends Error {
+  constructor() { super("Application authentication failed."); this.name = "ApplicationCredentialAuthenticationError"; }
+}
+
+export class ApplicationCredentialService {
+  private readonly signingKey: Buffer;
+  constructor(
+    private readonly repository: ApplicationCredentialRepository | ((tenantId: string) => ApplicationCredentialRepository),
+    signingKey: Uint8Array,
+    private readonly now: () => Date = () => new Date(),
+    private readonly accessTokenTtlSeconds = 900
+  ) {
+    if (signingKey.byteLength < 32) throw new TypeError("Application signing key must contain at least 32 bytes.");
+    if (!Number.isSafeInteger(accessTokenTtlSeconds) || accessTokenTtlSeconds < 60 || accessTokenTtlSeconds > 3600) {
+      throw new TypeError("Application access token TTL must be between 60 and 3600 seconds.");
+    }
+    this.signingKey = Buffer.from(signingKey);
+  }
+
+  async create(input: { tenantId: string; userId: string; developerId: string; name: string }): Promise<IssuedApplicationCredentials> {
+    if (!input.tenantId || input.tenantId.trim() !== input.tenantId || input.tenantId.length > 200 ||
+        !input.userId || !input.developerId || !input.name.trim() || input.name.trim().length > 120) {
+      throw new TypeError("Invalid application creation request.");
+    }
+    const applicationId = randomBytes(18).toString("base64url");
+    const tenant = applicationTenant(input.tenantId);
+    const clientId = `al_client_${tenant}.${applicationId}.${applicationSignature(this.signingKey, "client", applicationId, tenant)}`;
+    const clientSecret = `al_secret_${randomBytes(32).toString("base64url")}`;
+    await this.repositoryFor(input.tenantId).insertApplication({
+      applicationId, tenantId: input.tenantId, userId: input.userId, developerId: input.developerId,
+      name: input.name.trim(), clientId, clientSecretHash: applicationHash(clientSecret)
+    });
+    return { applicationId, clientId, clientSecret, displayOnce: true };
+  }
+
+  async exchange(input: { clientId: string; clientSecret: string }): Promise<IssuedApplicationAccessToken> {
+    const parsed = /^al_client_([A-Za-z0-9_-]{1,267})\.([A-Za-z0-9_-]{24})\.([A-Za-z0-9_-]{43})$/.exec(input.clientId);
+    if (!parsed || typeof input.clientSecret !== "string" || !input.clientSecret.startsWith("al_secret_")) {
+      throw new ApplicationCredentialAuthenticationError();
+    }
+    const tenantId = applicationTenantDecode(parsed[1]!);
+    if (!tenantId || !applicationEqual(Buffer.from(parsed[3]!, "base64url"),
+      Buffer.from(applicationSignature(this.signingKey, "client", parsed[2]!, parsed[1]!), "base64url"))) {
+      throw new ApplicationCredentialAuthenticationError();
+    }
+    const repository = this.repositoryFor(tenantId);
+    const application = await repository.findApplication(parsed[2]!, tenantId);
+    if (!application || application.clientId !== input.clientId || !applicationStatusActive(application) ||
+        !applicationEqual(application.clientSecretHash, applicationHash(input.clientSecret))) {
+      throw new ApplicationCredentialAuthenticationError();
+    }
+    const tokenId = randomBytes(16).toString("base64url");
+    const secret = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(this.now().getTime() + this.accessTokenTtlSeconds * 1000);
+    const scopes = ["agents:manage"];
+    await repository.insertAccessToken({
+      tokenId, tenantId, applicationId: application.applicationId,
+      tokenHash: applicationHash(secret), scopes, expiresAt
+    });
+    const tenant = applicationTenant(tenantId);
+    const signature = applicationSignature(this.signingKey, "token", tokenId, tenant);
+    return {
+      access_token: `al_app_${tenant}.${tokenId}.${signature}.${secret}`,
+      token_type: "Bearer", expires_in: this.accessTokenTtlSeconds, scope: scopes.join(" ")
+    };
+  }
+
+  async authenticate(token: string): Promise<ApplicationPrincipal> {
+    const parsed = /^al_app_([A-Za-z0-9_-]{1,267})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/.exec(token);
+    if (!parsed) throw new ApplicationCredentialAuthenticationError();
+    const tenantId = applicationTenantDecode(parsed[1]!);
+    if (!tenantId || !applicationEqual(Buffer.from(parsed[3]!, "base64url"),
+      Buffer.from(applicationSignature(this.signingKey, "token", parsed[2]!, parsed[1]!), "base64url"))) {
+      throw new ApplicationCredentialAuthenticationError();
+    }
+    const repository = this.repositoryFor(tenantId);
+    const record = await repository.findAccessToken(parsed[2]!, tenantId);
+    if (!record || record.revokedAt || record.expiresAt.getTime() <= this.now().getTime() ||
+        !applicationStatusActive(record) || !applicationEqual(record.tokenHash, applicationHash(parsed[4]!))) {
+      throw new ApplicationCredentialAuthenticationError();
+    }
+    await repository.updateAccessTokenLastUsed(record.tokenId, tenantId, this.now());
+    return { tenantId, developerId: record.developerId,
+      applicationId: record.applicationId, tokenId: record.tokenId, scopes: record.scopes };
+  }
+
+  private repositoryFor(tenantId: string): ApplicationCredentialRepository {
+    return typeof this.repository === "function" ? this.repository(tenantId) : this.repository;
   }
 }
