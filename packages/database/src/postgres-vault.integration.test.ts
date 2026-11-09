@@ -8,12 +8,15 @@ import {
   tenants,
   users,
   connectedAccounts,
-  credentials,
+  credentials
+} from "./index.js";
+import {
+  CredentialDecryptionError,
+  EncryptedCredentialVault,
   type CredentialContext,
   type KeyManagementProvider,
   type WrappedDataKey
-} from "./index.js";
-import { CredentialDecryptionError, EncryptedCredentialVault } from "@agentlogin/vault";
+} from "@agentlogin/vault";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 
