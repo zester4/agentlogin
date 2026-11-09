@@ -59,7 +59,7 @@ export function userAuthenticationPlugin(app: FastifyInstance, options: { databa
     try {
       const { payload } = await jwtVerify(authorization.slice(7), verifier.jwks, {
         issuer: verifier.issuer, audience: verifier.audience,
-        algorithms: ["RS256", "ES256"], clockTolerance: 5, maxTokenAge: process.env.OIDC_MAX_TOKEN_AGE ?? "24h"
+        algorithms: ["RS256"], clockTolerance: 5, maxTokenAge: process.env.OIDC_MAX_TOKEN_AGE ?? "24h"
       });
       const identity = identityFromPayload(payload, verifier.tenantClaim);
       if (!identity) {
