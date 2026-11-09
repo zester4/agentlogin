@@ -103,3 +103,10 @@ export function verifyWorkerTicket(
     expiresAt: payload.exp as number, tokenId: payload.jti
   };
 }
+
+/** Strict decoder for a dedicated 32-byte base64url worker-ticket key. */
+export function decodeWorkerTicketSigningKey(encoded: string | undefined): Buffer | null {
+  if (!encoded || !/^[A-Za-z0-9_-]{43}$/.test(encoded)) return null;
+  const key = Buffer.from(encoded, "base64url");
+  return key.byteLength === 32 && key.toString("base64url") === encoded ? key : null;
+}
