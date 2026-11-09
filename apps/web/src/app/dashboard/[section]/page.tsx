@@ -6,6 +6,7 @@ import { ThemeToggle } from "../../theme-toggle";
 import { decideApproval } from "./actions";
 import { AgentSuspendControl } from "./agent-suspend-control";
 import { AgentCreateForm } from "./agent-create-form";
+import { GrantRevokeControl } from "./grant-revoke-control";
 
 const sections = {
   accounts: {
@@ -30,10 +31,10 @@ const sections = {
     label: "AGENT ACCESS", title: "Agent access",
     description: "See which accounts your AI agents can use and what they are allowed to do.",
     icon: "ticket" as const, number: "03",
-    state: "AGENT ACCESS COMING SOON",
+    state: "LIVE GRANT DIRECTORY",
     emptyTitle: "No AI agents have account access yet.",
     emptyBody: "When you allow an AI agent to use an account, you will be able to review and manage that permission here.",
-    next: "We are finishing the controls for managing agent access."
+    next: "Review, expire, and revoke each permission from this directory."
   },
   approvals: {
     label: "YOUR APPROVALS", title: "Requests waiting for you",
@@ -48,10 +49,10 @@ const sections = {
     label: "RECENT ACTIVITY", title: "Your activity",
     description: "A simple history of what your AI agents have done with your connected accounts.",
     icon: "activity" as const, number: "05",
-    state: "ACTIVITY HISTORY COMING SOON",
+    state: "LIVE AUDIT ACTIVITY",
     emptyTitle: "Your account activity will appear here.",
     emptyBody: "See when an AI agent uses an account, asks for permission, or loses access.",
-    next: "We are preparing your activity history."
+    next: "Only activity associated with your authenticated account and grants is shown."
   },
   security: {
     label: "YOUR SECURITY", title: "How we protect your accounts",
@@ -90,9 +91,11 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   const apiToken = apiTokenResult?.token;
   let accounts: Array<{ account_id: string; provider: string; origin: string; display_label: string; status: string; created_at: string }> = [];
   let agents: Array<{ agent_id: string; developer_id: string; developer_name: string; name: string; identity_type: string; status: string; created_at: string }> = [];
+  let grants: Array<{ grant_id: string; agent_id: string; agent_name: string; account_id: string; account_label: string; origin: string; scopes: string[]; task_id: string | null; issued_at: string; expires_at: string; revoked_at: string | null; approval_decision: string | null; decided_at: string | null }> = [];
+  let activity: Array<{ event_id: string; event_type: string; actor_type: string; decision: string | null; resource_ref: string | null; correlation_id: string | null; created_at: string }> = [];
   let approvals: Array<{ grantId: string; approvalId: string; agentId: string; agentName: string; accountId: string; accountLabel: string; origin: string; scopes: string[]; taskId: string | null; expiresAt: string; requestedAt: string }> = [];
   let liveDataError = !apiBase ? "We are still connecting your account information. Please try again soon." : !apiToken ? "We could not load your information just now. Please try again in a moment." : "";
-  if (apiToken && apiBase && (key === "accounts" || key === "approvals" || key === "agents")) {
+  if (apiToken && apiBase && (key === "accounts" || key === "approvals" || key === "agents" || key === "grants" || key === "activity")) {
     try {
       // Provisioning is idempotent: the API derives tenant and user identity
       // from the verified Auth0 token, never from browser-supplied identifiers.
@@ -112,7 +115,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
           ? "We are still finishing your account setup. Please try again soon."
           : "We could not finish setting up your account. Please try again in a moment.";
       } else {
-        const endpoint = key === "accounts" ? "/v1/connected-accounts" : key === "approvals" ? "/v1/grants/pending" : "/v1/agents";
+        const endpoint = key === "accounts" ? "/v1/connected-accounts" : key === "approvals" ? "/v1/grants/pending" : key === "agents" ? "/v1/agents" : key === "grants" ? "/v1/grants" : "/v1/activity";
         const response = await fetch(new URL(endpoint, apiBase), {
           headers: { Authorization: `Bearer ${apiToken}` },
           cache: "no-store"
@@ -121,10 +124,12 @@ export default async function DashboardSectionPage({ params }: { params: Promise
           ? "We are still finishing this part of AgentLogin. Please try again soon."
           : "We could not load this information. Please try again in a moment.";
         else {
-          const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals; agents?: typeof agents };
+          const payload = await response.json() as { accounts?: typeof accounts; pending?: typeof approvals; agents?: typeof agents; grants?: typeof grants; events?: typeof activity };
           if (key === "accounts") accounts = payload.accounts ?? [];
           else if (key === "approvals") approvals = payload.pending ?? [];
-          else agents = payload.agents ?? [];
+          else if (key === "agents") agents = payload.agents ?? [];
+          else if (key === "grants") grants = payload.grants ?? [];
+          else activity = payload.events ?? [];
         }
       }
     } catch {
@@ -194,6 +199,46 @@ export default async function DashboardSectionPage({ params }: { params: Promise
                 </article>
               ))}</div>
             ) : <p className="live-data-notice">{sections.agents.emptyTitle} {sections.agents.emptyBody}</p>}
+          </section>
+        ) : key === "grants" ? (
+          <section className="section-page-card live-data-card">
+            <div className="section-page-icon"><Icon name="ticket" /></div>
+            <span className="section-kicker">ACCOUNT PERMISSIONS</span>
+            <h2>Agent access grants</h2>
+            <p>Review each grant's agent, connected account, exact origin, approved scope, expiry and current decision. Revocation is confirmed before it is submitted.</p>
+            {liveDataError ? <p className="live-data-notice" role="status">{liveDataError}</p> : grants.length ? (
+              <div className="live-data-list">{grants.map((grant) => {
+                const expired = new Date(grant.expires_at).getTime() <= Date.now();
+                const status = grant.revoked_at ? "revoked" : expired ? "expired" : grant.approval_decision === "approved" ? "active" : grant.approval_decision === "denied" ? "denied" : "pending";
+                const revocable = !grant.revoked_at && !expired && grant.approval_decision !== "denied";
+                return (
+                  <article className="grant-row" key={grant.grant_id}>
+                    <div className="grant-row-head">
+                      <div><strong>{grant.agent_name}</strong><small>{grant.account_label} · {grant.origin}</small></div>
+                      <span className={status === "active" ? "live-status active" : "live-status"}>{status}</span>
+                    </div>
+                    <div className="approval-scopes">{grant.scopes.map((scope) => <span key={scope}>{scope}</span>)}</div>
+                    <small>Issued {new Date(grant.issued_at).toLocaleString()} · Expires {new Date(grant.expires_at).toLocaleString()}</small>
+                    {revocable ? <GrantRevokeControl grantId={grant.grant_id} /> : null}
+                  </article>
+                );
+              })}</div>
+            ) : <p className="live-data-notice">No access grants have been issued for your account.</p>}
+          </section>
+        ) : key === "activity" ? (
+          <section className="section-page-card live-data-card">
+            <div className="section-page-icon"><Icon name="activity" /></div>
+            <span className="section-kicker">AUDIT HISTORY</span>
+            <h2>Recent account activity</h2>
+            <p>Events are filtered to your authenticated user and grants owned by your account. Secret values and raw credential material are never included.</p>
+            {liveDataError ? <p className="live-data-notice" role="status">{liveDataError}</p> : activity.length ? (
+              <div className="live-data-list">{activity.map((event) => (
+                <article className="activity-row" key={event.event_id}>
+                  <div><strong>{event.event_type.replaceAll(".", " ")}</strong><small>{event.actor_type}{event.decision ? ` · ${event.decision}` : ""}</small></div>
+                  <small>{new Date(event.created_at).toLocaleString()}</small>
+                </article>
+              ))}</div>
+            ) : <p className="live-data-notice">No account activity has been recorded yet.</p>}
           </section>
         ) : key === "approvals" ? (
           <section className="section-page-card live-data-card">
