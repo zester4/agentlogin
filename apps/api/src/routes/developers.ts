@@ -13,6 +13,33 @@ const AgentBody = z.object({
 }).strict();
 
 export async function developerRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
+  app.get("/v1/agents", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const agents = await new PostgresDeveloperRepository(options.database, request.userPrincipal.tenantId)
+      .listManagedAgents(request.userPrincipal.userId);
+    return reply.send({
+      agents: agents.map((agent) => ({
+        agent_id: agent.agentId,
+        developer_id: agent.developerId,
+        developer_name: agent.developerName,
+        name: agent.name,
+        identity_type: agent.identityType,
+        status: agent.status,
+        created_at: agent.createdAt.toISOString()
+      }))
+    });
+  });
+
+  app.post("/v1/agents/:agentId/suspend", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const agentId = (request.params as { agentId: string }).agentId;
+    const repository = new PostgresDeveloperRepository(options.database, request.userPrincipal.tenantId);
+    const managed = await repository.getManagedAgent(request.userPrincipal.userId, agentId);
+    if (!managed) return reply.code(404).send({ error: { code: "agent_not_found", message: "The agent was not found." } });
+    await repository.suspendAgent(agentId);
+    return reply.send({ status: "suspended", agent_id: agentId });
+  });
+
   app.post("/v1/developers", { preHandler: app.authenticateUser }, async (request, reply) => {
     const parsed = DeveloperBody.safeParse(request.body);
     if (!parsed.success || !request.userPrincipal) {

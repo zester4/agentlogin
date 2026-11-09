@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { agentCredentials, agents, developerMemberships, developers } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
@@ -45,6 +45,36 @@ export class PostgresDeveloperRepository {
       });
     });
     return { agentId };
+  }
+
+  async listManagedAgents(userId: string) {
+    return withTenantTransaction(this.database, this.tenantId, async (tx) => {
+      return tx.select({
+        agentId: agents.id,
+        developerId: developers.id,
+        developerName: developers.name,
+        name: agents.name,
+        identityType: agents.identityType,
+        status: agents.status,
+        createdAt: agents.createdAt
+      }).from(agents)
+        .innerJoin(developerMemberships, and(
+          eq(agents.tenantId, developerMemberships.tenantId),
+          eq(agents.developerId, developerMemberships.developerId)
+        ))
+        .innerJoin(developers, and(
+          eq(agents.tenantId, developers.tenantId),
+          eq(agents.developerId, developers.id)
+        ))
+        .where(and(
+          eq(agents.tenantId, this.tenantId),
+          eq(developerMemberships.userId, userId),
+          eq(developerMemberships.status, "active"),
+          eq(developers.status, "active")
+        ))
+        .orderBy(desc(agents.createdAt))
+        .limit(100);
+    });
   }
 
   async getManagedAgent(userId: string, agentId: string): Promise<{ developerId: string } | null> {

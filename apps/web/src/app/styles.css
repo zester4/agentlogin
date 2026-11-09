@@ -399,3 +399,35 @@ html[data-theme="light"] .approval-row>p{color:#687064}
   .approval-actions form{flex:1}
   .approval-actions button{width:100%}
 }
+
+/* Agent directory actions */
+.agent-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.agent-row-actions form{margin:0}
+.agent-row-actions button{min-height:32px;padding:7px 10px;font:9px var(--mono);cursor:pointer}
+.agent-row-actions button:focus-visible{outline:2px solid var(--yellow);outline-offset:3px}
+@media(max-width:560px){.agent-row-actions{justify-content:flex-start}.agent-row-actions button{min-height:30px}}
+
+/* Agent registration and one-time credential display */
+.agent-create-panel{display:grid;gap:16px;margin:22px 0;padding:18px;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.agent-create-panel h3{margin:7px 0;color:var(--text);font-size:17px}
+.agent-create-panel p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+.agent-create-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.55fr) auto;align-items:end;gap:12px}
+.agent-create-form label{display:grid;gap:7px}
+.agent-create-form label span{color:var(--muted);font:9px var(--mono);letter-spacing:.1em}
+.agent-create-form input,.agent-create-form select{width:100%;min-height:39px;padding:9px 10px;border:1px solid var(--line);border-radius:2px;background:var(--panel);color:var(--text);font:12px var(--mono)}
+.agent-create-form button{min-height:39px;white-space:nowrap}
+.agent-create-form button:disabled{opacity:.55;cursor:wait}
+.agent-create-message{padding:12px;border:1px solid rgba(190,100,70,.4);color:#d78e72!important}
+.agent-token-once{display:grid;gap:10px;padding:15px;border:1px solid rgba(179,190,85,.4);background:rgba(179,190,85,.05)}
+.agent-token-once strong{color:var(--yellow);font:11px/1.5 var(--mono)}
+.agent-token-once small{color:var(--muted);font:10px/1.5 var(--mono);overflow-wrap:anywhere}
+.agent-token-once code{display:block;padding:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:11px/1.6 var(--mono);overflow-wrap:anywhere;user-select:all}
+.agent-token-once button{width:max-content;max-width:100%}
+.agent-token-once p{font-size:11px}
+html[data-theme="light"] .agent-create-panel{background:#fff;border-color:#dce0d6}
+html[data-theme="light"] .agent-create-panel h3{color:#171a15}
+html[data-theme="light"] .agent-create-panel p{color:#687064}
+html[data-theme="light"] .agent-create-form input,html[data-theme="light"] .agent-create-form select,html[data-theme="light"] .agent-token-once code{background:#fff;border-color:#dce0d6;color:#171a15}
+html[data-theme="light"] .agent-token-once{background:#f8f9f2;border-color:#dce0d6}
+@media(max-width:720px){.agent-create-form{grid-template-columns:1fr 1fr}.agent-create-form button{grid-column:1/-1}}
+@media(max-width:480px){.agent-create-form{grid-template-columns:1fr}.agent-create-form button{grid-column:auto}.agent-create-panel{padding:13px}}

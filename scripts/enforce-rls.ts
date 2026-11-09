@@ -1,11 +1,13 @@
 import "dotenv/config";
 import { Pool } from "pg";
+import { normalizePostgresSslMode } from "../packages/database/src/postgres-ssl.js";
 
 async function main(): Promise<void> {
-  const connectionString = process.env.DATABASE_URL_UNPOOLED;
-  if (!connectionString) {
+  const rawConnectionString = process.env.DATABASE_URL_UNPOOLED;
+  if (!rawConnectionString) {
     throw new Error("DATABASE_URL_UNPOOLED is required to enforce FORCE ROW LEVEL SECURITY.");
   }
+  const connectionString = normalizePostgresSslMode(rawConnectionString);
 
   const tables = [
     "tenants",
