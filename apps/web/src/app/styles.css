@@ -617,3 +617,6 @@ html[data-theme="light"] .application-secret-once{background:#f8f9f2;border-colo
  .application-secret-once code{grid-column:1}
  .application-list-row{align-items:flex-start;flex-direction:column}
 }
+
+.application-revoke-button{min-height:32px;padding:6px 10px;border:1px solid rgba(190,100,70,.38);border-radius:6px;background:transparent;color:#d78e72;font-size:10px;font-weight:600;cursor:pointer}
+.application-revoke-button:hover{background:rgba(190,100,70,.08);border-color:#d78e72}
