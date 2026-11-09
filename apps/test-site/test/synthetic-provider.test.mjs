@@ -86,6 +86,16 @@ describe("SyntheticHttpLoginProvider", () => {
     assert.equal(broker.calls, 0);
   });
 
+
+  it("rejects non-origin URLs before consuming a lease", async () => {
+    const broker = makeBroker({ email: "agentlogin-test@example.com", password: "agentlogin-synthetic-password" });
+    const provider = new SyntheticHttpLoginProvider({ baseUrl, leaseBroker: broker });
+    assert.deepEqual(await provider.executeLogin({ ...makeRequest(), expectedOrigin: baseUrl + "/" }), {
+      status: "login_failed", reasonCode: "unsupported_flow"
+    });
+    assert.equal(broker.calls, 0);
+  });
+
   it("refuses non-loopback and HTTPS targets", () => {
     const leaseBroker = makeBroker({});
     assert.throws(() => new SyntheticHttpLoginProvider({ baseUrl: "https://example.com", leaseBroker }));
