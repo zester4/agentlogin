@@ -114,6 +114,16 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 
 The 8-check lifecycle test verified the synthetic persistence/encryption lifecycle. It does not make the user-facing credential enrollment flow or real-customer credential acceptance production-ready.
 
+## Authenticated identity verification — dashboard integration
+
+- [x] After server-side first-use onboarding succeeds, call `GET /v1/user/me` with the same server-held Auth0 access token.
+- [x] Mark identity verified only when the API responds successfully with `authenticated: true`; keep tenant/user identifiers and the bearer token out of browser props and UI.
+- [x] Fail closed for the status indicator: missing API configuration, token, onboarding failure, API rejection, or network failure leaves the dashboard at “GETTING STARTED”.
+- [ ] Deploy this change and verify the production dashboard reaches “IDENTITY VERIFIED” after a fresh sign-in.
+- [ ] Run negative checks for missing tenant claim, wrong issuer/audience, expired token, inactive membership, and cross-tenant access. Do not use real website credentials.
+
+This consolidates the immediate Auth0 proof into one visible dashboard signal. It does not clear the broader credential-enrollment, KMS, browser-isolation, webhook, or independent-security release gates below.
+
 ## 2. Auth0 and user identity
 
 ### Completed in code / Auth0 console
