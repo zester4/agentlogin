@@ -17,6 +17,7 @@ const secondary = [
   { label: "Security", href: "/dashboard/security", icon: "shield" as const },
   { label: "Team & members", href: "/settings", icon: "users" as const },
   { label: "For developers", href: "/developers", icon: "code" as const },
+  { label: "Applications", href: "/dashboard/applications", icon: "key" as const },
 ];
 
 export function DashboardNavigation({ name, email }: { name: string; email: string }) {
