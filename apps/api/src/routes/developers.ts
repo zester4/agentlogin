@@ -51,7 +51,7 @@ export async function developerRoutes(app: FastifyInstance, options: { database:
         .createDeveloper({ userId: request.userPrincipal.userId, name: parsed.data.name });
       return reply.code(201).send({ developer_id: result.developerId });
     } catch {
-      return reply.code(403).send({ error: { code: "developer_creation_denied", message: "Developer workspace could not be created." } });
+      return reply.code(403).send({ error: { code: "developer_creation_denied", message: "Organization could not be created." } });
     }
   });
 
