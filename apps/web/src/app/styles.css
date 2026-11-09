@@ -431,3 +431,18 @@ html[data-theme="light"] .agent-create-form input,html[data-theme="light"] .agen
 html[data-theme="light"] .agent-token-once{background:#f8f9f2;border-color:#dce0d6}
 @media(max-width:720px){.agent-create-form{grid-template-columns:1fr 1fr}.agent-create-form button{grid-column:1/-1}}
 @media(max-width:480px){.agent-create-form{grid-template-columns:1fr}.agent-create-form button{grid-column:auto}.agent-create-panel{padding:13px}}
+
+/* Grant directory and audit activity */
+.grant-row{display:grid;gap:11px;padding:16px 18px;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.grant-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.grant-row-head>div,.activity-row>div{display:grid;gap:6px;min-width:0}
+.grant-row strong,.activity-row strong{color:var(--text);font-size:13px}
+.grant-row small,.activity-row small{color:var(--muted);font:10px/1.6 var(--mono);overflow-wrap:anywhere}
+.grant-row>.agent-suspend-confirm{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.grant-row .agent-suspend-confirm form{margin:0}
+.activity-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 17px;border:1px solid var(--line);background:rgba(255,255,255,.025)}
+.activity-row>small{text-align:right;white-space:nowrap}
+html[data-theme="light"] .grant-row,html[data-theme="light"] .activity-row{background:#fff;border-color:#dce0d6}
+html[data-theme="light"] .grant-row strong,html[data-theme="light"] .activity-row strong{color:#171a15}
+html[data-theme="light"] .grant-row small,html[data-theme="light"] .activity-row small{color:#687064}
+@media(max-width:560px){.grant-row{padding:13px}.grant-row-head{align-items:flex-start}.activity-row{align-items:flex-start;padding:13px}.activity-row>small{white-space:normal}}
