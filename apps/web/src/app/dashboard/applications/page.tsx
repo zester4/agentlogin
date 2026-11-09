@@ -4,6 +4,7 @@ import { DashboardNavigation } from "../dashboard-navigation";
 import { ThemeToggle } from "../../theme-toggle";
 import { Icon } from "../../ui-icon";
 import { ApplicationCreateForm } from "./application-create-form";
+import { ApplicationRevokeButton } from "./application-revoke-button";
 
 export const metadata = { title: "Developer applications" };
 
@@ -55,6 +56,7 @@ export default async function ApplicationsPage() {
             <article className="application-list-row" key={app.application_id}>
               <div><strong>{app.name}</strong><small>{app.client_id}</small></div>
               <span className="live-status active">{app.status}</span>
+              <ApplicationRevokeButton applicationId={app.application_id} />
             </article>
           ))}</div> : <div className="empty-state"><span className="empty-state-icon"><Icon name="code" /></span><strong>No applications yet</strong><p>Create an application above to get a client ID and one-time client secret.</p></div>}
         </section>
