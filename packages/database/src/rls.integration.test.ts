@@ -173,16 +173,52 @@ integration("PostgreSQL tenant RLS integration", () => {
           .toEqual([expectedRows[table]]);
       }
 
-      const crossTenantUpdate = await client.query(
-        "UPDATE public.users SET status = 'disabled' WHERE id = $1 RETURNING id",
-        [`rls-user-b-${suffix}`],
+      const tenantBRows: Record<string, string> = {
+        users: userB,
+        developers: `rls-developer-b-${suffix}`,
+        developer_memberships: `rls-membership-b-${suffix}`,
+        agents: `rls-agent-b-${suffix}`,
+        connected_accounts: `rls-account-b-${suffix}`,
+        credentials: `rls-credential-b-${suffix}`,
+        delegations: `rls-delegation-b-${suffix}`,
+        grants: `rls-grant-b-${suffix}`,
+        approvals: `rls-approval-b-${suffix}`,
+        executions: `rls-execution-b-${suffix}`,
+        audit_events: `rls-audit-b-${suffix}`,
+        agent_credentials: `rls-agent-credential-b-${suffix}`,
+        webhook_endpoints: `rls-endpoint-b-${suffix}`,
+        webhook_events: `rls-event-b-${suffix}`,
+        webhook_deliveries: `rls-delivery-b-${suffix}`,
+        webhook_delivery_attempts: `rls-attempt-b-${suffix}`,
+        webhook_delivery_queue: `rls-queue-b-${suffix}`,
+      };
+
+      // The queue is deliberately insert/select-only for the runtime role.
+      // Every other tenant table is checked for cross-tenant UPDATE and DELETE.
+      for (const table of tables.filter((name) => name !== "webhook_delivery_queue")) {
+        const blockedUpdate = await client.query(
+          `UPDATE public.${table} SET id = id WHERE id = $1 RETURNING id`,
+          [tenantBRows[table]],
+        );
+        expect(blockedUpdate.rowCount, `cross-tenant update in ${table}`).toBe(0);
+
+        const blockedDelete = await client.query(
+          `DELETE FROM public.${table} WHERE id = $1 RETURNING id`,
+          [tenantBRows[table]],
+        );
+        expect(blockedDelete.rowCount, `cross-tenant delete in ${table}`).toBe(0);
+      }
+
+      const blockedTenantUpdate = await client.query(
+        "UPDATE public.tenants SET name = name WHERE id = $1 RETURNING id",
+        [tenantB],
       );
-      expect(crossTenantUpdate.rowCount).toBe(0);
-      const crossTenantDelete = await client.query(
-        "DELETE FROM public.users WHERE id = $1 RETURNING id",
-        [`rls-user-b-${suffix}`],
+      expect(blockedTenantUpdate.rowCount).toBe(0);
+      const blockedTenantDelete = await client.query(
+        "DELETE FROM public.tenants WHERE id = $1 RETURNING id",
+        [tenantB],
       );
-      expect(crossTenantDelete.rowCount).toBe(0);
+      expect(blockedTenantDelete.rowCount).toBe(0);
 
       await client.query("SAVEPOINT cross_tenant_insert");
       await expect(
