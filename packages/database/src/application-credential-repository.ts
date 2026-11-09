@@ -3,7 +3,7 @@ import type { Database } from "./client.js";
 import { applicationAccessTokens, developerApplications, developerMemberships, developers, tenants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
-type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: string; developerStatus: string; tenantStatus: string };
+type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientId: string; clientSecretHash: Uint8Array; applicationStatus: string; developerStatus: string; tenantStatus: string };
 type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: string; developerStatus: string; tenantStatus: string };
 
 export class PostgresApplicationCredentialRepository {
@@ -58,7 +58,7 @@ export class PostgresApplicationCredentialRepository {
     return withTenantTransaction(this.database, this.tenantId, async (tx) => {
       const [row] = await tx.select({
         applicationId: developerApplications.id, tenantId: developerApplications.tenantId,
-        developerId: developerApplications.developerId, clientSecretHash: developerApplications.clientSecretHash,
+        clientId: developerApplications.clientId, developerId: developerApplications.developerId, clientSecretHash: developerApplications.clientSecretHash,
         applicationStatus: developerApplications.status, developerStatus: developers.status,
         tenantStatus: tenants.status
       }).from(developerApplications)
