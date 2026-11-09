@@ -57,9 +57,9 @@ export function DashboardNavigation({ name, email }: { name: string; email: stri
             aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}><Icon name={collapsed ? "panel-left-open" : "panel-left-close"} /></button>
           <button type="button" className="dashboard-mobile-close" aria-label="Close navigation" onClick={() => setMobileOpen(false)}><Icon name="x" /></button>
         </div>
-        <div className="dashboard-workspace"><span className="dashboard-workspace-mark">A</span><span><small>WORKSPACE</small><strong>Personal account</strong></span></div>
-        <span className="dashboard-nav-label">WORKSPACE</span>
-        {nav(primary, "Workspace navigation")}
+        <div className="dashboard-workspace"><span className="dashboard-workspace-mark">A</span><span><small>ORGANIZATION</small><strong>Personal account</strong></span></div>
+        <span className="dashboard-nav-label">ORGANIZATION</span>
+        {nav(primary, "Organization navigation")}
         <span className="dashboard-nav-label dashboard-settings-label">SETTINGS</span>
         {nav(secondary, "Settings navigation")}
         <div className="dashboard-sidebar-spacer" />
