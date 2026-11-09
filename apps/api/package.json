@@ -20,7 +20,8 @@
     "zod": "^4.1.12",
     "@agentlogin/identity": "workspace:*",
     "jose": "^6.1.3",
-    "@agentlogin/vault": "workspace:*"
+    "@agentlogin/vault": "workspace:*",
+    "@agentlogin/execution": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.18.6",

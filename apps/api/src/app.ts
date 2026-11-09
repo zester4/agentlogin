@@ -16,8 +16,9 @@ import { kmsDiagnosticRoutes } from "./routes/kms-diagnostic.js";
 import { vaultLifecycleDiagnosticRoutes } from "./routes/vault-lifecycle-diagnostic.js";
 import { applicationRoutes } from "./routes/applications.js";
 import { applicationAuthenticationPlugin } from "./plugins/application-auth.js";
+import { executionRoutes, type ExecutionCoordinatorFactory } from "./routes/executions.js";
 
-export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null }) {
+export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null; coordinatorForTenant?: ExecutionCoordinatorFactory }) {
   const app = Fastify({
     trustProxy: true,
     logger: {
@@ -54,6 +55,9 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     app.register(grantRoutes, { database: auth.database });
     app.register(delegationRoutes, { database: auth.database });
     app.register(activityRoutes, { database: auth.database });
+    if (auth.coordinatorForTenant) {
+      app.register(executionRoutes, { database: auth.database, coordinatorForTenant: auth.coordinatorForTenant });
+    }
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
   app.setErrorHandler((error, request, reply) => {
