@@ -399,3 +399,10 @@ html[data-theme="light"] .approval-row>p{color:#687064}
   .approval-actions form{flex:1}
   .approval-actions button{width:100%}
 }
+
+/* Agent directory actions */
+.agent-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.agent-row-actions form{margin:0}
+.agent-row-actions button{min-height:32px;padding:7px 10px;font:9px var(--mono);cursor:pointer}
+.agent-row-actions button:focus-visible{outline:2px solid var(--yellow);outline-offset:3px}
+@media(max-width:560px){.agent-row-actions{justify-content:flex-start}.agent-row-actions button{min-height:30px}}
