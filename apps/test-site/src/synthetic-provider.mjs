@@ -105,9 +105,66 @@ export class SyntheticHttpLoginProvider {
     }
   }
 
+  async completeMfa({ executionId, handoffRef, code }) {
+    if (typeof executionId !== "string" || typeof handoffRef !== "string" ||
+        typeof code !== "string" || code.length < 1 || code.length > 128) {
+      return { status: "login_failed", reasonCode: "challenge_detected" };
+    }
+
+    const handoff = this.handoffs.get(handoffRef);
+    if (!handoff) return { status: "login_failed", reasonCode: "challenge_detected" };
+    if (handoff.executionId !== executionId) {
+      return { status: "login_failed", reasonCode: "unsupported_flow" };
+    }
+    if (handoff.expiresAt.getTime() <= Date.now()) {
+      this.handoffs.delete(handoffRef);
+      return { status: "login_failed", reasonCode: "challenge_detected" };
+    }
+
+    // Consume the handoff before attempting MFA so it cannot be replayed,
+    // including after an incorrect code or a network failure.
+    this.handoffs.delete(handoffRef);
+    const timeoutMs = Math.max(1, Math.min(10_000, handoff.expiresAt.getTime() - Date.now()));
+    try {
+      const response = await this.fetchImpl(this.baseUrl + "/mfa", {
+        method: "POST", redirect: "manual",
+        headers: { "content-type": "application/x-www-form-urlencoded", cookie: handoff.sessionCookie },
+        body: new URLSearchParams({ code }),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+      if (response.status === 401) {
+        return { status: "login_failed", reasonCode: "challenge_detected" };
+      }
+      if (response.status !== 200 || response.headers.get("location")) {
+        return { status: "login_failed", reasonCode: "site_unavailable" };
+      }
+
+      const sessionResponse = await this.fetchImpl(this.baseUrl + "/session", {
+        method: "GET", redirect: "manual", headers: { cookie: handoff.sessionCookie },
+        signal: AbortSignal.timeout(Math.max(1, Math.min(5_000, handoff.expiresAt.getTime() - Date.now())))
+      });
+      if (!sessionResponse.ok) return { status: "login_failed", reasonCode: "site_unavailable" };
+      const session = await sessionResponse.json();
+      return session.authenticated === true
+        ? { status: "login_succeeded" }
+        : { status: "login_failed", reasonCode: "challenge_detected" };
+    } catch {
+      return { status: "login_failed", reasonCode: "site_unavailable" };
+    }
+  }
+
   async terminate(executionId) {
     for (const [ref, handoff] of this.handoffs) {
-      if (handoff.executionId === executionId) this.handoffs.delete(ref);
+      if (handoff.executionId !== executionId) continue;
+      this.handoffs.delete(ref);
+      try {
+        await this.fetchImpl(this.baseUrl + "/logout", {
+          method: "POST", redirect: "manual", headers: { cookie: handoff.sessionCookie },
+          signal: AbortSignal.timeout(2_000)
+        });
+      } catch {
+        // Best-effort cleanup; the synthetic session also has a short expiry.
+      }
     }
   }
 
