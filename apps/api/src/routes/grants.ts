@@ -9,6 +9,29 @@ const ApprovalBody = z.object({
 }).strict();
 
 export async function grantRoutes(app: FastifyInstance, options: { database: import("@agentlogin/database").Database }) {
+  app.get("/v1/grants", { preHandler: app.authenticateUser }, async (request, reply) => {
+    if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const grants = await new PostgresGrantRepository(options.database, request.userPrincipal.tenantId)
+      .listForUser(request.userPrincipal.userId);
+    return reply.send({
+      grants: grants.map((grant) => ({
+        grant_id: grant.grantId,
+        agent_id: grant.agentId,
+        agent_name: grant.agentName,
+        account_id: grant.accountId,
+        account_label: grant.accountLabel,
+        origin: grant.origin,
+        scopes: grant.scopes,
+        task_id: grant.taskId,
+        issued_at: grant.issuedAt.toISOString(),
+        expires_at: grant.expiresAt.toISOString(),
+        revoked_at: grant.revokedAt?.toISOString() ?? null,
+        approval_decision: grant.approvalDecision,
+        decided_at: grant.decidedAt?.toISOString() ?? null
+      }))
+    });
+  });
+
   app.get("/v1/grants/pending", { preHandler: app.authenticateUser }, async (request, reply) => {
     if (!request.userPrincipal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
     const repository = new PostgresGrantRepository(options.database, request.userPrincipal.tenantId);
