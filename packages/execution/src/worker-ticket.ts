@@ -66,8 +66,14 @@ export function verifyWorkerTicket(
   if (parts.length !== 3 || parts.some((part) => !/^[A-Za-z0-9_-]+$/.test(part))) {
     throw new TypeError("Invalid worker ticket.");
   }
-  const signingInput = parts[0] + "." + parts[1];
-  const supplied = Buffer.from(parts[2], "base64url");
+  const encodedHeader = parts[0];
+  const encodedPayload = parts[1];
+  const encodedSignature = parts[2];
+  if (!encodedHeader || !encodedPayload || !encodedSignature) {
+    throw new TypeError("Invalid worker ticket.");
+  }
+  const signingInput = encodedHeader + "." + encodedPayload;
+  const supplied = Buffer.from(encodedSignature, "base64url");
   const expected = signature(signingInput, key);
   if (supplied.byteLength !== expected.byteLength || !timingSafeEqual(supplied, expected)) {
     throw new TypeError("Invalid worker ticket.");
