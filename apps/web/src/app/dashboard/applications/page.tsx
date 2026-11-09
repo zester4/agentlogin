@@ -59,7 +59,7 @@ export default async function ApplicationsPage() {
           ))}</div> : <div className="empty-state"><span className="empty-state-icon"><Icon name="code" /></span><strong>No applications yet</strong><p>Create an application above to get a client ID and one-time client secret.</p></div>}
         </section>
         <section className="workspace-security-strip">
-          <div><span className="section-kicker">SECURITY</span><h3>Keep application secrets on your server.</h3><p>Never place client secrets in browser code, prompts, source control, or client-side mobile applications. Rotate or revoke leaked credentials immediately.</p></div>
+          <div><span className="section-kicker">SECURITY</span><h3>Keep application secrets on your server.</h3><p>Never place client secrets in browser code, prompts, source control, or client-side mobile applications. Do not distribute credentials until rotation and revocation controls are available. Treat any exposed client secret as compromised.</p></div>
         </section>
       </section>
     </main>
