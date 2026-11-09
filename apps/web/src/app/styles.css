@@ -571,3 +571,7 @@ html[data-theme="light"] .dashboard-mobile-menu{background:#fff;color:#222}
  .dashboard-mobile-menu{position:fixed;top:10px;left:12px;z-index:80;box-shadow:0 2px 10px rgba(0,0,0,.12)}
  .workspace-topbar{padding-left:43px}
 }
+
+.workspace-shell-v2:has(> .dashboard-sidebar.is-collapsed){grid-template-columns:76px minmax(0,1fr)}
+@media(max-width:900px){.workspace-shell-v2:has(> .dashboard-sidebar){grid-template-columns:76px minmax(0,1fr)}}
+@media(max-width:680px){.workspace-shell-v2:has(> .dashboard-sidebar){display:block}}
