@@ -60,7 +60,7 @@ describe("internal credential broker boundary", () => {
     });
     const invalid = await app.inject({
       method: "POST", url: "/internal/v1/credential-leases/consume",
-      headers: { authorization: "Bearer " + ticket.slice(0, -1) + "x" },
+      headers: { authorization: "Bearer " + (ticket.slice(0, -1) + (ticket.endsWith("x") ? "y" : "x")) },
       payload: { lease_id: binding.leaseId, token: "A".repeat(43) }
     });
     const mismatch = await app.inject({
