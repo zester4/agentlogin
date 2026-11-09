@@ -71,6 +71,13 @@
       "when": 1794240000000,
       "tag": "0009_developer_application_oauth",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794241000000,
+      "tag": "0010_one_time_credential_leases",
+      "breakpoints": true
     }
   ]
 }
