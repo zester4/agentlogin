@@ -114,7 +114,7 @@ describe("AgentLoginApplicationClient", () => {
   it("caches a short-lived application token across agent registrations", async () => {
     const fetcher = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "al_app_cached", token_type: "Bearer", expires_in: 900 }), { status: 200 }))
-      .mockResolvedValue(new Response(JSON.stringify({
+      .mockImplementation(async () => new Response(JSON.stringify({
         agent_id: "agt_new", credential: { token: "al_agent_once", expires_at: "2026-11-10T00:00:00.000Z", display_once: true }
       }), { status: 201 }));
     const client = new AgentLoginApplicationClient({ baseUrl: "https://api.agentlogin.test", clientId: "al_client_x", clientSecret: "al_secret_y", fetch: fetcher });
