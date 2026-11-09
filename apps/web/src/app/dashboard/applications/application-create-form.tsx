@@ -12,11 +12,10 @@ export function ApplicationCreateForm() {
       <div>
         <span className="section-kicker">NEW INTEGRATION</span>
         <h2>Create application credentials</h2>
-        <p>Use these credentials on your trusted backend to authenticate with AgentLogin and register agents. The client secret is shown only once.</p>
+        <p>Use these credentials on your trusted backend to connect your organization to AgentLogin and register agents. The client secret is shown only once.</p>
       </div>
       <form action={action} className="application-create-form">
         <label><span>APPLICATION NAME</span><input name="application_name" required maxLength={120} placeholder="e.g. Customer support agent" /></label>
-        <label><span>WORKSPACE NAME (ONLY IF NEW)</span><input name="workspace_name" maxLength={120} placeholder="My developer workspace" /></label>
         <button className="button button-light" type="submit" disabled={pending}>{pending ? "CREATING…" : "Create credentials"}</button>
       </form>
       {state.error ? <p className="application-error" role="alert">{state.error}</p> : null}
