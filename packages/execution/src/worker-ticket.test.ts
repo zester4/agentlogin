@@ -15,8 +15,16 @@ describe("short-lived worker tickets", () => {
 
   it("rejects tampering and a different signing key", () => {
     const token = createWorkerTicket(binding, key, { now });
-    const [header, payload, sig] = token.split(".");
-    expect(() => verifyWorkerTicket(header + "." + payload + "." + (sig[0] === "A" ? "B" : "A") + sig.slice(1), key, { now })).toThrow();
+    const parts = token.split(".");
+    const header = parts[0];
+    const payload = parts[1];
+    const sig = parts[2];
+    expect(header).toBeDefined();
+    expect(payload).toBeDefined();
+    expect(sig).toBeDefined();
+    if (!header || !payload || !sig) throw new Error("Expected a three-part signed ticket.");
+    const alteredSignature = (sig[0] === "A" ? "B" : "A") + sig.slice(1);
+    expect(() => verifyWorkerTicket(header + "." + payload + "." + alteredSignature, key, { now })).toThrow();
     expect(() => verifyWorkerTicket(token, Buffer.alloc(32, 8), { now })).toThrow();
   });
 
