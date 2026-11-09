@@ -17,8 +17,9 @@ import { vaultLifecycleDiagnosticRoutes } from "./routes/vault-lifecycle-diagnos
 import { applicationRoutes } from "./routes/applications.js";
 import { applicationAuthenticationPlugin } from "./plugins/application-auth.js";
 import { executionRoutes, type ExecutionCoordinatorFactory } from "./routes/executions.js";
+import { credentialBrokerRoutes } from "./routes/credential-broker.js";
 
-export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null; coordinatorForTenant?: ExecutionCoordinatorFactory }) {
+export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null; coordinatorForTenant?: ExecutionCoordinatorFactory; workerTicketSigningKey?: Uint8Array | null }) {
   const app = Fastify({
     trustProxy: true,
     logger: {
@@ -57,6 +58,10 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     app.register(activityRoutes, { database: auth.database });
     if (auth.coordinatorForTenant) {
       app.register(executionRoutes, { database: auth.database, coordinatorForTenant: auth.coordinatorForTenant });
+    }
+    // Keep the internal broker absent unless its dedicated worker key is configured.
+    if (auth.workerTicketSigningKey) {
+      app.register(credentialBrokerRoutes, { database: auth.database, signingKey: auth.workerTicketSigningKey });
     }
   }
   if (pool) app.addHook("onClose", async () => { await pool.end(); });
