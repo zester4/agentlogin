@@ -80,6 +80,15 @@ PR: [#31 — Refresh AgentLogin docs and complete first-use dashboard onboarding
 - [ ] Complete dashboard SSE invalidation stream, cursor recovery, reconnect/backoff, and polling fallback.
 - [ ] Complete HMAC, stale timestamp, DNS rebinding/private-IP, retries, lease recovery, replay, redaction, and end-to-end delivery tests before enabling the worker.
 
+## Credential enrollment release gate — server-side lock added
+
+- [x] Add a fail-closed API release gate to both `POST /v1/connected-accounts` and credential rotation. Both return HTTP 423 with `credential_enrollment_locked` unless the API process has `CREDENTIAL_ENROLLMENT_ENABLED=true`.
+- [x] Add unit tests proving the gate requires the exact string `true`; missing, malformed, and false values remain locked.
+- [ ] Keep `CREDENTIAL_ENROLLMENT_ENABLED` unset/false in Railway production. Do not enable it until every release gate in issue #51 is verified and independently approved.
+- [ ] Add authenticated route-level tests proving credential writes do not create accounts or invoke KMS while the gate is locked.
+
+This is a defense-in-depth API control. Hiding or disabling the dashboard form is not a security boundary; the API must reject credential writes independently.
+
 ## Current follow-up work
 
 The dashboard onboarding change uses the Auth0 access token only on the Next.js server. The API derives tenant and user identity from the signed token; the browser does not supply tenant/user IDs. The onboarding repository uses a transaction lock and reuses an existing active membership.
