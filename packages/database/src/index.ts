@@ -12,3 +12,4 @@ export * from "./developer-repository.js";
 export * from "./connected-account-repository.js";
 export * from "./delegation-repository.js";
 export * from "./webhook-repository.js";
+export * from "./application-credential-repository.js";
