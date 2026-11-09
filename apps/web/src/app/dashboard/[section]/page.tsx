@@ -5,6 +5,7 @@ import { Icon } from "../../ui-icon";
 import { ThemeToggle } from "../../theme-toggle";
 import { decideApproval } from "./actions";
 import { AgentSuspendControl } from "./agent-suspend-control";
+import { AgentCreateForm } from "./agent-create-form";
 
 const sections = {
   accounts: {
@@ -177,6 +178,7 @@ export default async function DashboardSectionPage({ params }: { params: Promise
             <span className="section-kicker">REGISTERED AGENTS</span>
             <h2>Agent directory</h2>
             <p>Review the agents registered in your developer workspace. Only identity and lifecycle metadata is displayed; agent tokens are never returned by this directory.</p>
+            <AgentCreateForm />
             {liveDataError ? <p className="live-data-notice" role="status">{liveDataError}</p> : agents.length ? (
               <div className="live-data-list">{agents.map((agent) => (
                 <article className="live-data-row" key={agent.agent_id}>
