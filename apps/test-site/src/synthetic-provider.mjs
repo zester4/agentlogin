@@ -31,7 +31,7 @@ export class SyntheticHttpLoginProvider {
 
   async executeLogin(request) {
     const target = new URL(request.expectedOrigin);
-    if (target.origin !== this.baseUrl || target.href !== request.expectedOrigin ||
+    if (target.origin !== this.baseUrl || target.origin !== request.expectedOrigin ||
         request.deadline.getTime() <= Date.now()) {
       return { status: "login_failed", reasonCode: "unsupported_flow" };
     }
