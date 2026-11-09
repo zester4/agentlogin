@@ -566,3 +566,8 @@ html[data-theme="light"] .dashboard-nav-link:hover{background:#f2f4ed;color:#202
 html[data-theme="light"] .dashboard-nav-link.active{background:#f0f1e5;color:#25291e}
 html[data-theme="light"] .dashboard-profile{border-color:#e2e5dc}
 html[data-theme="light"] .dashboard-mobile-menu{background:#fff;color:#222}
+
+@media(max-width:680px){
+ .dashboard-mobile-menu{position:fixed;top:10px;left:12px;z-index:80;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+ .workspace-topbar{padding-left:43px}
+}
