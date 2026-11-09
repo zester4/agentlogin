@@ -106,7 +106,9 @@ The dashboard onboarding change uses the Auth0 access token only on the Next.js 
 
 ### Still to do
 - [x] Ran the live synthetic Neon + KMS vault lifecycle test; all 8 checks passed. Synthetic records and temporary diagnostic variables were removed, and the temporary diagnostic endpoint returns 404.
-- [ ] Verify wrong/unrelated KMS key denial and KMS outage/failure behavior.
+- [ ] Verify wrong/unrelated KMS key denial against the live AWS KMS key and KMS outage/failure behavior in the production-like environment.
+- [ ] Review CloudTrail for the expected principal and KMS operations; confirm no plaintext credential or DEK appears in logs.
+- [x] Add deterministic AWS KMS adapter unit tests for saved-key-ARN binding, unrelated-key rejection behavior, and Encrypt/Decrypt outage propagation (CI verification pending).
 - [ ] Review CloudTrail for the expected principal and KMS operations; confirm no plaintext credential or DEK appears in logs.
 - [ ] Document and test IAM access-key rotation, KMS key recovery, backup/restore, and incident response.
 
