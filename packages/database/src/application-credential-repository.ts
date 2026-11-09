@@ -3,8 +3,8 @@ import type { Database } from "./client.js";
 import { applicationAccessTokens, developerApplications, developerMemberships, developers, tenants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
 
-type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: string; developerStatus: string; tenantStatus: "active" | "suspended" | "closed" };
-type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: string; developerStatus: string; tenantStatus: "active" | "suspended" | "closed" };
+type DeveloperApplicationRecord = { applicationId: string; tenantId: string; developerId: string; clientSecretHash: Uint8Array; applicationStatus: string; developerStatus: string; tenantStatus: string };
+type ApplicationAccessTokenRecord = { tokenId: string; tenantId: string; applicationId: string; developerId: string; tokenHash: Uint8Array; scopes: string[]; expiresAt: Date; revokedAt: Date | null; applicationStatus: string; developerStatus: string; tenantStatus: string };
 
 export class PostgresApplicationCredentialRepository {
   constructor(private readonly database: Database, private readonly tenantId: string) {
