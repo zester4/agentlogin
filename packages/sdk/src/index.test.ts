@@ -205,3 +205,18 @@ describe("AgentLoginDeveloperClient", () => {
     expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
     expect(String(fetcher.mock.calls[0]?.[0])).toContain("/webhook-deliveries/whdel_1/replay");
   });
+
+  it("queues a signed test event for an active endpoint", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      event_id: "whev_test", delivery_id: "whdel_test", status: "pending",
+      message: "The signed test event has been queued; delivery is asynchronous."
+    }), { status: 202 }));
+    const client = new AgentLoginDeveloperClient({
+      baseUrl: "https://api.agentlogin.test",
+      accessTokenProvider: () => "oidc-user-token",
+      fetch: fetcher
+    });
+    const result = await client.testWebhookEndpoint("dev_123", "whend_123");
+    expect(result.status).toBe("pending");
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("/webhook-endpoints/whend_123/test");
+  });
