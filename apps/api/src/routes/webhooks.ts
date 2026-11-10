@@ -184,6 +184,51 @@ export async function webhookEndpointRoutes(
     });
   });
 
+  app.post("/v1/developers/:developerId/webhook-endpoints/:endpointId/test", {
+    preHandler: app.authenticateUser,
+  }, async (request, reply) => {
+    if (!webhookFeatureEnabled()) {
+      return reply.code(423).send({ error: { code: "webhook_endpoint_management_locked", message: "Webhook endpoint management is not enabled yet." } });
+    }
+    const principal = request.userPrincipal;
+    if (!principal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const { developerId, endpointId: id } = request.params as { developerId: string; endpointId: string };
+    if (!(await managedDeveloper(options.database, principal.tenantId, principal.userId, developerId))) {
+      return reply.code(404).send({ error: { code: "webhook_endpoint_not_found", message: "The webhook endpoint was not found." } });
+    }
+    const result = await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
+      const [endpoint] = await tx.select({ id: webhookEndpoints.id })
+        .from(webhookEndpoints)
+        .where(and(
+          eq(webhookEndpoints.tenantId, principal.tenantId),
+          eq(webhookEndpoints.developerId, developerId),
+          eq(webhookEndpoints.id, id),
+          eq(webhookEndpoints.status, "active"),
+        ))
+        .for("update");
+      if (!endpoint) return null;
+      const eventId = "whev_" + randomBytes(18).toString("base64url");
+      const deliveryId = "whdel_" + randomBytes(18).toString("base64url");
+      await tx.insert(webhookEvents).values({
+        id: eventId, tenantId: principal.tenantId, eventType: "webhook.test",
+        resourceType: "webhook_endpoint", resourceId: id,
+        occurredAt: new Date(), payload: { test: true },
+      });
+      await tx.insert(webhookDeliveries).values({
+        id: deliveryId, tenantId: principal.tenantId, endpointId: id, eventId,
+      });
+      await tx.insert(webhookDeliveryQueue).values({
+        id: randomBytes(18).toString("base64url"), tenantId: principal.tenantId, deliveryId,
+        availableAt: new Date(),
+      });
+      return { eventId, deliveryId };
+    });
+    if (!result) return reply.code(404).send({ error: { code: "webhook_endpoint_not_found", message: "The active webhook endpoint was not found." } });
+    return reply.code(202).send({
+      event_id: result.eventId, delivery_id: result.deliveryId, status: "pending",
+      message: "The signed test event has been queued; delivery is asynchronous.",
+    });
+  });
   app.post("/v1/developers/:developerId/webhook-deliveries/:deliveryId/replay", {
     preHandler: app.authenticateUser,
   }, async (request, reply) => {
