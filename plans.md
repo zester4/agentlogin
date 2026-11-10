@@ -595,3 +595,31 @@ This section reflects the current `main` implementation plus the active integrat
 6. Run cross-tenant, membership, replay, expiry, revocation, concurrency, and secret-leak tests; complete independent security review.
 
 No production website password, OAuth token, cookie, or API key should be entered until all production credential gates are passed.
+
+
+## 8C. Production hardening update — 10 November 2026
+
+This update supersedes earlier deployment and KMS notes where they conflict. It records the latest directly observed production state; a healthy deployment is not equivalent to production credential-execution acceptance.
+
+### Verified in this pass
+
+- Railway production reports all five services online with one running replica each and zero active warnings/critical alerts or recent failures. The API deployment on commit `5b582bd431721aef781231e70861e62b51176191` reached `SUCCESS`.
+- API runtime logs explicitly report: `Login execution routes are disabled: configure AGENTLOGIN_WORKER_URL and a valid AGENTLOGIN_WORKER_TICKET_SIGNING_KEY.` The API `/health` check returned HTTP 200. This runtime log—not variable-name presence—is the evidence that the route is currently disabled.
+- The user-run live AWS KMS permission probe passed: allowed `website_login` decrypt succeeded with synthetic fixture material; wrong-purpose decrypt was denied; Encrypt, GenerateDataKey and GenerateDataKeyWithoutPlaintext were denied. The reported caller was IAM user `agentlogin-vault-service`. This proves that caller's tested policy path, not that the deployed isolated worker uses a separate, dedicated identity.
+- Connected directly to Neon as `agentlogin_worker` for read-only inspection. The role is not superuser, does not have `BYPASSRLS`, cannot create roles or databases, and has only column-level SELECT grants on the credential-envelope columns and `connected_accounts(id, tenant_id, status)`.
+- The `credentials` and `connected_accounts` tables both have RLS and FORCE RLS enabled. As `agentlogin_worker`, INSERT/UPDATE/DELETE on credentials and SELECT on grants/credential leases are denied. With no tenant context, the role sees zero credential and connected-account rows.
+- PR #104's worker-specific integration test and CI evidence remain recorded in `track.md`: it exercises two synthetic tenants, missing-tenant fail-closed behavior, exact grants, read-only restrictions and tenant A/B isolation.
+- The API's temporary KMS fixture variables `AWS_KMS_TEST_CIPHERTEXT_B64` and `AWS_KMS_TEST_PLAINTEXT` were overwritten with empty values in Railway to neutralize any leftover fixture content. Railway's available variable action does not delete the names; verify the new API deployment before treating cleanup as live.
+- Credential enrollment remains unconfigured/disabled. Do not enroll real credentials.
+
+### Still blocking production login acceptance
+
+1. Verify the new API deployment after the KMS-fixture-variable cleanup and retain the startup log proving execution routes remain disabled.
+2. Prove the deployed login worker uses a dedicated AWS principal distinct from the API principal. The local KMS test's caller identity is not sufficient evidence of worker runtime identity. Verify the worker's effective KMS key policy and decrypt-only/context restrictions, including unrelated-key and administrative-action denial.
+3. Recheck a live `agentlogin_worker` connection from the deployed worker after its latest restart. A direct Neon login as that role proves the role and grants work, but an empty current `pg_stat_activity` result does not prove the Railway process is presently connected.
+4. Run tenant A/B RLS tests with synthetic fixtures in a disposable database or controlled rollback-only transaction; do not seed production user data.
+5. Verify API-to-worker private connectivity and invalid-ticket rejection from trusted service runtimes; then run synthetic one-time lease execution only in a controlled non-production fixture.
+6. Provision a public-DNS HTTPS synthetic login fixture and run success, invalid-password, MFA-challenge and negative origin/redirect/SSRF/replay/revocation/timeout tests. MFA resume remains unsupported.
+7. Complete independent security review, rollback evidence, and operational recovery before any real credential enrollment.
+
+**Release rule:** keep login execution routes and credential enrollment disabled until every gate above has evidence. Never treat Railway health, deployment success, KMS success under a different principal, or role-level SQL checks in isolation as end-to-end acceptance.
