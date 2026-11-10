@@ -67,6 +67,9 @@ function isPrivateIpv4(address: string): boolean {
 }
 
 async function resolvePublicIpv4(hostname: string): Promise<string> {
+  if (process.env.NODE_ENV !== "production" && ["127.0.0.1", "localhost"].includes(hostname)) {
+    return "127.0.0.1";
+  }
   if (isIP(hostname) === 4) {
     if (isPrivateIpv4(hostname)) throw new Error("private_target_blocked");
     return hostname;
@@ -104,7 +107,13 @@ function parseApiUrl(value: string): URL {
 }
 
 function decodeCredentials(secret: Uint8Array): Credentials {
-  const parsed: unknown = JSON.parse(Buffer.from(secret).toString("utf8"));
+  const copy = Buffer.from(secret);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(copy.toString("utf8"));
+  } finally {
+    copy.fill(0);
+  }
   if (!parsed || typeof parsed !== "object") throw new Error("invalid_credential_record");
   const value = parsed as Record<string, unknown>;
   if (typeof value.username !== "string" || !value.username ||
