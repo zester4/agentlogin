@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { isIP } from "node:net";
 import type { FastifyInstance } from "fastify";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -32,8 +33,11 @@ const UpdateEndpointBody = z.object({
 
 export function normalizeWebhookUrl(value: string): string {
   const parsed = new URL(value);
+  const hostname = parsed.hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
+  const localHostname = hostname === "localhost" || hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") || hostname.endsWith(".internal") || hostname === "metadata.google.internal";
   if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
-      parsed.hash || parsed.hostname.endsWith(".") ||
+      parsed.hash || parsed.hostname.endsWith(".") || isIP(hostname) !== 0 || localHostname ||
       (parsed.port && parsed.port !== "443")) {
     throw new TypeError("Webhook destinations must be credential-free HTTPS URLs on port 443.");
   }
