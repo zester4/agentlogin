@@ -8,7 +8,7 @@ Publish in this order:
 1. @agentlogin/contracts — shared Zod schemas and TypeScript types.
 2. @agentlogin/sdk — server-side TypeScript client; depends on the contracts package.
 
-Both packages currently declare version 0.2.0, ESM exports, declaration output, dist-only package contents, and public npm access. The SDK uses the workspace:^ dependency protocol; pnpm publish must rewrite this to a registry-compatible semver dependency in the packed manifest.
+Both packages currently declare version 0.2.0, ESM exports, declaration output, explicit dist/README/LICENSE package contents, and public npm access. The SDK uses the workspace:^ dependency protocol; pnpm publish must rewrite this to a registry-compatible semver dependency in the packed manifest.
 
 ## Release prerequisites
 
@@ -22,7 +22,7 @@ Both packages currently declare version 0.2.0, ESM exports, declaration output, 
 
 ## Automated release
 
-.github/workflows/publish-sdk.yml supports manual dispatch and sdk-v* tags. It builds and tests the workspace, publishes contracts first and SDK second using the NPM_TOKEN Actions secret, and requires the secret to exist. A successful workflow is required before announcing the packages.
+.github/workflows/publish-sdk.yml supports manual dispatch and sdk-v* tags. It validates the version against both manifests, installs the workspace without relying on a lockfile that is not committed, runs the full build/lint/typecheck/test suite, inspects both tarballs, checks NPM_TOKEN via npm whoami, publishes contracts before the SDK, verifies a clean consumer install, and creates the matching GitHub Release. Existing immutable npm versions are not overwritten.
 
 Suggested first tag after the release gate: sdk-v0.2.0.
 
@@ -55,4 +55,4 @@ Grant mutations are not automatically retried. Do not add retry-on-POST until se
 - [ ] Publish contracts package.
 - [ ] Publish SDK package.
 - [ ] Verify npm registry metadata and install exact versions in a clean project.
-- [ ] Create GitHub release with changelog, compatibility notes, and docs links.
+- [ ] Confirm the workflow-created GitHub Release has the expected tag, package links, and release notes.
