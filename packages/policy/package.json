@@ -16,6 +16,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agentlogin/contracts": "workspace:*"
+    "@agent-login/contracts": "workspace:*"
   }
 }
