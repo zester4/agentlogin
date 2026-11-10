@@ -3,20 +3,24 @@ import { and, asc, desc, eq, gt, or, sql } from "drizzle-orm";
 import { auditEvents, grants, withTenantTransaction, type Database } from "@agentlogin/database";
 
 
-type ActivityCursor = { at: Date; id: string };
+type ActivityCursor = { at: string; id: string };
 
-export function encodeActivityCursor(at: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ at: at.toISOString(), id }), "utf8").toString("base64url");
+export function encodeActivityCursor(at: string, id: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(at) ||
+      !Number.isFinite(Date.parse(at)) || !id || id.length > 200) {
+    throw new TypeError("Invalid activity cursor.");
+  }
+  return Buffer.from(JSON.stringify({ at, id }), "utf8").toString("base64url");
 }
 
 export function decodeActivityCursor(value: string): ActivityCursor | null {
   try {
     if (!value || value.length > 512) return null;
     const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as { at?: unknown; id?: unknown };
-    if (typeof parsed.at !== "string" || typeof parsed.id !== "string" || !parsed.id || parsed.id.length > 200) return null;
-    const at = new Date(parsed.at);
-    if (!Number.isFinite(at.getTime()) || at.toISOString() !== parsed.at) return null;
-    return { at, id: parsed.id };
+    if (typeof parsed.at !== "string" || typeof parsed.id !== "string" || !parsed.id || parsed.id.length > 200 ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(parsed.at) ||
+        !Number.isFinite(Date.parse(parsed.at))) return null;
+    return { at: parsed.at, id: parsed.id };
   } catch {
     return null;
   }
@@ -38,7 +42,7 @@ export async function activityRoutes(app: FastifyInstance, options: { database: 
     // server render and EventSource connection. Duplicate invalidations are safe.
     let cursor = headerCursor
       ? decodeActivityCursor(headerCursor)!
-      : { at: new Date(Date.now() - 60_000), id: "" };
+      : { at: new Date(Date.now() - 60_000).toISOString(), id: "" };
 
     reply.hijack();
     reply.raw.writeHead(200, {
