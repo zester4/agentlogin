@@ -22,7 +22,7 @@ Merged and deployed foundations:
 Still incomplete:
 - Confirm every intended domain state transition writes its event in the same transaction.
 - Implement secret rotation/overlap and complete the developer API/SDK lifecycle. Initial create/list/update/disable, queued test-event, read-only delivery/attempt history, replay, and typed SDK helpers are implemented; endpoint mutations, test-event enqueue, and replay require `WEBHOOK_ENDPOINTS_ENABLED=true`, which is absent/disabled by default. No production variable was changed.
-- Implement dashboard SSE invalidation, cursor recovery, reconnect/backoff, and bounded polling fallback.
+- Complete dashboard SSE verification. An authenticated `/v1/activity/stream` emits generic invalidations with a timestamp/ID cursor; the Next.js dashboard proxies it through the server-side Auth0 session, reconnects with cursor recovery/backoff, and uses bounded polling fallback.
 - Complete production-like end-to-end delivery and adversarial tests before enabling the worker.
 
 ## Event flow
@@ -97,7 +97,7 @@ The dashboard should expose endpoint setup, one-time secret reveal, event select
 2. Transactional event emitter — repository primitive exists; verify integration into every intended domain transition.
 3. Delivery worker — implemented and deployed disabled; finish adversarial and end-to-end verification.
 4. Developer API and SDK types/helpers; initial tenant-authenticated endpoint create/list/update/disable, read-only delivery/attempt history routes, and SDK client helpers are implemented; endpoint mutations remain behind a default-off feature gate. Test delivery, replay, and secret rotation/overlap remain incomplete. Never expose endpoint secrets after creation.
-5. Dashboard endpoint management and safe SSE invalidation stream with cursor/reconnect/polling fallback.
+5. Dashboard endpoint management and safe SSE invalidation stream with cursor/reconnect/polling fallback; initial authenticated activity stream and dashboard BFF client are implemented, pending production-like reconnect and tenant-isolation verification.
 6. Integration tests for commit atomicity, tenant isolation, signature validation, stale timestamps, DNS rebinding/private IPs, duplicates, retries, ordering, replay, secret redaction, and SSE reconnect/fallback.
 
 ## Important boundaries
