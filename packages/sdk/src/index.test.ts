@@ -188,3 +188,20 @@ describe("AgentLoginDeveloperClient", () => {
     })).toThrow("HTTPS is required");
   });
 });
+
+  it("requests a manual replay without retrying the mutation", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      delivery_id: "whdel_1", status: "pending", attempt_count: 4,
+      next_attempt_at: "2026-11-10T00:00:00.000Z"
+    }), { status: 202 }));
+    const client = new AgentLoginDeveloperClient({
+      baseUrl: "https://api.agentlogin.test",
+      accessTokenProvider: () => "oidc-user-token",
+      fetch: fetcher
+    });
+    const result = await client.replayWebhookDelivery("dev_123", "whdel_1");
+    expect(result.status).toBe("pending");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("/webhook-deliveries/whdel_1/replay");
+  });
