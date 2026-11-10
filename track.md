@@ -112,3 +112,49 @@ Additional read-only checks performed after the tracker was committed:
 3. Have the database owner apply the narrow grant correction in a reviewed transaction, then rerun the worker-role privilege checks. Do not widen privileges to make a test pass.
 4. Establish a dedicated worker KMS identity; do not copy API AWS credentials.
 5. Run synthetic-only worker and end-to-end tests after all prior gates pass.
+
+
+## 9. Latest CI and implementation update — 2026-11-10
+
+### CI result on latest main before PR #103
+- The successful CI run on tracker commit `c8968e853147fa48d238ecc66537e65973ab8709` completed build, migrations, lint, typecheck and tests successfully. That commit contained PR #100's code plus the initial tracker file.
+- The later main-branch run for commit `d4ccc69cff59b914797ba71f44c9f49428ab562c` (after PR #101) completed build, migrations, lint and typecheck, but **failed tests**.
+- The two principal failures were:
+  1. `assertSafeWebhookPayload` rejected `credentials_revoked: true`, even though this is a boolean lifecycle status and not a credential value.
+  2. The vault integration test emitted a synthetic webhook event, then its cleanup tried to delete the tenant without first deleting that event, causing a foreign-key violation.
+- The original PR #100 merge run was cancelled when a later main push arrived. The tracker commit's subsequent CI run succeeded. The latest main run was rerun and completed with the test failures above.
+
+### Fix opened
+- [ ] **PR #103 is open:** https://github.com/zester4/agentlogin/pull/103
+- Branch: `fix/webhook-safe-status-and-vault-cleanup`
+- It narrowly allows the exact `credentials_revoked` key only when its value is boolean, adds regression tests, and removes the synthetic vault test's webhook event before deleting its tenant.
+- No production database, Railway variables, AWS IAM/KMS settings, credential records, or execution-route settings were changed for this fix.
+- Wait for CI. Do not merge until build, migrations, lint, typecheck and all tests pass.
+
+### Confirmed worker database issue
+- The worker role can connect, use schema `public`, and is non-superuser with `NOBYPASSRLS` and no inherited role memberships.
+- Direct login as `agentlogin_worker` confirms `credentials` table SELECT is currently granted at table level; `connected_accounts` SELECT is absent; grants and lease SELECT are absent.
+- A read-only join probe using the worker role failed with `permission denied for table connected_accounts`. This is the exact join used by `PostgresCredentialRecordStore.find`; worker credential lookup will fail until the grants are corrected.
+- RLS and FORCE RLS are enabled on both required tables and their tenant policies use `current_setting('app.tenant_id', true)`.
+- The least-privilege grant correction is prepared in the runbook but has **not** been applied. It requires an approved database permission change.
+
+### Current production safety status
+- Railway lists API `AGENTLOGIN_WORKER_URL` and worker `AGENTLOGIN_API_INTERNAL_URL`, plus the signing-key variable names on both services. Values are redacted by the connected session, so key parity and exact URL values are unverified.
+- The latest API startup did not emit the previous “login execution routes are disabled” warning. Therefore, treat production route activation as **possibly enabled** until an authorized operator confirms it safely. Do not send a real credential or attempt production execution.
+- Worker config has `AWS_REGION` and `AWS_KMS_KEY_ID`, but no `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` variable names. No Railway-to-AWS workload identity was verified. API AWS credentials must not be copied or reused.
+- Worker health checks have returned HTTP 200 on port 4180. This proves process health only, not broker, KMS, database, or login execution.
+- The synthetic test site binds only to loopback HTTP. It is not a valid production-mode HTTPS target because the real worker requires public HTTPS DNS and blocks private/loopback targets.
+- Real worker MFA completion/resume is not implemented; MFA is reported as a challenge outcome.
+
+### Remaining blockers
+- [ ] PR #103 CI passes and PR is merged.
+- [ ] Production route state is confirmed; if enabled before gates pass, use the approved rollback to pause it.
+- [ ] Latest Railway deployments settle successfully and logs are reviewed.
+- [ ] Dedicated AWS worker identity and KMS positive/negative tests are verified.
+- [ ] Database owner approves and applies the exact column-level grants: revoke table-wide SELECT on `credentials`; grant SELECT only on the fields used by `find`; grant SELECT only on `connected_accounts(id, tenant_id, status)`.
+- [ ] Re-test the worker role's actual join and tenant RLS after grants are corrected.
+- [ ] Deploy a controlled synthetic HTTPS fixture and run the real isolated-worker path with synthetic-only tenant/grant/account/credential data.
+- [ ] Test negative tickets, lease replay/expiry/revocation, wrong tenant/agent/origin, invalid password, cross-origin redirects, private/metadata IPs, KMS/DB denial, timeout and shutdown.
+- [ ] Decide and implement a secure MFA handoff/resume design if MFA-enabled sites are in scope.
+
+No production execution or credential enrollment is considered accepted until all gates are evidenced.

@@ -9,7 +9,8 @@ import {
   users,
   connectedAccounts,
   credentials,
-  auditEvents
+  auditEvents,
+  webhookEvents
 } from "./index.js";
 import {
   CredentialDecryptionError,
@@ -92,6 +93,7 @@ describe.skipIf(!connectionString)("PostgreSQL credential vault lifecycle (isola
           await tx.delete(connectedAccounts).where(eq(connectedAccounts.id, accountId));
         }
         await tx.delete(auditEvents).where(eq(auditEvents.tenantId, tenantId));
+        await tx.delete(webhookEvents).where(eq(webhookEvents.tenantId, tenantId));
         await tx.delete(users).where(eq(users.id, userId));
         await tx.delete(tenants).where(eq(tenants.id, tenantId));
       });

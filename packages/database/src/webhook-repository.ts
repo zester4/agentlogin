@@ -13,6 +13,8 @@ export interface EnqueueWebhookEventInput {
 }
 
 const forbiddenPayloadKey = /(?:authorization|cookie|password|passwd|secret|token|credential|recovery|private.?key|ciphertext|wrapped.?dek|browser.?state|provider.?response)/i;
+// This exact field is a boolean lifecycle flag, not a credential value or reference.
+const safeBooleanStatusKeys = new Set(["credentials_revoked"]);
 
 function assertSafePayload(value: unknown, path = "payload"): void {
   if (value === null || typeof value === "boolean" || typeof value === "number") return;
@@ -29,7 +31,8 @@ function assertSafePayload(value: unknown, path = "payload"): void {
     const entries = Object.entries(value as Record<string, unknown>);
     if (entries.length > 50) throw new Error(`Webhook ${path} contains too many fields.`);
     for (const [key, item] of entries) {
-      if (forbiddenPayloadKey.test(key)) {
+      const safeBooleanStatus = safeBooleanStatusKeys.has(key) && typeof item === "boolean";
+      if (forbiddenPayloadKey.test(key) && !safeBooleanStatus) {
         throw new Error(`Webhook payload contains a prohibited field: ${key}.`);
       }
       assertSafePayload(item, `${path}.${key}`);
