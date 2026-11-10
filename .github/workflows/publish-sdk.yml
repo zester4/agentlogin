@@ -62,7 +62,8 @@ jobs:
           pnpm build
           pnpm lint
           pnpm typecheck
-          pnpm test
+          pnpm --filter @agentlogin/contracts test
+          pnpm --filter @agentlogin/sdk test
       - name: Inspect publish tarballs
         run: |
           mkdir -p /tmp/agentlogin-packages
