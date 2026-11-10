@@ -7,7 +7,7 @@ import {
   type AgentIdentity,
   type GrantRequest,
   type PendingGrant
-} from "@agentlogin/contracts";
+} from "@agent-login/contracts";
 
 export type AgentTokenProvider = () => string | Promise<string>;
 
