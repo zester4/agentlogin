@@ -18,10 +18,14 @@ integration("isolated login worker database boundary", () => {
   const credentialB = `worker-rls-credential-b-${suffix}`;
   const admin = new Client({ connectionString: adminUrl, application_name: "agentlogin-worker-boundary-fixture" });
   const worker = new Client({ connectionString: workerUrl, application_name: "agentlogin-login-worker-test" });
+  let adminConnected = false;
+  let workerConnected = false;
 
   beforeAll(async () => {
     await admin.connect();
+    adminConnected = true;
     await worker.connect();
+    workerConnected = true;
     await admin.query("BEGIN");
     try {
       await admin.query(
@@ -48,7 +52,7 @@ integration("isolated login worker database boundary", () => {
   }, 30_000);
 
   afterAll(async () => {
-    if (admin.readyForQuery) {
+    if (adminConnected) {
       await admin.query("BEGIN");
       try {
         await admin.query("DELETE FROM public.credentials WHERE tenant_id = ANY($1::text[])", [[tenantA, tenantB]]);
@@ -60,8 +64,8 @@ integration("isolated login worker database boundary", () => {
         await admin.query("ROLLBACK").catch(() => undefined);
       }
     }
-    await worker.end().catch(() => undefined);
-    await admin.end().catch(() => undefined);
+    if (workerConnected) await worker.end().catch(() => undefined);
+    if (adminConnected) await admin.end().catch(() => undefined);
   }, 30_000);
 
   it("has only the required read columns and no write or grant/lease access", async () => {
