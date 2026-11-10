@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { ExecutionResultSchema, type ExecutionResult, type GrantScope } from "@agentlogin/contracts";
+import { ExecutionResultSchema, type ExecutionResult, type GrantScope } from "@agent-login/contracts";
 import type { GrantLifecycleService, GrantRequestPrincipal } from "@agentlogin/policy";
 import type { IsolatedBrowserProvider } from "./index.js";
 
