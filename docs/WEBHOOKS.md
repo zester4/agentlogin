@@ -21,7 +21,7 @@ Merged and deployed foundations:
 
 Still incomplete:
 - Confirm every intended domain state transition writes its event in the same transaction.
-- Implement test delivery, secret rotation/overlap, and complete the developer API/SDK lifecycle. Initial create/list/update/disable routes, read-only delivery/attempt history, replay, and typed SDK helpers are implemented; endpoint mutations and replay require `WEBHOOK_ENDPOINTS_ENABLED=true`, which is absent/disabled by default. No production variable was changed.
+- Implement secret rotation/overlap and complete the developer API/SDK lifecycle. Initial create/list/update/disable, queued test-event, read-only delivery/attempt history, replay, and typed SDK helpers are implemented; endpoint mutations, test-event enqueue, and replay require `WEBHOOK_ENDPOINTS_ENABLED=true`, which is absent/disabled by default. No production variable was changed.
 - Implement dashboard SSE invalidation, cursor recovery, reconnect/backoff, and bounded polling fallback.
 - Complete production-like end-to-end delivery and adversarial tests before enabling the worker.
 
@@ -81,6 +81,7 @@ Authenticated developer-workspace administrator endpoints, tenant-scoped:
 - GET /v1/developers/:developerId/webhook-endpoints — list endpoint metadata, never secret.
 - PATCH /v1/developers/:developerId/webhook-endpoints/:endpointId — update URL/event subscriptions/active state (requires the feature gate).
 - DELETE /v1/developers/:developerId/webhook-endpoints/:endpointId — disable endpoint (requires the feature gate).
+- POST /v1/developers/:developerId/webhook-endpoints/:endpointId/test — enqueue a signed test event (requires the feature gate).
 - GET /v1/developers/:developerId/webhook-deliveries — list tenant/developer-scoped delivery metadata.
 - GET /v1/developers/:developerId/webhook-deliveries/:deliveryId/attempts — list redacted attempt metadata.
 - POST /v1/developers/:developerId/webhook-deliveries/:deliveryId/replay — requeue a delivered/dead-lettered delivery with a bounded fresh attempt budget (requires the feature gate).
