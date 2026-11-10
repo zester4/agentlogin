@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { GrantRequestSchema, OriginSchema, type GrantScope } from "@agentlogin/contracts";
+import { GrantRequestSchema, OriginSchema, type GrantScope } from "@agent-login/contracts";
 import { authorizeGrant, type AuthorizationDecision } from "./index.js";
 
 export type GrantLifecycleRecord = {
