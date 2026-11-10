@@ -288,3 +288,205 @@ export class AgentLoginApplicationClient {
     return this.accessToken;
   }
 }
+
+
+export type WebhookEventType =
+  | "account.connected" | "account.connection_updated" | "account.disconnected"
+  | "grant.requested" | "grant.approval_required" | "grant.approved" | "grant.denied"
+  | "grant.revoked" | "grant.expired" | "execution.started" | "execution.completed"
+  | "execution.failed";
+
+export type WebhookEndpoint = {
+  endpoint_id: string;
+  url: string;
+  event_types: WebhookEventType[];
+  status: "active" | "disabled";
+  secret_version: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateWebhookEndpointInput = {
+  url: string;
+  event_types: WebhookEventType[];
+};
+
+export type CreatedWebhookEndpoint = {
+  endpoint_id: string;
+  url: string;
+  event_types: WebhookEventType[];
+  status: "active";
+  signing_secret: string;
+  secret_version: number;
+  warning: string;
+};
+
+export type WebhookDelivery = {
+  delivery_id: string;
+  endpoint_id: string;
+  endpoint_url: string;
+  event_id: string;
+  event_type: WebhookEventType;
+  resource_type: string;
+  resource_id: string;
+  status: "pending" | "leased" | "delivered" | "dead_lettered" | "cancelled";
+  attempt_count: number;
+  next_attempt_at: string | null;
+  delivered_at: string | null;
+  dead_lettered_at: string | null;
+  created_at: string;
+};
+
+export type WebhookDeliveryAttempt = {
+  attempt_id: string;
+  attempt_number: number;
+  outcome: "succeeded" | "retryable_failure" | "permanent_failure" | "timeout";
+  http_status: number | null;
+  latency_ms: number | null;
+  error_code: string | null;
+  started_at: string;
+  completed_at: string | null;
+};
+
+export type DeveloperAccessTokenProvider = () => string | Promise<string>;
+
+export type AgentLoginDeveloperClientOptions = {
+  baseUrl: string;
+  accessTokenProvider: DeveloperAccessTokenProvider;
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+};
+
+/**
+ * OIDC-user-authenticated developer workspace client. Use only from a trusted
+ * server or dashboard backend; never expose the access token or webhook
+ * signing secret in browser bundles, logs, or telemetry.
+ */
+export class AgentLoginDeveloperClient {
+  private readonly baseUrl: URL;
+  private readonly fetcher: typeof fetch;
+  private readonly timeoutMs: number;
+
+  constructor(private readonly options: AgentLoginDeveloperClientOptions) {
+    const base = new URL(options.baseUrl);
+    if (!["https:", "http:"].includes(base.protocol) || base.username || base.password || base.search || base.hash) {
+      throw new TypeError("baseUrl must be an HTTP(S) URL without credentials, query, or fragment.");
+    }
+    if (base.protocol !== "https:" && !["localhost", "127.0.0.1", "::1"].includes(base.hostname)) {
+      throw new TypeError("HTTPS is required for non-local AgentLogin API URLs.");
+    }
+    if (typeof options.accessTokenProvider !== "function") {
+      throw new TypeError("An OIDC accessTokenProvider is required.");
+    }
+    this.baseUrl = new URL(base.toString().endsWith("/") ? base.toString() : base.toString() + "/");
+    this.fetcher = options.fetch ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? 15_000;
+    if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs < 1 || this.timeoutMs > 120_000) {
+      throw new RangeError("timeoutMs must be an integer between 1 and 120000.");
+    }
+  }
+
+  async listWebhookEndpoints(developerId: string, options: RequestOptions = {}): Promise<WebhookEndpoint[]> {
+    const result = await this.request("GET", this.path(developerId, "webhook-endpoints"), undefined, options);
+    const endpoints = (result as { endpoints?: unknown })?.endpoints;
+    if (!Array.isArray(endpoints)) throw new AgentLoginApiError("AgentLogin returned an invalid endpoint list.", 502, "invalid_response");
+    return endpoints as WebhookEndpoint[];
+  }
+
+  async createWebhookEndpoint(
+    developerId: string,
+    input: CreateWebhookEndpointInput,
+    options: RequestOptions = {}
+  ): Promise<CreatedWebhookEndpoint> {
+    if (!input.url || !Array.isArray(input.event_types) || input.event_types.length === 0) {
+      throw new TypeError("A webhook URL and at least one event type are required.");
+    }
+    const result = await this.request("POST", this.path(developerId, "webhook-endpoints"), input, options);
+    const endpoint = result as Partial<CreatedWebhookEndpoint>;
+    if (typeof endpoint.endpoint_id !== "string" || typeof endpoint.signing_secret !== "string" ||
+        endpoint.status !== "active" || endpoint.warning === undefined) {
+      throw new AgentLoginApiError("AgentLogin returned an invalid one-time webhook secret response.", 502, "invalid_response");
+    }
+    return endpoint as CreatedWebhookEndpoint;
+  }
+
+  async updateWebhookEndpoint(
+    developerId: string,
+    endpointId: string,
+    input: { url?: string; event_types?: WebhookEventType[]; status?: "active" | "disabled" },
+    options: RequestOptions = {}
+  ): Promise<{ endpoint_id: string; status: "active" | "disabled" }> {
+    return await this.request("PATCH", this.path(developerId, "webhook-endpoints") + "/" + encodeURIComponent(endpointId), input, options) as {
+      endpoint_id: string; status: "active" | "disabled";
+    };
+  }
+
+  async disableWebhookEndpoint(developerId: string, endpointId: string, options: RequestOptions = {}): Promise<void> {
+    await this.request("DELETE", this.path(developerId, "webhook-endpoints") + "/" + encodeURIComponent(endpointId), undefined, options);
+  }
+
+  async listWebhookDeliveries(
+    developerId: string,
+    query: { limit?: number; status?: WebhookDelivery["status"]; endpoint_id?: string } = {},
+    options: RequestOptions = {}
+  ): Promise<WebhookDelivery[]> {
+    const params = new URLSearchParams();
+    if (query.limit !== undefined) params.set("limit", String(query.limit));
+    if (query.status !== undefined) params.set("status", query.status);
+    if (query.endpoint_id !== undefined) params.set("endpoint_id", query.endpoint_id);
+    const suffix = params.size ? "?" + params.toString() : "";
+    const result = await this.request("GET", this.path(developerId, "webhook-deliveries") + suffix, undefined, options);
+    const deliveries = (result as { deliveries?: unknown })?.deliveries;
+    if (!Array.isArray(deliveries)) throw new AgentLoginApiError("AgentLogin returned an invalid delivery list.", 502, "invalid_response");
+    return deliveries as WebhookDelivery[];
+  }
+
+  async listWebhookDeliveryAttempts(
+    developerId: string,
+    deliveryId: string,
+    options: RequestOptions = {}
+  ): Promise<WebhookDeliveryAttempt[]> {
+    const path = this.path(developerId, "webhook-deliveries") + "/" +
+      encodeURIComponent(deliveryId) + "/attempts";
+    const result = await this.request("GET", path, undefined, options);
+    const attempts = (result as { attempts?: unknown })?.attempts;
+    if (!Array.isArray(attempts)) throw new AgentLoginApiError("AgentLogin returned an invalid delivery-attempt list.", 502, "invalid_response");
+    return attempts as WebhookDeliveryAttempt[];
+  }
+
+  private path(developerId: string, resource: string): string {
+    if (!developerId || developerId.trim() !== developerId || developerId.length > 200) {
+      throw new TypeError("developerId must be a non-empty developer identifier.");
+    }
+    return "v1/developers/" + encodeURIComponent(developerId) + "/" + resource;
+  }
+
+  private async request(
+    method: "GET" | "POST" | "PATCH" | "DELETE",
+    path: string,
+    body: unknown,
+    options: RequestOptions
+  ): Promise<unknown> {
+    const token = await this.options.accessTokenProvider();
+    if (typeof token !== "string" || !token.trim()) throw new TypeError("The accessTokenProvider returned an empty token.");
+    const timeoutSignal = AbortSignal.timeout(options.timeoutMs ?? this.timeoutMs);
+    const signal = options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal;
+    const response = await this.fetcher(new URL(path, this.baseUrl), {
+      method,
+      headers: {
+        authorization: "Bearer " + token,
+        accept: "application/json",
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal,
+    });
+    if (response.status === 204) return undefined;
+    const payload: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const parsed = payload && typeof payload === "object" ? payload as ErrorPayload : {};
+      throw safeError(response, parsed);
+    }
+    return payload;
+  }
+}
