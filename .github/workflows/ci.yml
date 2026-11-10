@@ -29,6 +29,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agentlogin
       DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/agentlogin
       TEST_DATABASE_URL: postgresql://agentlogin_runtime:ci-only-runtime-password@localhost:5432/agentlogin
+      WORKER_TEST_DATABASE_URL: postgresql://agentlogin_worker:ci-only-worker-password@localhost:5432/agentlogin
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -40,6 +41,9 @@ jobs:
           psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 <<'SQL'
           CREATE ROLE agentlogin_runtime
             LOGIN PASSWORD 'ci-only-runtime-password'
+            NOSUPERUSER NOBYPASSRLS;
+          CREATE ROLE agentlogin_worker
+            LOGIN PASSWORD 'ci-only-worker-password'
             NOSUPERUSER NOBYPASSRLS;
           CREATE ROLE agentlogin_webhook_queue_executor
             NOLOGIN NOSUPERUSER NOBYPASSRLS;
@@ -58,6 +62,18 @@ jobs:
             ON ALL TABLES IN SCHEMA public TO agentlogin_runtime;
           REVOKE UPDATE, DELETE
             ON TABLE public.webhook_delivery_queue FROM agentlogin_runtime;
+          SQL
+      - name: Grant isolated login worker read-only column access
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 <<'SQL'
+          GRANT USAGE ON SCHEMA public TO agentlogin_worker;
+          GRANT SELECT (
+            id, tenant_id, account_id, credential_id, credential_type,
+            ciphertext, iv, auth_tag, wrapped_dek, key_version,
+            record_version, status, revoked_at
+          ) ON TABLE public.credentials TO agentlogin_worker;
+          GRANT SELECT (id, tenant_id, status)
+            ON TABLE public.connected_accounts TO agentlogin_worker;
           SQL
       - run: pnpm lint
       - run: pnpm typecheck
