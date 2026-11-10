@@ -295,3 +295,16 @@ No production execution or credential enrollment is considered accepted until al
 - [ ] Do not activate execution or enrollment until dedicated worker AWS identity, current worker DB session attribution, private API/worker ticket checks, public HTTPS synthetic login, adversarial tests, rollback and independent security review are all evidenced.
 
 Implementation plan updated in `plans.md` section 8C. This section supersedes earlier conflicting operational notes; historical entries are retained for auditability.
+
+
+## 16. Worker AWS identity attestation — 2026-11-10
+
+- [x] Created draft PR #110: [Attest isolated worker AWS runtime identity](https://github.com/zester4/agentlogin/pull/110).
+- [x] Added `getAwsCallerIdentity(region)` in the vault package using AWS STS and the SDK default credential provider chain.
+- [x] Added isolated-worker startup attestation that logs only AWS caller ARN/account before accepting requests; startup fails closed if identity cannot be resolved.
+- [x] Confirmed changes are isolated to `packages/vault/src/aws-kms.ts` and `apps/login-worker/src/server.ts`; no secrets or credentials are logged.
+- [ ] CI/build/typecheck for PR #110 is still running; do not merge until it passes.
+- [ ] After merge/deploy, capture the worker's actual ARN and compare it to the intended dedicated worker identity and API identity. The local KMS probe caller is not a substitute for this evidence.
+- [ ] Execute KMS permission checks from the deployed worker runtime, then continue private connectivity, synthetic HTTPS login and adversarial acceptance tests.
+
+Production remains fail-closed: API login execution routes are disabled and credential enrollment remains disabled.
