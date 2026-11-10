@@ -239,7 +239,7 @@ export async function webhookEndpointRoutes(
     const plaintext = Buffer.from(secret, "utf8");
     const context = {
       tenantId: principal.tenantId,
-      accountId: "webhook:" + developerId,
+      accountId: id, // Must match the worker decryption context exactly.
       credentialId: id,
       recordVersion: 1,
       purpose: "webhook_signing_secret" as const,
