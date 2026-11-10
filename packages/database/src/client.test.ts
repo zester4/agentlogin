@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizePostgresSslMode } from "./client.js";
+import { normalizePostgresSslMode, resolveDatabaseApplicationName } from "./client.js";
 
 describe("normalizePostgresSslMode", () => {
   it.each(["prefer", "require", "verify-ca"])(
@@ -24,5 +24,20 @@ describe("normalizePostgresSslMode", () => {
   it("preserves non-URL connection strings for node-postgres to validate", () => {
     const connectionString = "host=db.example.test dbname=app sslmode=require";
     expect(normalizePostgresSslMode(connectionString)).toBe(connectionString);
+  });
+});
+
+describe("resolveDatabaseApplicationName", () => {
+  it("defaults to the API identity", () => {
+    expect(resolveDatabaseApplicationName(undefined)).toBe("agentlogin-api");
+  });
+
+  it("uses a service-specific application name", () => {
+    expect(resolveDatabaseApplicationName(" agentlogin-login-worker ")).toBe("agentlogin-login-worker");
+  });
+
+  it("rejects values unsafe for PostgreSQL application_name", () => {
+    expect(() => resolveDatabaseApplicationName("worker\nsecret")).toThrow();
+    expect(() => resolveDatabaseApplicationName("x".repeat(64))).toThrow();
   });
 });
