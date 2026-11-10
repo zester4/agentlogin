@@ -5,6 +5,7 @@ import { auth0 } from "../../lib/auth0";
 import { Icon } from "../ui-icon";
 import { ThemeToggle } from "../theme-toggle";
 import { DashboardNavigation } from "./dashboard-navigation";
+import { DashboardLiveSync } from "./dashboard-live-sync";
 
 function ComingSoon({ children }: { children: ReactNode }) {
   return <span className="workspace-coming">{children}</span>;
@@ -78,7 +79,7 @@ export default async function DashboardPage() {
       <section className="workspace-main workspace-main-v2">
         <header className="workspace-topbar">
           <div className="workspace-breadcrumb"><span>YOUR ACCOUNT</span><b>/</b><strong>OVERVIEW</strong></div>
-          <div className="topbar-right"><ThemeToggle /><span className="topbar-session"><i /> SIGNED IN</span><Link href="/settings" aria-label="Account settings"><Icon name="settings" /></Link></div>
+          <div className="topbar-right"><ThemeToggle /><DashboardLiveSync enabled={identityVerified && Boolean(apiBase)} /><span className="topbar-session"><i /> SIGNED IN</span><Link href="/settings" aria-label="Account settings"><Icon name="settings" /></Link></div>
         </header>
 
         <section className="workspace-welcome">
