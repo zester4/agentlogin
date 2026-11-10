@@ -32,7 +32,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
+      # Do not set setup-node's registry-url here: it writes an _authToken
+      # placeholder to .npmrc, which can prevent npm from initiating OIDC.
+      # npm already defaults to https://registry.npmjs.org/.
+      - name: Verify clean npm OIDC configuration
+        run: |
+          npm config get registry
+          npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          if [ -f "$npmrc" ] && grep -q '_authToken' "$npmrc"; then
+            echo "Unexpected npm auth-token entry blocks trusted publishing: $npmrc"
+            exit 1
+          fi
       - name: Resolve and validate release version
         id: release
         env:
