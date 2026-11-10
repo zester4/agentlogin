@@ -36,8 +36,15 @@ const isolatedBrowser = workerTicketSigningKey && workerUrlValid
 
 if (!isolatedBrowser) {
   process.stderr.write(
-    "[agentlogin] Login execution routes are disabled: configure AGENTLOGIN_WORKER_URL and a valid AGENTLOGIN_WORKER_TICKET_SIGNING_KEY.\n"
+    "[agentlogin] Login execution routes are disabled: worker configuration is invalid.\n"
   );
+  process.stderr.write(JSON.stringify({
+    event: "worker execution configuration rejected",
+    workerUrlConfigured: Boolean(workerUrl),
+    workerUrlValid,
+    workerTicketKeyConfigured: Boolean(process.env.AGENTLOGIN_WORKER_TICKET_SIGNING_KEY),
+    workerTicketKeyValid: Boolean(workerTicketSigningKey)
+  }) + "\n");
 }
 
 const coordinatorForTenant = isolatedBrowser
