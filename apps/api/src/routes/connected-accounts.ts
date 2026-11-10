@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { PostgresConnectedAccountRepository, PostgresCredentialRecordStore, PostgresExecutionRepository } from "@agentlogin/database";
 import { AwsKmsProvider, EncryptedCredentialVault } from "@agentlogin/vault";
-import { OriginSchema } from "@agentlogin/contracts";
+import { OriginSchema } from "@agent-login/contracts";
 
 const AccountBody = z.object({
   provider: z.string().trim().min(1).max(80),
