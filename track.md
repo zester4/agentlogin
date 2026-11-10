@@ -197,11 +197,24 @@ No production execution or credential enrollment is considered accepted until al
 
 ## 11. Worker-permission regression test work — 2026-11-10
 
-- [x] Added PR #104: https://github.com/zester4/agentlogin/pull/104
+- [x] PR #104 merged: https://github.com/zester4/agentlogin/pull/104 (squash merge `83de4f57b14c061dfecf70dacc5e7f4310ddde4d`).
 - [x] CI now provisions a dedicated synthetic `agentlogin_worker` role with `NOSUPERUSER NOBYPASSRLS`.
 - [x] CI grants only the exact worker credential envelope columns and `connected_accounts(id, tenant_id, status)`.
 - [x] Added integration test that logs in as the worker role, checks the exact privilege boundary, seeds two synthetic tenants/accounts/credentials, verifies missing tenant context returns no rows, and verifies tenant A and tenant B each see only their own credential.
 - [x] Synthetic fixtures use unique IDs and are cleaned up after the test.
-- [ ] PR #104 CI not yet reported; do not merge until the full quality workflow passes.
+- [x] PR #104 CI passed on head `2a28ff01320f4a12c6e95cb717dc0db4d154c054` (run `42863289099`, success).
 - [ ] The production DB grants are already corrected, but the production worker's own Railway DATABASE_URL identity still cannot be inspected in this OAuth session. Verify it is actually the `agentlogin_worker` role before declaring runtime database access complete.
 - [ ] AWS principal and KMS decrypt-only policy remain unverified; Railway variable names alone do not prove identity or permissions.
+
+
+## 12. Worker CI and production DB identity verification — 2026-11-10
+
+- [x] PR #104 merged (squash commit `83de4f57b14c061dfecf70dacc5e7f4310ddde4d`).
+- [x] PR #104 CI passed: build, migrations, runtime grants, worker column grants, lint, typecheck, and all tests including the new worker-specific integration test.
+- [x] The worker-specific CI test creates two synthetic tenants, users, connected accounts, and encrypted-envelope placeholder rows; logs in as `agentlogin_worker`; checks exact read-only column grants; verifies no table-level SELECT, no writes, no grants/lease reads, zero rows without tenant context, and strict tenant A/B isolation.
+- [x] Production Neon `pg_stat_activity` showed a live connection with `usename = agentlogin_worker`, confirming the worker's configured `DATABASE_URL` authenticates as the intended restricted DB role.
+- [x] Set Railway worker variable `DATABASE_APPLICATION_NAME=agentlogin-login-worker` for clearer database connection attribution. This triggered a worker redeploy.
+- [ ] Confirm the worker redeploy after the application-name variable change is successful and the new DB session is attributed as expected.
+- [ ] Dedicated AWS principal identity and effective KMS decrypt-only permission remain unverified. Railway shows AWS key variable names, but values are withheld and no AWS IAM/KMS management connector is available. Do not assume that presence means the identity is correct.
+- [ ] Run synthetic end-to-end login against a public HTTPS fixture once KMS identity/policy is verified.
+- [ ] Confirm production execution route activation state and keep it paused until all gates pass; API startup has not emitted the earlier disabled-route warning after the relevant variable names appeared, so the route may be enabled.
