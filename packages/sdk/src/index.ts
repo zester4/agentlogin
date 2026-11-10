@@ -326,7 +326,7 @@ export type WebhookDelivery = {
   endpoint_id: string;
   endpoint_url: string;
   event_id: string;
-  event_type: WebhookEventType;
+  event_type: WebhookEventType | "webhook.test";
   resource_type: string;
   resource_id: string;
   status: "pending" | "leased" | "delivered" | "dead_lettered" | "cancelled";
