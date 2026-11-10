@@ -6,6 +6,9 @@ import { z } from "zod";
 import {
   withTenantTransaction,
   webhookEndpoints,
+  webhookDeliveries,
+  webhookEvents,
+  webhookDeliveryAttempts,
   PostgresDeveloperRepository,
 } from "@agentlogin/database";
 import { AwsKmsProvider, encryptCredential } from "@agentlogin/vault";
@@ -103,6 +106,112 @@ export async function webhookEndpointRoutes(
       )).orderBy(desc(webhookEndpoints.createdAt)).limit(100)
     );
     return reply.header("Cache-Control", "no-store").send({ endpoints });
+  });
+
+  app.get("/v1/developers/:developerId/webhook-deliveries", {
+    preHandler: app.authenticateUser,
+  }, async (request, reply) => {
+    const principal = request.userPrincipal;
+    if (!principal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const developerId = (request.params as { developerId: string }).developerId;
+    if (!(await managedDeveloper(options.database, principal.tenantId, principal.userId, developerId))) {
+      return reply.code(404).send({ error: { code: "developer_not_found", message: "The developer workspace was not found." } });
+    }
+    const query = request.query as { limit?: string; status?: string; endpoint_id?: string };
+    const limit = query.limit === undefined ? 50 : Number(query.limit);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
+        (query.status !== undefined && !["pending", "leased", "delivered", "dead_lettered", "cancelled"].includes(query.status)) ||
+        (query.endpoint_id !== undefined && (query.endpoint_id.length < 1 || query.endpoint_id.length > 200))) {
+      return reply.code(400).send({ error: { code: "invalid_webhook_delivery_query", message: "The delivery history query is invalid." } });
+    }
+    const rows = await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
+      const conditions = [
+        eq(webhookDeliveries.tenantId, principal.tenantId),
+        eq(webhookEndpoints.developerId, developerId),
+      ];
+      if (query.status) conditions.push(eq(webhookDeliveries.status, query.status));
+      if (query.endpoint_id) conditions.push(eq(webhookDeliveries.endpointId, query.endpoint_id));
+      return tx.select({
+        delivery_id: webhookDeliveries.id,
+        endpoint_id: webhookEndpoints.id,
+        endpoint_url: webhookEndpoints.url,
+        event_id: webhookEvents.id,
+        event_type: webhookEvents.eventType,
+        resource_type: webhookEvents.resourceType,
+        resource_id: webhookEvents.resourceId,
+        status: webhookDeliveries.status,
+        attempt_count: webhookDeliveries.attemptCount,
+        next_attempt_at: webhookDeliveries.nextAttemptAt,
+        delivered_at: webhookDeliveries.deliveredAt,
+        dead_lettered_at: webhookDeliveries.deadLetteredAt,
+        created_at: webhookDeliveries.createdAt,
+      }).from(webhookDeliveries)
+        .innerJoin(webhookEndpoints, and(
+          eq(webhookDeliveries.tenantId, webhookEndpoints.tenantId),
+          eq(webhookDeliveries.endpointId, webhookEndpoints.id),
+        ))
+        .innerJoin(webhookEvents, and(
+          eq(webhookDeliveries.tenantId, webhookEvents.tenantId),
+          eq(webhookDeliveries.eventId, webhookEvents.id),
+        ))
+        .where(and(...conditions))
+        .orderBy(desc(webhookDeliveries.createdAt))
+        .limit(limit);
+    });
+    return reply.header("Cache-Control", "no-store").send({
+      deliveries: rows.map((row) => ({
+        ...row,
+        next_attempt_at: row.next_attempt_at?.toISOString() ?? null,
+        delivered_at: row.delivered_at?.toISOString() ?? null,
+        dead_lettered_at: row.dead_lettered_at?.toISOString() ?? null,
+        created_at: row.created_at.toISOString(),
+      })),
+    });
+  });
+
+  app.get("/v1/developers/:developerId/webhook-deliveries/:deliveryId/attempts", {
+    preHandler: app.authenticateUser,
+  }, async (request, reply) => {
+    const principal = request.userPrincipal;
+    if (!principal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const { developerId, deliveryId } = request.params as { developerId: string; deliveryId: string };
+    if (!(await managedDeveloper(options.database, principal.tenantId, principal.userId, developerId))) {
+      return reply.code(404).send({ error: { code: "webhook_delivery_not_found", message: "The webhook delivery was not found." } });
+    }
+    const attempts = await withTenantTransaction(options.database, principal.tenantId, async (tx) =>
+      tx.select({
+        attempt_id: webhookDeliveryAttempts.id,
+        attempt_number: webhookDeliveryAttempts.attemptNumber,
+        outcome: webhookDeliveryAttempts.outcome,
+        http_status: webhookDeliveryAttempts.httpStatus,
+        latency_ms: webhookDeliveryAttempts.latencyMs,
+        error_code: webhookDeliveryAttempts.errorCode,
+        started_at: webhookDeliveryAttempts.startedAt,
+        completed_at: webhookDeliveryAttempts.completedAt,
+      }).from(webhookDeliveryAttempts)
+        .innerJoin(webhookDeliveries, and(
+          eq(webhookDeliveryAttempts.tenantId, webhookDeliveries.tenantId),
+          eq(webhookDeliveryAttempts.deliveryId, webhookDeliveries.id),
+        ))
+        .innerJoin(webhookEndpoints, and(
+          eq(webhookDeliveries.tenantId, webhookEndpoints.tenantId),
+          eq(webhookDeliveries.endpointId, webhookEndpoints.id),
+        ))
+        .where(and(
+          eq(webhookDeliveryAttempts.tenantId, principal.tenantId),
+          eq(webhookDeliveries.id, deliveryId),
+          eq(webhookEndpoints.developerId, developerId),
+        ))
+        .orderBy(desc(webhookDeliveryAttempts.attemptNumber))
+        .limit(50)
+    );
+    return reply.header("Cache-Control", "no-store").send({
+      attempts: attempts.map((attempt) => ({
+        ...attempt,
+        started_at: attempt.started_at.toISOString(),
+        completed_at: attempt.completed_at?.toISOString() ?? null,
+      })),
+    });
   });
 
   app.post("/v1/developers/:developerId/webhook-endpoints", {
