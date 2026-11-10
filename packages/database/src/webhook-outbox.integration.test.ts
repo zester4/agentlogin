@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createDatabase, developers, enqueueWebhookEvent, tenants, webhookDeliveryQueue,
+  connectedAccounts, createDatabase, developers, enqueueWebhookEvent, tenants, users, webhookDeliveryQueue,
   webhookDeliveries, webhookEndpoints, webhookEvents, withTenantTransaction,
 } from "./index.js";
 
@@ -25,15 +25,19 @@ integration("transactional webhook outbox", () => {
     const suffix = crypto.randomUUID();
     const tenantId = `outbox-tenant-${suffix}`;
     const developerId = `outbox-developer-${suffix}`;
+    const userId = `outbox-user-${suffix}`;
+    const accountId = `outbox-account-${suffix}`;
     const endpointId = `outbox-endpoint-${suffix}`;
     const eventId = `outbox-event-${suffix}`;
 
     await withTenantTransaction(handle.db, tenantId, async (tx) => {
       await tx.insert(tenants).values({ id: tenantId, name: "Outbox integration tenant" });
+      await tx.insert(users).values({ id: userId, tenantId, authSubject: `outbox-subject-${suffix}` });
       await tx.insert(developers).values({ id: developerId, tenantId, name: "Outbox integration developer" });
+      await tx.insert(connectedAccounts).values({ id: accountId, tenantId, userId, provider: "synthetic", origin: "https://example.test", displayLabel: "Outbox account", status: "active" });
       await tx.insert(webhookEndpoints).values({
         id: endpointId, tenantId, developerId, url: "https://hooks.example.test/events",
-        eventTypes: ["grant.requested"], status: "active",
+        eventTypes: ["grant.requested", "connected_account.disconnected"], status: "active",
         secretCiphertext: Buffer.from("ciphertext"), secretIv: Buffer.alloc(12),
         secretAuthTag: Buffer.alloc(16), wrappedDek: Buffer.from("wrapped-dek"), keyVersion: "test",
       });
@@ -43,8 +47,8 @@ integration("transactional webhook outbox", () => {
     const continueCommit = new Promise<void>((resolve) => { allowCommit = resolve; });
     const transaction = withTenantTransaction(handle.db, tenantId, async (tx) => {
       await enqueueWebhookEvent(tx, {
-        tenantId, eventId, eventType: "grant.requested", resourceType: "grant",
-        resourceId: "grant-outbox-test", payload: { grant_id: "grant-outbox-test" },
+        tenantId, eventId, eventType: "connected_account.disconnected", resourceType: "connected_account",
+        resourceId: accountId, payload: { account_id: accountId },
       });
       signalInserted();
       await continueCommit;
@@ -85,10 +89,11 @@ integration("transactional webhook outbox", () => {
 
     const rollbackEventId = eventId + "-rollback";
     await expect(withTenantTransaction(handle.db, tenantId, async (tx) => {
+      await tx.update(connectedAccounts).set({ status: "disabled" }).where(eq(connectedAccounts.id, accountId));
       await enqueueWebhookEvent(tx, {
-        tenantId, eventId: rollbackEventId, eventType: "grant.requested",
-        resourceType: "grant", resourceId: "grant-rollback-test",
-        payload: { grant_id: "grant-rollback-test" },
+        tenantId, eventId: rollbackEventId, eventType: "connected_account.disconnected",
+        resourceType: "connected_account", resourceId: accountId,
+        payload: { account_id: accountId },
       });
       throw new Error("injected failure after outbox enqueue");
     })).rejects.toThrow("injected failure after outbox enqueue");
@@ -98,8 +103,11 @@ integration("transactional webhook outbox", () => {
         .where(eq(webhookEvents.id, rollbackEventId));
       const deliveries = await tx.select({ id: webhookDeliveries.id }).from(webhookDeliveries)
         .where(eq(webhookDeliveries.eventId, rollbackEventId));
+      const [account] = await tx.select({ status: connectedAccounts.status }).from(connectedAccounts)
+        .where(eq(connectedAccounts.id, accountId));
       expect(event).toBeUndefined();
       expect(deliveries).toHaveLength(0);
+      expect(account?.status).toBe("active");
     });
   });
 
