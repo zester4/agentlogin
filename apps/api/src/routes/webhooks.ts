@@ -34,6 +34,20 @@ const UpdateEndpointBody = z.object({
   status: z.enum(["active", "disabled"]).optional(),
 }).strict().refine((body) => Object.keys(body).length > 0, "At least one field is required.");
 
+export function webhookSigningSecretContext(tenantId: string, endpointId: string, secretVersion = 1) {
+  if (!tenantId || !endpointId || !Number.isSafeInteger(secretVersion) || secretVersion < 1) {
+    throw new TypeError("Invalid webhook signing-secret context.");
+  }
+  // The delivery worker uses the endpoint ID as both accountId and credentialId.
+  return {
+    tenantId,
+    accountId: endpointId,
+    credentialId: endpointId,
+    recordVersion: secretVersion,
+    purpose: "webhook_signing_secret" as const,
+  };
+}
+
 export function normalizeWebhookUrl(value: string): string {
   const parsed = new URL(value);
   const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
@@ -237,13 +251,7 @@ export async function webhookEndpointRoutes(
     const id = endpointId();
     const secret = oneTimeSecret();
     const plaintext = Buffer.from(secret, "utf8");
-    const context = {
-      tenantId: principal.tenantId,
-      accountId: id, // Must match the worker decryption context exactly.
-      credentialId: id,
-      recordVersion: 1,
-      purpose: "webhook_signing_secret" as const,
-    };
+    const context = webhookSigningSecretContext(principal.tenantId, id, 1);
     try {
       const envelope = await encryptCredential(plaintext, context, kms);
       await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
