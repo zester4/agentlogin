@@ -24,6 +24,23 @@ describe("webhook endpoint management gate", () => {
     await app.close();
   });
 
+
+  it("keeps manual replay locked while endpoint management is disabled", async () => {
+    delete process.env.WEBHOOK_ENDPOINTS_ENABLED;
+    const app = Fastify({ logger: false });
+    app.decorate("authenticateUser", async (request) => {
+      request.userPrincipal = { tenantId: "tenant_test", userId: "user_test" } as never;
+    });
+    await webhookEndpointRoutes(app, { database: {} as never });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/developers/dev_test/webhook-deliveries/whdel_test/replay",
+    });
+    expect(response.statusCode).toBe(423);
+    expect(response.json().error.code).toBe("webhook_endpoint_management_locked");
+    await app.close();
+  });
+
   it("requires an HTTPS hostname and rejects local or literal-IP destinations", () => {
     expect(normalizeWebhookUrl("https://hooks.example.com/events")).toBe("https://hooks.example.com/events");
     for (const url of [
