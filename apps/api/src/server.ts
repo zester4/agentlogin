@@ -17,19 +17,22 @@ const database = createDatabase();
 const signingKey = decodeAgentSigningKey(process.env.AGENT_TOKEN_SIGNING_KEY);
 const workerTicketSigningKey = decodeWorkerTicketSigningKey(process.env.AGENTLOGIN_WORKER_TICKET_SIGNING_KEY);
 const workerUrl = process.env.AGENTLOGIN_WORKER_URL?.trim();
-const workerUrlValid = (() => {
-  if (!workerUrl) return false;
+const validatedWorkerUrl = (() => {
+  if (!workerUrl) return null;
   try {
     const parsed = new URL(workerUrl);
-    return (parsed.protocol === "http:" || parsed.protocol === "https:") && Boolean(parsed.hostname);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname
+      ? parsed.toString()
+      : null;
   } catch {
-    return false;
+    return null;
   }
 })();
+const workerUrlValid = validatedWorkerUrl !== null;
 
-const isolatedBrowser = workerTicketSigningKey && workerUrlValid
+const isolatedBrowser = workerTicketSigningKey && validatedWorkerUrl
   ? new HttpIsolatedBrowserProvider({
-      workerUrl,
+      workerUrl: validatedWorkerUrl,
       signingKey: workerTicketSigningKey
     })
   : null;
