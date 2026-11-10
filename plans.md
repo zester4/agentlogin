@@ -627,8 +627,10 @@ This update supersedes earlier deployment and KMS notes where they conflict. It 
 
 ## 8D. Worker AWS runtime identity attestation — 10 November 2026
 
-A draft implementation is in PR #110 (`chore/worker-aws-identity-attestation`). It adds a vault helper that calls AWS STS GetCallerIdentity using the AWS SDK default credential provider chain, then makes the isolated login worker log the resolved ARN and account before listening. If STS identity resolution fails, worker startup fails closed. No AWS credentials or secret values are logged.
+PR #110 is merged and deployed. The isolated login worker is online on commit `26b4803a64f190711212ee8f7dfd493015ee31f3`. Its startup STS attestation logged AWS account `471742380391` and caller ARN `arn:aws:iam::471742380391:user/agentlogin-vault-service`. This matches the principal reported by the successful local synthetic KMS permission probe. It proves the worker's effective identity, but does not prove a separate API principal; the API must not receive credential-decryption access.
 
-This is an evidence-collection gate, not proof that identity separation is already achieved. After CI passes and the PR is merged/deployed, compare the worker's logged ARN against the intended dedicated worker principal and the API's effective principal. Do not accept a shared principal as isolated-worker separation. Then run the live KMS allowed-context and denial probe from the worker runtime (or equivalent trusted execution context) and confirm decrypt-only/context restrictions.
+The worker startup attestation is fail-closed: STS identity resolution happens before the worker listens. No AWS credential values are logged.
 
-Current PR validation is pending. Do not enable login execution or credential enrollment while the identity comparison and remaining acceptance tests are outstanding.
+The API deployment containing the same merge is still rolling out. Existing API runtime logs show the login execution gate remains disabled. The API configuration decoder requires a canonical 32-byte base64url key (43 characters); variable-name presence alone is insufficient. A follow-up change is being prepared to log only safe booleans for URL configured/valid and signing-key configured/valid, without exposing values.
+
+Continue to keep execution and enrollment disabled until API configuration is valid, private API-to-worker connectivity and ticket rejection are tested, and synthetic end-to-end/adversarial login acceptance is complete. The worker's matching IAM identity does not by itself satisfy those release gates.

@@ -297,14 +297,18 @@ No production execution or credential enrollment is considered accepted until al
 Implementation plan updated in `plans.md` section 8C. This section supersedes earlier conflicting operational notes; historical entries are retained for auditability.
 
 
-## 16. Worker AWS identity attestation — 2026-11-10
+## 16. Worker AWS identity attestation and API gate diagnostics — 2026-11-10
 
-- [x] Created draft PR #110: [Attest isolated worker AWS runtime identity](https://github.com/zester4/agentlogin/pull/110).
-- [x] Added `getAwsCallerIdentity(region)` in the vault package using AWS STS and the SDK default credential provider chain.
-- [x] Added isolated-worker startup attestation that logs only AWS caller ARN/account before accepting requests; startup fails closed if identity cannot be resolved.
-- [x] Confirmed changes are isolated to `packages/vault/src/aws-kms.ts` and `apps/login-worker/src/server.ts`; no secrets or credentials are logged.
-- [ ] CI/build/typecheck for PR #110 is still running; do not merge until it passes.
-- [ ] After merge/deploy, capture the worker's actual ARN and compare it to the intended dedicated worker identity and API identity. The local KMS probe caller is not a substitute for this evidence.
-- [ ] Execute KMS permission checks from the deployed worker runtime, then continue private connectivity, synthetic HTTPS login and adversarial acceptance tests.
+- [x] PR #110 merged and deployed: commit `26b4803a64f190711212ee8f7dfd493015ee31f3`.
+- [x] Isolated Login Worker deployment `19ea5bb1-1820-4a16-a198-60f552c005b1` reached SUCCESS; service is ONLINE with one running replica.
+- [x] Worker startup STS attestation logged account `471742380391` and ARN `arn:aws:iam::471742380391:user/agentlogin-vault-service`.
+- [x] Effective worker ARN matches the principal reported by the local KMS synthetic permission probe. Do not treat this as evidence that API and worker identities are separate; verify API AWS access is absent or independently restricted.
+- [x] Latest environment status: three services ONLINE; API and isolated worker deployments completed successfully at the time of verification; zero recent failed deployments. (Recheck API deployment separately; its deployment was still DEPLOYING in the most recent poll.)
+- [x] Source confirms worker-ticket signing key decoder requires canonical base64url encoding of exactly 32 bytes (43 characters); decoded length and re-encoding are checked.
+- [x] API runtime continues to report login execution routes disabled. The worker URL and key values are redacted by Railway; only variable-name presence was previously verified.
+- [ ] Follow-up diagnostics PR: log safe booleans only — worker URL configured/valid and ticket key configured/valid — to isolate the rejected configuration without printing secret values.
+- [ ] After diagnostics deploy, correct the invalid/missing setting through Railway, then verify the API gate remains disabled until both checks pass.
+- [ ] Verify private API-to-worker connectivity, invalid/expired/replayed ticket rejection, worker-side KMS denial cases, current worker DB role session, and controlled synthetic login tests.
+- [ ] Complete independent security review, rollback evidence and operational recovery before enabling enrollment or execution.
 
-Production remains fail-closed: API login execution routes are disabled and credential enrollment remains disabled.
+Production remains fail-closed: no real credentials enrolled; login execution routes remain disabled.
