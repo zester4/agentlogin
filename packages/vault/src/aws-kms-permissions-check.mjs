@@ -5,7 +5,7 @@ import {
   GenerateDataKeyWithoutPlaintextCommand,
   KMSClient
 } from "@aws-sdk/client-kms";
-import { execFileSync } from "node:child_process";
+import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 
 const region = process.env.AWS_REGION;
 const keyId = process.env.AWS_KMS_KEY_ID;
@@ -17,6 +17,7 @@ if (!region || !keyId) {
 }
 
 const kms = new KMSClient({ region });
+const sts = new STSClient({ region });
 const encryptionContext = { purpose: "website_login" };
 let failures = 0;
 let skipped = 0;
@@ -45,26 +46,22 @@ async function main() {
   console.log(`Key: ${keyId}`);
   console.log("No secrets or credential values will be printed.\n");
 
-  // Optional identity check when AWS CLI is installed locally.
+  // STS GetCallerIdentity works with the same SDK credential provider chain
+  // used by KMS and does not require an AWS CLI installation.
   try {
-    const raw = execFileSync("aws", ["sts", "get-caller-identity", "--output", "json"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    });
-    const identity = JSON.parse(raw);
+    const identity = await sts.send(new GetCallerIdentityCommand({}));
     console.log(`AWS caller: ${identity.Arn}`);
     console.log(`AWS account: ${identity.Account}`);
     if (expectedAccount) {
       report("AWS account matches AWS_EXPECTED_ACCOUNT_ID", identity.Account === expectedAccount);
     }
-  } catch {
+  } catch (error) {
     skipped += 1;
-    console.log("SKIP: AWS CLI unavailable; caller identity not independently displayed.");
+    console.log(`SKIP: AWS caller identity unavailable (${error?.name ?? "unknown error"}).`);
   }
 
-  // KMS authorizes the request before it can validate/decrypt the ciphertext.
-  // Invalid synthetic bytes let us test the IAM action without storing or
-  // handling any real encrypted credential material.
+  // Invalid synthetic bytes let us test whether the request is authorized
+  // without storing or handling any real encrypted credential material.
   try {
     await kms.send(new DecryptCommand({
       KeyId: keyId,
@@ -82,8 +79,8 @@ async function main() {
     }
   }
 
-  // A policy conditioned on purpose=website_login must reject a different
-  // encryption context before ciphertext validation.
+  // The request-level encryption-context condition must reject a purpose
+  // other than website_login before KMS validates the synthetic ciphertext.
   try {
     await kms.send(new DecryptCommand({
       KeyId: keyId,
@@ -131,7 +128,7 @@ async function main() {
   } else {
     console.log("KMS permission-action checks passed.");
     if (skipped) {
-      console.log("Note: caller identity display was skipped; install AWS CLI to include it.");
+      console.log("Note: AWS caller identity was unavailable.");
     }
     console.log("Note: Decrypt authorization is checked using invalid synthetic ciphertext; this does not prove a real ciphertext can be decrypted.");
   }
