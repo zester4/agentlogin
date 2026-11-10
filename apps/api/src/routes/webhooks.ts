@@ -36,7 +36,7 @@ const UpdateEndpointBody = z.object({
 
 export function normalizeWebhookUrl(value: string): string {
   const parsed = new URL(value);
-  const hostname = parsed.hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   const localHostname = hostname === "localhost" || hostname.endsWith(".localhost") ||
     hostname.endsWith(".local") || hostname.endsWith(".internal") || hostname === "metadata.google.internal";
   if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
