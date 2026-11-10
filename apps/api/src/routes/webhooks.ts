@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   withTenantTransaction,
@@ -9,6 +9,7 @@ import {
   webhookDeliveries,
   webhookEvents,
   webhookDeliveryAttempts,
+  webhookDeliveryQueue,
   PostgresDeveloperRepository,
 } from "@agentlogin/database";
 import { AwsKmsProvider, encryptCredential } from "@agentlogin/vault";
@@ -183,6 +184,73 @@ export async function webhookEndpointRoutes(
     });
   });
 
+  app.post("/v1/developers/:developerId/webhook-deliveries/:deliveryId/replay", {
+    preHandler: app.authenticateUser,
+  }, async (request, reply) => {
+    if (!webhookFeatureEnabled()) {
+      return reply.code(423).send({ error: { code: "webhook_endpoint_management_locked", message: "Webhook endpoint management is not enabled yet." } });
+    }
+    const principal = request.userPrincipal;
+    if (!principal) return reply.code(401).send({ error: { code: "unauthorized", message: "User authentication required." } });
+    const { developerId, deliveryId } = request.params as { developerId: string; deliveryId: string };
+    if (!(await managedDeveloper(options.database, principal.tenantId, principal.userId, developerId))) {
+      return reply.code(404).send({ error: { code: "webhook_delivery_not_found", message: "The webhook delivery was not found." } });
+    }
+    const replay = await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
+      const [eligible] = await tx.select({
+        id: webhookDeliveries.id,
+        status: webhookDeliveries.status,
+        attemptCount: webhookDeliveries.attemptCount,
+      }).from(webhookDeliveries)
+        .innerJoin(webhookEndpoints, and(
+          eq(webhookDeliveries.tenantId, webhookEndpoints.tenantId),
+          eq(webhookDeliveries.endpointId, webhookEndpoints.id),
+        ))
+        .where(and(
+          eq(webhookDeliveries.tenantId, principal.tenantId),
+          eq(webhookDeliveries.id, deliveryId),
+          eq(webhookEndpoints.developerId, developerId),
+          eq(webhookEndpoints.status, "active"),
+        ))
+        .for("update");
+      if (!eligible || !["delivered", "dead_lettered"].includes(eligible.status)) return null;
+      const [updated] = await tx.update(webhookDeliveries).set({
+        status: "pending",
+        maxAttempts: sql<number>\`${webhookDeliveries.attemptCount} + 8\`,
+        nextAttemptAt: new Date(),
+        deliveredAt: null,
+        deadLetteredAt: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(webhookDeliveries.tenantId, principal.tenantId),
+        eq(webhookDeliveries.id, deliveryId),
+        eq(webhookDeliveries.status, eligible.status),
+      )).returning({
+        id: webhookDeliveries.id,
+        attemptCount: webhookDeliveries.attemptCount,
+        nextAttemptAt: webhookDeliveries.nextAttemptAt,
+      });
+      if (!updated) return null;
+      await tx.insert(webhookDeliveryQueue).values({
+        id: randomBytes(18).toString("base64url"),
+        tenantId: principal.tenantId,
+        deliveryId: updated.id,
+        availableAt: new Date(),
+      }).onConflictDoNothing();
+      return updated;
+    });
+    if (!replay) return reply.code(409).send({
+      error: { code: "webhook_delivery_not_replayable", message: "The delivery is missing, active, or its endpoint is disabled." },
+    });
+    return reply.code(202).send({
+      delivery_id: replay.id,
+      status: "pending",
+      attempt_count: replay.attemptCount,
+      next_attempt_at: replay.nextAttemptAt.toISOString(),
+    });
+  });
   app.get("/v1/developers/:developerId/webhook-deliveries/:deliveryId/attempts", {
     preHandler: app.authenticateUser,
   }, async (request, reply) => {
