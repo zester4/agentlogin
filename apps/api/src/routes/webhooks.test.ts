@@ -1,19 +1,42 @@
-import { describe, expect, it } from "vitest";
-import { normalizeWebhookUrl } from "./webhooks.js";
+import Fastify from "fastify";
+import { afterEach, describe, expect, it } from "vitest";
+import { webhookEndpointRoutes, normalizeWebhookUrl } from "./webhooks.js";
 
-describe("webhook endpoint URL validation", () => {
-  it("normalizes credential-free HTTPS URLs", () => {
-    expect(normalizeWebhookUrl("https://hooks.example.com/events")).toBe("https://hooks.example.com/events");
+afterEach(() => {
+  delete process.env.WEBHOOK_ENDPOINTS_ENABLED;
+});
+
+describe("webhook endpoint management gate", () => {
+  it("fails closed unless the exact string true is configured", async () => {
+    delete process.env.WEBHOOK_ENDPOINTS_ENABLED;
+    const app = Fastify({ logger: false });
+    app.decorate("authenticateUser", async (request) => {
+      request.userPrincipal = { tenantId: "tenant_test", userId: "user_test" } as never;
+    });
+    await webhookEndpointRoutes(app, { database: {} as never });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/developers/dev_test/webhook-endpoints",
+      payload: { url: "https://hooks.example.com/events", event_types: ["grant.approved"] },
+    });
+    expect(response.statusCode).toBe(423);
+    expect(response.json().error.code).toBe("webhook_endpoint_management_locked");
+    await app.close();
   });
 
-  it.each([
-    "http://hooks.example.com/events",
-    "https://user:pass@hooks.example.com/events",
-    "https://hooks.example.com:8443/events",
-    "https://hooks.example.com/events#fragment",
-    "https://localhost/events",
-    "https://127.0.0.1/events",
-  ])("rejects unsafe or unsupported destination %s", (url) => {
-    expect(() => normalizeWebhookUrl(url)).toThrow();
+  it("requires an HTTPS hostname and rejects local or literal-IP destinations", () => {
+    expect(normalizeWebhookUrl("https://hooks.example.com/events")).toBe("https://hooks.example.com/events");
+    for (const url of [
+      "http://hooks.example.com/events",
+      "https://user:pass@hooks.example.com/events",
+      "https://hooks.example.com:8443/events",
+      "https://hooks.example.com/events#fragment",
+      "https://localhost/events",
+      "https://service.local/events",
+      "https://127.0.0.1/events",
+      "https://[::1]/events",
+    ]) {
+      expect(() => normalizeWebhookUrl(url)).toThrow();
+    }
   });
 });
