@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { auditEvents, connectedAccounts, credentials, delegations, grants } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
+import { enqueueWebhookEvent } from "./webhook-repository.js";
 
 function newId(): string { return "acct_" + randomBytes(18).toString("base64url"); }
 export class PostgresConnectedAccountRepository {
@@ -32,7 +33,7 @@ export class PostgresConnectedAccountRepository {
       await tx.insert(connectedAccounts).values({
         id: accountId, tenantId: this.tenantId, userId: input.userId,
         provider: input.provider, origin: input.origin,
-        displayLabel: input.displayLabel, status: "active"
+        displayLabel: input.displayLabel, status: "pending"
       });
       await tx.insert(auditEvents).values({
         id: accountId + "_created", tenantId: this.tenantId,
@@ -40,6 +41,9 @@ export class PostgresConnectedAccountRepository {
         eventType: "connected_account.created", resourceRef: accountId,
         decision: "created", metadata: { provider: input.provider, origin: input.origin }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "connected_account.created",
+        resourceType: "connected_account", resourceId: accountId,
+        payload: { account_id: accountId, provider: input.provider, origin: input.origin } });
     });
     return { accountId };
   }
@@ -50,7 +54,7 @@ export class PostgresConnectedAccountRepository {
         eq(connectedAccounts.tenantId, this.tenantId),
         eq(connectedAccounts.id, accountId),
         eq(connectedAccounts.userId, userId),
-        eq(connectedAccounts.status, "active")
+        inArray(connectedAccounts.status, ["active", "pending"])
       )).returning({ id: connectedAccounts.id });
       if (!rows[0]) return false;
       await tx.update(credentials).set({ status: "revoked", revokedAt: at }).where(and(
@@ -61,32 +65,47 @@ export class PostgresConnectedAccountRepository {
         eq(delegations.tenantId, this.tenantId), eq(delegations.accountId, accountId),
         eq(delegations.status, "active")
       ));
-      await tx.update(grants).set({ revokedAt: at }).where(and(
+      const revokedGrants = await tx.update(grants).set({ revokedAt: at }).where(and(
         eq(grants.tenantId, this.tenantId), eq(grants.accountId, accountId),
         isNull(grants.revokedAt)
-      ));
+      )).returning({ id: grants.id, agentId: grants.agentId, accountId: grants.accountId });
       await tx.insert(auditEvents).values({
         id: accountId + "_disconnected_" + at.getTime(), tenantId: this.tenantId,
         actorType: "user", actorId: userId, eventType: "connected_account.disconnected",
         resourceRef: accountId, decision: "revoked",
         metadata: { credentials_revoked: true, delegations_revoked: true, grants_revoked: true }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "connected_account.disconnected",
+        resourceType: "connected_account", resourceId: accountId, occurredAt: at,
+        payload: { account_id: accountId, disconnected_at: at.toISOString(),
+          credentials_revoked: true, delegations_revoked: true, grants_revoked: true } });
+      for (const grant of revokedGrants) {
+        await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "grant.revoked",
+          resourceType: "grant", resourceId: grant.id, occurredAt: at,
+          payload: { grant_id: grant.id, account_id: grant.accountId, agent_id: grant.agentId,
+            revoked_at: at.toISOString(), reason: "connected_account_disconnected" } });
+      }
       return true;
     });
   }
 
   async disable(accountId: string, userId: string): Promise<void> {
     await withTenantTransaction(this.database, this.tenantId, async (tx) => {
-      await tx.update(connectedAccounts).set({ status: "disabled" }).where(and(
+      const rows = await tx.update(connectedAccounts).set({ status: "disabled" }).where(and(
         eq(connectedAccounts.tenantId, this.tenantId),
-        eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, userId)
-      ));
+        eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, userId),
+        inArray(connectedAccounts.status, ["active", "pending"])
+      )).returning({ id: connectedAccounts.id });
+      if (!rows[0]) return;
       await tx.insert(auditEvents).values({
         id: accountId + "_disabled_" + Date.now(), tenantId: this.tenantId,
         actorType: "user", actorId: userId,
         eventType: "connected_account.disabled", resourceRef: accountId,
         decision: "disabled", metadata: {}
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "connected_account.disabled",
+        resourceType: "connected_account", resourceId: accountId,
+        payload: { account_id: accountId, disabled_by: userId } });
     });
   }
 }

@@ -1,4 +1,4 @@
-import { and, arrayOverlaps, eq } from "drizzle-orm";
+import { and, arrayOverlaps, eq, sql } from "drizzle-orm";
 import type { TenantTransaction } from "./types.js";
 import { webhookDeliveryQueue, webhookDeliveries, webhookEndpoints, webhookEvents } from "./schema.js";
 
@@ -50,6 +50,14 @@ export async function enqueueWebhookEvent(
 ): Promise<{ eventId: string; deliveryIds: string[] }> {
   if (!input.tenantId || !input.eventType || !input.resourceType || !input.resourceId) {
     throw new Error("Webhook event identity is incomplete.");
+  }
+  // Do not trust a caller-supplied tenant ID as proof of transaction scope.
+  // Verify the transaction-local RLS identity before writing any outbox rows.
+  const tenantContext = await tx.execute<{ tenant_id: string | null }>(
+    sql`select current_setting('app.tenant_id', true) as tenant_id`,
+  );
+  if (tenantContext.rows[0]?.tenant_id !== input.tenantId) {
+    throw new Error("Webhook tenant context mismatch.");
   }
   const payload = input.payload ?? {};
   assertSafePayload(payload);

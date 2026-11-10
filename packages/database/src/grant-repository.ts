@@ -2,6 +2,7 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { approvals, auditEvents, agents, connectedAccounts, delegations, developers, grants, tenants, users } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
+import { enqueueWebhookEvent } from "./webhook-repository.js";
 
 export type NewGrantRecord = {
   id: string; tenantId: string; userId: string; agentId: string; accountId: string;
@@ -93,6 +94,11 @@ export class PostgresGrantRepository {
         decision: "pending_approval", correlationId: input.taskId,
         metadata: { account_ref: input.accountId, origin: input.origin, scopes: input.scopes }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "grant.requested",
+        resourceType: "grant", resourceId: input.id, occurredAt: input.issuedAt,
+        payload: { grant_id: input.id, approval_id: approvalId, agent_id: input.agentId,
+          account_id: input.accountId, scopes: input.scopes, task_id: input.taskId,
+          expires_at: input.expiresAt.toISOString() } });
       return { grantId: input.id, approvalId };
     });
   }
@@ -115,6 +121,10 @@ export class PostgresGrantRepository {
         resourceRef: row.grantId, decision: input.decision,
         metadata: { approval_ref: input.approvalId }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.tenantId,
+        eventType: input.decision === "approved" ? "grant.approved" : "grant.denied",
+        resourceType: "grant", resourceId: row.grantId, occurredAt: input.decidedAt,
+        payload: { grant_id: row.grantId, approval_id: input.approvalId, decision: input.decision } });
       return true;
     });
   }
@@ -222,6 +232,10 @@ export class PostgresGrantRepository {
         resourceRef: grantId, decision: "revoked",
         metadata: { agent_ref: row.agentId, account_ref: row.accountId }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "grant.revoked",
+        resourceType: "grant", resourceId: grantId, occurredAt: revokedAt,
+        payload: { grant_id: grantId, agent_id: row.agentId, account_id: row.accountId,
+          revoked_at: revokedAt.toISOString(), revoked_by: revokedBy } });
       return true;
     });
   }

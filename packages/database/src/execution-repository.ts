@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./client.js";
 import { auditEvents, connectedAccounts, credentials, executions, users } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
+import { enqueueWebhookEvent } from "./webhook-repository.js";
 
 /** Tenant-scoped account credential lookup and secret-free execution audit. */
 export class PostgresExecutionRepository {
@@ -66,6 +67,13 @@ export class PostgresExecutionRepository {
           origin: input.origin, ...(input.reasonCode ? { reason_code: input.reasonCode } : {})
         }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.authenticatedTenantId,
+        eventType: "execution.completed", resourceType: "execution",
+        resourceId: input.executionId, occurredAt: input.completedAt,
+        payload: { execution_id: input.executionId, grant_id: input.grantId,
+          account_id: input.accountId, operation: "autofill_login", status: input.status,
+          ...(input.reasonCode ? { reason_code: input.reasonCode } : {}),
+          started_at: input.startedAt.toISOString(), completed_at: input.completedAt.toISOString() } });
     });
   }
 }

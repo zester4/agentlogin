@@ -3,6 +3,7 @@ import type { CredentialRecordStore, StoredCredential } from "@agentlogin/vault"
 import type { Database } from "./client.js";
 import { auditEvents, connectedAccounts, credentials } from "./schema.js";
 import { withTenantTransaction } from "./tenant.js";
+import { enqueueWebhookEvent } from "./webhook-repository.js";
 
 /**
  * Tenant-bound PostgreSQL adapter for encrypted vault records. The row stores
@@ -30,7 +31,7 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
       const [account] = await tx.select({ id: connectedAccounts.id }).from(connectedAccounts).where(and(
         eq(connectedAccounts.tenantId, this.authenticatedTenantId),
         eq(connectedAccounts.id, context.accountId),
-        eq(connectedAccounts.status, "active")
+        eq(connectedAccounts.status, "pending")
       )).for("update").limit(1);
       if (!account) throw new Error("Connected account is not active.");
       await tx.insert(credentials).values({
@@ -41,6 +42,17 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
         wrappedDek: Buffer.from(envelope.wrappedDek), keyVersion: envelope.keyVersion,
         recordVersion: context.recordVersion, status: "active", revokedAt: null
       });
+      const activated = await tx.update(connectedAccounts).set({ status: "active" }).where(and(
+        eq(connectedAccounts.tenantId, this.authenticatedTenantId),
+        eq(connectedAccounts.id, context.accountId),
+        eq(connectedAccounts.status, "pending")
+      )).returning({ id: connectedAccounts.id });
+      if (!activated[0]) throw new Error("Connected account enrollment state changed.");
+      await enqueueWebhookEvent(tx, { tenantId: this.authenticatedTenantId,
+        eventType: "connected_account.connected", resourceType: "connected_account",
+        resourceId: context.accountId,
+        payload: { account_id: context.accountId, kind: context.purpose,
+          record_version: context.recordVersion } });
     });
   }
 
@@ -99,6 +111,10 @@ export class PostgresCredentialRecordStore implements CredentialRecordStore {
           record_version: context.recordVersion
         }
       });
+      await enqueueWebhookEvent(tx, { tenantId: this.authenticatedTenantId,
+        eventType: "credential.rotated", resourceType: "connected_account",
+        resourceId: context.accountId, occurredAt: revokedAt,
+        payload: { account_id: context.accountId, record_version: context.recordVersion } });
     });
   }
 
