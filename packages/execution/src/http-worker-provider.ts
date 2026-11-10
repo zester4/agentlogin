@@ -51,7 +51,7 @@ export class HttpIsolatedBrowserProvider implements IsolatedBrowserProvider {
     this.signingKey = new Uint8Array(options.signingKey);
     this.fetcher = options.fetchImpl ?? fetch;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 65_000;
-    if (!Number.isSafeInteger(this.requestTimeoutMs) || this.requestTimeoutMs < 100 || this.requestTimeoutMs > 30_000) {
+    if (!Number.isSafeInteger(this.requestTimeoutMs) || this.requestTimeoutMs < 100 || this.requestTimeoutMs > 120_000) {
       throw new TypeError("Worker request timeout must be between 100 and 120000 milliseconds.");
     }
   }
