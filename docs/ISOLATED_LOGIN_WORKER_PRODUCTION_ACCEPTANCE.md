@@ -101,6 +101,9 @@ CREATE ROLE agentlogin_worker
   LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
   NOREPLICATION NOBYPASSRLS;
 
+-- Set this from a password manager in the trusted DBA session only.
+ALTER ROLE agentlogin_worker PASSWORD '<generated-secret-not-for-git-or-chat>';
+
 GRANT CONNECT ON DATABASE agentlogin TO agentlogin_worker;
 GRANT USAGE ON SCHEMA public TO agentlogin_worker;
 
