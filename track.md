@@ -306,7 +306,9 @@ Implementation plan updated in `plans.md` section 8C. This section supersedes ea
 - [x] Latest environment status: three services ONLINE; API and isolated worker deployments completed successfully at the time of verification; zero recent failed deployments. (Recheck API deployment separately; its deployment was still DEPLOYING in the most recent poll.)
 - [x] Source confirms worker-ticket signing key decoder requires canonical base64url encoding of exactly 32 bytes (43 characters); decoded length and re-encoding are checked.
 - [x] API runtime continues to report login execution routes disabled. The worker URL and key values are redacted by Railway; only variable-name presence was previously verified.
-- [ ] Follow-up diagnostics PR: log safe booleans only — worker URL configured/valid and ticket key configured/valid — to isolate the rejected configuration without printing secret values.
+- [x] PR #111 opened with safe boolean-only URL/key diagnostics and strict HTTP(S) URL validation; first CI run caught TS2322 because closure validation did not narrow the optional URL.
+- [x] Fixed TS2322 by returning a validated URL string from the parser and passing that non-null value to the provider constructor.
+- [ ] Re-run PR #111 CI after commit `59fdb739e8e42a17e05d1dd72f1aa4b3d02d7711`; merge only after full CI passes.
 - [ ] After diagnostics deploy, correct the invalid/missing setting through Railway, then verify the API gate remains disabled until both checks pass.
 - [ ] Verify private API-to-worker connectivity, invalid/expired/replayed ticket rejection, worker-side KMS denial cases, current worker DB role session, and controlled synthetic login tests.
 - [ ] Complete independent security review, rollback evidence and operational recovery before enabling enrollment or execution.
