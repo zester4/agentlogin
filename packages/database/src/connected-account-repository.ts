@@ -78,7 +78,7 @@ export class PostgresConnectedAccountRepository {
       await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "connected_account.disconnected",
         resourceType: "connected_account", resourceId: accountId, occurredAt: at,
         payload: { account_id: accountId, disconnected_at: at.toISOString(),
-          credentials_revoked: true, delegations_revoked: true, grants_revoked: true } });
+          encrypted_records_revoked: true, delegations_revoked: true, grants_revoked: true } });
       for (const grant of revokedGrants) {
         await enqueueWebhookEvent(tx, { tenantId: this.tenantId, eventType: "grant.revoked",
           resourceType: "grant", resourceId: grant.id, occurredAt: at,

@@ -89,6 +89,7 @@ describe.skipIf(!connectionString)("PostgreSQL credential vault lifecycle (isola
       await databaseHandle.db.transaction(async (tx) => {
         await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
         if (accountId) {
+          await tx.delete(webhookEvents).where(eq(webhookEvents.tenantId, tenantId));
           await tx.delete(credentials).where(eq(credentials.tenantId, tenantId));
           await tx.delete(connectedAccounts).where(eq(connectedAccounts.id, accountId));
         }
