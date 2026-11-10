@@ -72,6 +72,10 @@ pnpm test
 pnpm build
 ```
 
+## Isolated login worker
+
+`apps/login-worker` is a separate Playwright-based service for executing approved website login grants. It accepts only short-lived worker tickets, consumes the one-time lease through the API broker, loads the encrypted credential under tenant scope, and opens a fresh non-persistent browser context. It pins the target hostname to a public IPv4 address, blocks cross-origin requests and downloads, and closes the browser context after each execution. Deploy it as a separate Railway service using `apps/login-worker/Dockerfile`; configure `AGENTLOGIN_WORKER_URL` on the API and `AGENTLOGIN_API_INTERNAL_URL`, `AGENTLOGIN_WORKER_TICKET_SIGNING_KEY`, `DATABASE_URL`, `AWS_REGION`, and `AWS_KMS_KEY_ID` on the worker. The worker needs database read access to encrypted credential records and KMS decrypt permission only. Do not enable the worker until its database role and private API connectivity are verified. MFA/CAPTCHA handoff is not yet implemented; challenge pages fail closed.
+
 ## SDK and MCP
 
 The SDK and MCP implementation status, supported operations, authentication setup, and examples are documented in [docs/SDK_MCP.md](./docs/SDK_MCP.md). The current MCP server exposes identity inspection and user-approved access requests only. It does not expose passwords, cookies, token retrieval, or browser execution.
