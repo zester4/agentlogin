@@ -193,3 +193,15 @@ No production execution or credential enrollment is considered accepted until al
 - API latest deployment is queued; MCP/webhook worker are still building. No failed deployment is reported yet, but the latest deployment set has not settled.
 - Worker Railway configuration is private-network-only with private endpoint `agentlogin-worker`, healthcheck `/health`, and no public domain. API private endpoint is `agentlogin-api`; public API domain remains `agentlogin-production-90b2.up.railway.app`.
 - Worker config now lists AWS access-key variable names. The OAuth session withholds values, so this audit cannot prove the AWS principal, whether it is dedicated, or its effective KMS policy. No AWS IAM/KMS policy was changed.
+
+
+## 11. Worker-permission regression test work — 2026-11-10
+
+- [x] Added PR #104: https://github.com/zester4/agentlogin/pull/104
+- [x] CI now provisions a dedicated synthetic `agentlogin_worker` role with `NOSUPERUSER NOBYPASSRLS`.
+- [x] CI grants only the exact worker credential envelope columns and `connected_accounts(id, tenant_id, status)`.
+- [x] Added integration test that logs in as the worker role, checks the exact privilege boundary, seeds two synthetic tenants/accounts/credentials, verifies missing tenant context returns no rows, and verifies tenant A and tenant B each see only their own credential.
+- [x] Synthetic fixtures use unique IDs and are cleaned up after the test.
+- [ ] PR #104 CI not yet reported; do not merge until the full quality workflow passes.
+- [ ] The production DB grants are already corrected, but the production worker's own Railway DATABASE_URL identity still cannot be inspected in this OAuth session. Verify it is actually the `agentlogin_worker` role before declaring runtime database access complete.
+- [ ] AWS principal and KMS decrypt-only policy remain unverified; Railway variable names alone do not prove identity or permissions.
