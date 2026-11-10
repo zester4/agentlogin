@@ -441,6 +441,18 @@ export class AgentLoginDeveloperClient {
     return deliveries as WebhookDelivery[];
   }
 
+  async replayWebhookDelivery(
+    developerId: string,
+    deliveryId: string,
+    options: RequestOptions = {}
+  ): Promise<{ delivery_id: string; status: "pending"; attempt_count: number; next_attempt_at: string }> {
+    const path = this.path(developerId, "webhook-deliveries") + "/" +
+      encodeURIComponent(deliveryId) + "/replay";
+    return await this.request("POST", path, {}, options) as {
+      delivery_id: string; status: "pending"; attempt_count: number; next_attempt_at: string;
+    };
+  }
+
   async listWebhookDeliveryAttempts(
     developerId: string,
     deliveryId: string,
