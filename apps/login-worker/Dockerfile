@@ -10,4 +10,6 @@ ENV NODE_ENV=production
 ENV PORT=4180
 EXPOSE 4180
 
+USER pwuser
+
 CMD ["pnpm", "--filter", "@agentlogin/login-worker", "start"]
