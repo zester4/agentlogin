@@ -179,3 +179,17 @@ No production execution or credential enrollment is considered accepted until al
 - The latest Railway inventory shows API, web and isolated worker still deploying; webhook worker and MCP are online. Do not mark the overall production rollout complete until the current deployments settle and their health is verified.
 - The isolated worker variable inventory now includes names `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, along with `AWS_REGION` and `AWS_KMS_KEY_ID`. Variable values are not visible in this OAuth-connected Railway session. **Presence of those variable names does not prove that the credentials belong to a dedicated least-privilege worker IAM identity.** Do not copy or print secret values. Confirm the worker AWS principal with an authorized AWS STS/KMS verification path.
 - The latest CI run passed, but the production worker still has not passed an end-to-end synthetic login run.
+
+
+### Additional direct verification
+- [x] Connected as `agentlogin_worker` and executed a credential/account join with no tenant context. Result: `visible_credential_rows = 0`.
+- [x] Same direct role check confirms `can_insert_credentials = false`, `can_update_credentials = false`, and `can_update_accounts = false`.
+- [x] Confirmed the worker's required credential columns are individually selectable; `credentials.created_at` is not. Account `id`, `tenant_id`, and `status` are individually selectable.
+- [x] Confirmed `has_table_privilege(..., 'SELECT')` is false for both `credentials` and `connected_accounts`, proving there is no table-wide SELECT.
+- [ ] Tenant-A versus tenant-B visibility still needs a synthetic fixture under the worker role. Existing main CI RLS integration test validates the non-bypass runtime role across tenants; it does not yet log in as the narrower read-only worker role.
+
+### Current deployment build
+- Worker's latest Railway Docker build has completed TypeScript builds for contracts, vault, database, policy, execution, and login-worker packages and is exporting the image. Its deployment has not yet reached a successful runtime state.
+- API latest deployment is queued; MCP/webhook worker are still building. No failed deployment is reported yet, but the latest deployment set has not settled.
+- Worker Railway configuration is private-network-only with private endpoint `agentlogin-worker`, healthcheck `/health`, and no public domain. API private endpoint is `agentlogin-api`; public API domain remains `agentlogin-production-90b2.up.railway.app`.
+- Worker config now lists AWS access-key variable names. The OAuth session withholds values, so this audit cannot prove the AWS principal, whether it is dedicated, or its effective KMS policy. No AWS IAM/KMS policy was changed.
