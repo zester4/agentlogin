@@ -37,7 +37,7 @@ integration("transactional webhook outbox", () => {
       await tx.insert(connectedAccounts).values({ id: accountId, tenantId, userId, provider: "synthetic", origin: "https://example.test", displayLabel: "Outbox account", status: "active" });
       await tx.insert(webhookEndpoints).values({
         id: endpointId, tenantId, developerId, url: "https://hooks.example.test/events",
-        eventTypes: ["grant.requested", "connected_account.disconnected"], status: "active",
+        eventTypes: ["grant.requested", "connected_account.disconnected", "connected_account.connected"], status: "active",
         secretCiphertext: Buffer.from("ciphertext"), secretIv: Buffer.alloc(12),
         secretAuthTag: Buffer.alloc(16), wrappedDek: Buffer.from("wrapped-dek"), keyVersion: "test",
       });
@@ -46,6 +46,7 @@ integration("transactional webhook outbox", () => {
     const inserted = new Promise<void>((resolve) => { signalInserted = resolve; });
     const continueCommit = new Promise<void>((resolve) => { allowCommit = resolve; });
     const transaction = withTenantTransaction(handle.db, tenantId, async (tx) => {
+      await tx.update(connectedAccounts).set({ status: "disabled" }).where(eq(connectedAccounts.id, accountId));
       await enqueueWebhookEvent(tx, {
         tenantId, eventId, eventType: "connected_account.disconnected", resourceType: "connected_account",
         resourceId: accountId, payload: { account_id: accountId },
@@ -83,15 +84,18 @@ integration("transactional webhook outbox", () => {
       const queue = await tx.select({ id: webhookDeliveryQueue.id }).from(webhookDeliveryQueue)
         .where(eq(webhookDeliveryQueue.tenantId, tenantId));
       expect(event?.id).toBe(eventId);
+      const [committedAccount] = await tx.select({ status: connectedAccounts.status }).from(connectedAccounts)
+        .where(eq(connectedAccounts.id, accountId));
+      expect(committedAccount?.status).toBe("disabled");
       expect(deliveries).toHaveLength(1);
       expect(queue).toHaveLength(1);
     });
 
     const rollbackEventId = eventId + "-rollback";
     await expect(withTenantTransaction(handle.db, tenantId, async (tx) => {
-      await tx.update(connectedAccounts).set({ status: "disabled" }).where(eq(connectedAccounts.id, accountId));
+      await tx.update(connectedAccounts).set({ status: "active" }).where(eq(connectedAccounts.id, accountId));
       await enqueueWebhookEvent(tx, {
-        tenantId, eventId: rollbackEventId, eventType: "connected_account.disconnected",
+        tenantId, eventId: rollbackEventId, eventType: "connected_account.connected",
         resourceType: "connected_account", resourceId: accountId,
         payload: { account_id: accountId },
       });
@@ -107,7 +111,7 @@ integration("transactional webhook outbox", () => {
         .where(eq(connectedAccounts.id, accountId));
       expect(event).toBeUndefined();
       expect(deliveries).toHaveLength(0);
-      expect(account?.status).toBe("active");
+      expect(account?.status).toBe("disabled");
     });
   });
 
