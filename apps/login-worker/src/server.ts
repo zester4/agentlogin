@@ -11,7 +11,7 @@ import {
   decodeWorkerTicketSigningKey,
   verifyWorkerTicket
 } from "@agentlogin/execution";
-import { AwsKmsProvider, EncryptedCredentialVault } from "@agentlogin/vault";
+import { AwsKmsProvider, EncryptedCredentialVault, getAwsCallerIdentity } from "@agentlogin/vault";
 
 const ExecutionBody = z.object({
   executionId: z.string().min(1).max(200),
@@ -410,6 +410,8 @@ if (process.env.NODE_ENV !== "test") {
     kms: new AwsKmsProvider(kmsKeyId, awsRegion)
   });
   try {
+    const identity = await getAwsCallerIdentity(awsRegion);
+    app.log.info({ awsCallerArn: identity.arn, awsAccountId: identity.account }, "worker AWS caller identity attested");
     await app.listen({ port, host: "0.0.0.0" });
   } catch (error) {
     app.log.error({ errorName: error instanceof Error ? error.name : "UnknownError" }, "worker startup failed");
