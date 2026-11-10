@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, asc, desc, eq, gt, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, or, sql } from "drizzle-orm";
 import { auditEvents, grants, withTenantTransaction, type Database } from "@agentlogin/database";
 
 
@@ -55,10 +55,13 @@ export async function activityRoutes(app: FastifyInstance, options: { database: 
       if (stopped || polling || reply.raw.destroyed) return;
       polling = true;
       try {
-        const events = await withTenantTransaction(options.database, principal.tenantId, async (tx) =>
-          tx.select({
+        const events = await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
+          // pg Date decoding truncates microseconds; truncate in SQL too so the
+          // (timestamp, id) cursor remains stable and cannot replay one row forever.
+          const cursorTimestamp = sql<Date>`date_trunc('milliseconds', ${auditEvents.createdAt})`;
+          return tx.select({
             id: auditEvents.id,
-            createdAt: auditEvents.createdAt,
+            createdAt: cursorTimestamp,
           }).from(auditEvents)
             .leftJoin(grants, and(
               eq(auditEvents.tenantId, grants.tenantId),
@@ -71,13 +74,13 @@ export async function activityRoutes(app: FastifyInstance, options: { database: 
                 eq(grants.userId, principal.userId)
               ),
               or(
-                gt(auditEvents.createdAt, cursor.at),
-                and(eq(auditEvents.createdAt, cursor.at), gt(auditEvents.id, cursor.id))
+                gt(cursorTimestamp, cursor.at),
+                and(eq(cursorTimestamp, cursor.at), gt(auditEvents.id, cursor.id))
               )
             ))
-            .orderBy(asc(auditEvents.createdAt), asc(auditEvents.id))
-            .limit(100)
-        );
+            .orderBy(asc(cursorTimestamp), asc(auditEvents.id))
+            .limit(100);
+        });
         for (const event of events) {
           if (stopped || reply.raw.destroyed) break;
           const nextCursor = encodeActivityCursor(event.createdAt, event.id);
