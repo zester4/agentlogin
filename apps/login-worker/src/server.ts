@@ -108,7 +108,7 @@ function parseApiUrl(value: string): URL {
 
 function decodeCredentials(secret: Uint8Array): Credentials {
   const copy = Buffer.from(secret);
-  let parsed: unknown;
+  let parsed: unknown = undefined;
   try {
     parsed = JSON.parse(copy.toString("utf8"));
   } finally {
