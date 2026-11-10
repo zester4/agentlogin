@@ -10,6 +10,11 @@ describe("assertSafeWebhookPayload", () => {
     })).not.toThrow();
   });
 
+  it("accepts the credentials-revoked lifecycle flag only as a boolean", () => {
+    expect(() => assertSafeWebhookPayload({ credentials_revoked: true })).not.toThrow();
+    expect(() => assertSafeWebhookPayload({ credentials_revoked: "yes" })).toThrow(/prohibited field/i);
+  });
+
   it.each([
     { token: "do-not-send" },
     { nested: { accessToken: "do-not-send" } },
