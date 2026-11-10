@@ -158,7 +158,8 @@ async function hasLocator(page: Page, selector: string): Promise<boolean> {
 async function runBrowserLogin(
   input: ExecutionInput,
   credentials: Credentials,
-  active: Map<string, ActiveExecution>
+  active: Map<string, ActiveExecution>,
+  reservations: Set<string>
 ): Promise<SafeOutcome> {
   const origin = parseOrigin(input.expectedOrigin);
   const pinnedIp = await resolvePublicIpv4(origin.hostname);
@@ -187,6 +188,7 @@ async function runBrowserLogin(
       viewport: { width: 1280, height: 800 }
     });
     active.set(input.executionId, { browser, context });
+    reservations.delete(input.executionId);
     const page = await context.newPage();
     await page.route("**/*", async (route) => {
       try {
@@ -277,7 +279,11 @@ export function buildWorkerApp(options: {
     bodyLimit: 16_384
   });
   const active = new Map<string, ActiveExecution>();
+  const reservations = new Set<string>();
   const maxConcurrent = options.maxConcurrent ?? 2;
+  if (!Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 10) {
+    throw new TypeError("Worker concurrency must be between 1 and 10.");
+  }
 
   app.get("/health", async (_request, reply) => {
     reply.header("cache-control", "no-store");
@@ -305,48 +311,54 @@ export function buildWorkerApp(options: {
         new Date(input.deadline).getTime() > Date.now() + 120_000) {
       return reply.code(403).send({ error: { code: "execution_ticket_mismatch" } });
     }
-    if (active.has(input.executionId)) return reply.code(409).send({ error: { code: "execution_already_active" } });
-    if (active.size >= maxConcurrent) return reply.code(429).send({ error: { code: "worker_at_capacity" } });
+    if (active.has(input.executionId) || reservations.has(input.executionId)) {
+      return reply.code(409).send({ error: { code: "execution_already_active" } });
+    }
+    if (active.size + reservations.size >= maxConcurrent) {
+      return reply.code(429).send({ error: { code: "worker_at_capacity" } });
+    }
 
-    let receipt: BrokerReceipt;
+    reservations.add(input.executionId);
     try {
-      receipt = await consumeLease(
+      const receipt = await consumeLease(
         options.apiUrl, auth.slice(7), input.credentialLease.leaseId, input.credentialLease.token
       );
+      if (receipt.lease_id !== claims.leaseId || receipt.execution_id !== claims.executionId ||
+          receipt.account_id !== input.accountRef || receipt.origin !== input.expectedOrigin ||
+          receipt.credential_id !== input.credentialId || receipt.record_version !== input.recordVersion) {
+        return reply.code(403).send({ error: { code: "credential_lease_binding_mismatch" } });
+      }
+
+      const vault = new EncryptedCredentialVault(
+        new PostgresCredentialRecordStore(options.database.db, claims.tenantId),
+        options.kms
+      );
+      const context = {
+        tenantId: claims.tenantId,
+        accountId: receipt.account_id,
+        credentialId: receipt.credential_id,
+        recordVersion: receipt.record_version,
+        purpose: "website_login" as const
+      };
+      try {
+        const result = await vault.withDecryptedCredential(receipt.credential_ref, context, async (secret) => {
+          const credentials = decodeCredentials(secret);
+          try {
+            return await runBrowserLogin(input, credentials, active, reservations);
+          } finally {
+            credentials.username = "";
+            credentials.password = "";
+          }
+        });
+        return reply.code(200).send(result);
+      } catch (error) {
+        request.log.warn({ executionId: claims.executionId, errorName: error instanceof Error ? error.name : "UnknownError" }, "isolated login execution failed");
+        return reply.code(200).send({ status: "login_failed", reasonCode: "site_unavailable" });
+      }
     } catch {
       return reply.code(403).send({ error: { code: "credential_lease_unavailable" } });
-    }
-    if (receipt.lease_id !== claims.leaseId || receipt.execution_id !== claims.executionId ||
-        receipt.account_id !== input.accountRef || receipt.origin !== input.expectedOrigin ||
-        receipt.credential_id !== input.credentialId || receipt.record_version !== input.recordVersion) {
-      return reply.code(403).send({ error: { code: "credential_lease_binding_mismatch" } });
-    }
-
-    const vault = new EncryptedCredentialVault(
-      new PostgresCredentialRecordStore(options.database.db, claims.tenantId),
-      options.kms
-    );
-    const context = {
-      tenantId: claims.tenantId,
-      accountId: receipt.account_id,
-      credentialId: receipt.credential_id,
-      recordVersion: receipt.record_version,
-      purpose: "website_login" as const
-    };
-    try {
-      const result = await vault.withDecryptedCredential(receipt.credential_ref, context, async (secret) => {
-        const credentials = decodeCredentials(secret);
-        try {
-          return await runBrowserLogin(input, credentials, active);
-        } finally {
-          credentials.username = "";
-          credentials.password = "";
-        }
-      });
-      return reply.code(200).send(result);
-    } catch (error) {
-      request.log.warn({ executionId: claims.executionId, errorName: error instanceof Error ? error.name : "UnknownError" }, "isolated login execution failed");
-      return reply.code(200).send({ status: "login_failed", reasonCode: "site_unavailable" });
+    } finally {
+      reservations.delete(input.executionId);
     }
   });
 
