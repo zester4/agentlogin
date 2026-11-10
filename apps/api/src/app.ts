@@ -18,6 +18,7 @@ import { applicationRoutes } from "./routes/applications.js";
 import { applicationAuthenticationPlugin } from "./plugins/application-auth.js";
 import { executionRoutes, type ExecutionCoordinatorFactory } from "./routes/executions.js";
 import { credentialBrokerRoutes } from "./routes/credential-broker.js";
+import { webhookEndpointRoutes } from "./routes/webhooks.js";
 
 export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: Uint8Array | null; coordinatorForTenant?: ExecutionCoordinatorFactory; workerTicketSigningKey?: Uint8Array | null }) {
   const app = Fastify({
@@ -56,6 +57,7 @@ export function buildApp(pool?: Pool, auth?: { database: Database; signingKey: U
     app.register(grantRoutes, { database: auth.database });
     app.register(delegationRoutes, { database: auth.database });
     app.register(activityRoutes, { database: auth.database });
+    app.register(webhookEndpointRoutes, { database: auth.database });
     if (auth.coordinatorForTenant) {
       app.register(executionRoutes, { database: auth.database, coordinatorForTenant: auth.coordinatorForTenant });
     }

@@ -3,6 +3,7 @@ import {
   AgentLoginAuthenticationError,
   AgentLoginApplicationClient,
   AgentLoginClient,
+  AgentLoginDeveloperClient,
   AgentLoginPermissionError,
   AgentLoginValidationError
 } from "./index.js";
@@ -129,3 +130,93 @@ describe("AgentLoginApplicationClient", () => {
     })).toThrow("HTTPS is required");
   });
 });
+
+describe("AgentLoginDeveloperClient", () => {
+  it("creates an endpoint with a one-time signing secret using the OIDC user token", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      endpoint_id: "whend_test",
+      url: "https://hooks.example.com/events",
+      event_types: ["grant.approved"],
+      status: "active",
+      signing_secret: "one-time-secret",
+      secret_version: 1,
+      warning: "Store this signing secret now. It will not be shown again."
+    }), { status: 201 }));
+    const client = new AgentLoginDeveloperClient({
+      baseUrl: "https://api.agentlogin.test",
+      accessTokenProvider: async () => "oidc-user-access-token",
+      fetch: fetcher
+    });
+    const created = await client.createWebhookEndpoint("dev_123", {
+      url: "https://hooks.example.com/events",
+      event_types: ["grant.approved"]
+    });
+    expect(created.signing_secret).toBe("one-time-secret");
+    expect(fetcher).toHaveBeenCalledWith(
+      new URL("https://api.agentlogin.test/v1/developers/dev_123/webhook-endpoints"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ authorization: "Bearer oidc-user-access-token" })
+      })
+    );
+  });
+
+  it("reads delivery history and never requests a response body containing endpoint secrets", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      deliveries: [{
+        delivery_id: "whdel_1", endpoint_id: "whend_1", endpoint_url: "https://hooks.example.com",
+        event_id: "whev_1", event_type: "grant.approved", resource_type: "grant", resource_id: "grt_1",
+        status: "delivered", attempt_count: 1, next_attempt_at: null, delivered_at: "2026-11-10T00:00:00.000Z",
+        dead_lettered_at: null, created_at: "2026-11-10T00:00:00.000Z"
+      }]
+    }), { status: 200 }));
+    const client = new AgentLoginDeveloperClient({
+      baseUrl: "https://api.agentlogin.test",
+      accessTokenProvider: () => "oidc-user-token",
+      fetch: fetcher
+    });
+    const rows = await client.listWebhookDeliveries("dev_123", { status: "delivered", limit: 10 });
+    expect(rows).toHaveLength(1);
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("status=delivered");
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("limit=10");
+  });
+
+  it("requires HTTPS for non-local developer API URLs", () => {
+    expect(() => new AgentLoginDeveloperClient({
+      baseUrl: "http://api.agentlogin.test",
+      accessTokenProvider: () => "token"
+    })).toThrow("HTTPS is required");
+  });
+});
+
+  it("requests a manual replay without retrying the mutation", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      delivery_id: "whdel_1", status: "pending", attempt_count: 4,
+      next_attempt_at: "2026-11-10T00:00:00.000Z"
+    }), { status: 202 }));
+    const client = new AgentLoginDeveloperClient({
+      baseUrl: "https://api.agentlogin.test",
+      accessTokenProvider: () => "oidc-user-token",
+      fetch: fetcher
+    });
+    const result = await client.replayWebhookDelivery("dev_123", "whdel_1");
+    expect(result.status).toBe("pending");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("/webhook-deliveries/whdel_1/replay");
+  });
+
+  it("queues a signed test event for an active endpoint", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      event_id: "whev_test", delivery_id: "whdel_test", status: "pending",
+      message: "The signed test event has been queued; delivery is asynchronous."
+    }), { status: 202 }));
+    const client = new AgentLoginDeveloperClient({
+      baseUrl: "https://api.agentlogin.test",
+      accessTokenProvider: () => "oidc-user-token",
+      fetch: fetcher
+    });
+    const result = await client.testWebhookEndpoint("dev_123", "whend_123");
+    expect(result.status).toBe("pending");
+    expect(String(fetcher.mock.calls[0]?.[0])).toContain("/webhook-endpoints/whend_123/test");
+  });
