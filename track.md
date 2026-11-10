@@ -125,11 +125,11 @@ Additional read-only checks performed after the tracker was committed:
 - The original PR #100 merge run was cancelled when a later main push arrived. The tracker commit's subsequent CI run succeeded. The latest main run was rerun and completed with the test failures above.
 
 ### Fix opened
-- [ ] **PR #103 is open:** https://github.com/zester4/agentlogin/pull/103
+- [x] **PR #103 merged:** https://github.com/zester4/agentlogin/pull/103 (merge commit `7f4165fbe348203d944a509df9ddcf70a98a4625`).
 - Branch: `fix/webhook-safe-status-and-vault-cleanup`
 - It narrowly allows the exact `credentials_revoked` key only when its value is boolean, adds regression tests, and removes the synthetic vault test's webhook event before deleting its tenant.
 - No production database, Railway variables, AWS IAM/KMS settings, credential records, or execution-route settings were changed for this fix.
-- Wait for CI. Do not merge until build, migrations, lint, typecheck and all tests pass.
+- [x] Main-branch CI passed on commit `4ee621d3a9291f10ebf8842ffb1178ff00293567`: build, migrations, least-privilege CI DB grants, lint, typecheck and tests all completed successfully.
 
 ### Confirmed worker database issue
 - The worker role can connect, use schema `public`, and is non-superuser with `NOBYPASSRLS` and no inherited role memberships.
@@ -147,14 +147,35 @@ Additional read-only checks performed after the tracker was committed:
 - Real worker MFA completion/resume is not implemented; MFA is reported as a challenge outcome.
 
 ### Remaining blockers
-- [ ] PR #103 CI passes and PR is merged.
+- [x] PR #103 merged and main CI passed (run `42861623640`, success).
 - [ ] Production route state is confirmed; if enabled before gates pass, use the approved rollback to pause it.
 - [ ] Latest Railway deployments settle successfully and logs are reviewed.
 - [ ] Dedicated AWS worker identity and KMS positive/negative tests are verified.
 - [ ] Database owner approves and applies the exact column-level grants: revoke table-wide SELECT on `credentials`; grant SELECT only on the fields used by `find`; grant SELECT only on `connected_accounts(id, tenant_id, status)`.
-- [ ] Re-test the worker role's actual join and tenant RLS after grants are corrected.
+- [x] Re-tested the actual credentials-to-connected_accounts join as `agentlogin_worker` with `WHERE false` to validate column privileges without reading any customer rows. RLS remains enabled and forced. [ ] Complete tenant-A/tenant-B row-isolation verification with synthetic tenant fixtures.
 - [ ] Deploy a controlled synthetic HTTPS fixture and run the real isolated-worker path with synthetic-only tenant/grant/account/credential data.
 - [ ] Test negative tickets, lease replay/expiry/revocation, wrong tenant/agent/origin, invalid password, cross-origin redirects, private/metadata IPs, KMS/DB denial, timeout and shutdown.
 - [ ] Decide and implement a secure MFA handoff/resume design if MFA-enabled sites are in scope.
 
 No production execution or credential enrollment is considered accepted until all gates are evidenced.
+
+
+## 10. Execution update after user approval — 2026-11-10
+
+### Completed in this continuation
+- [x] User explicitly approved correcting the isolated worker database permissions.
+- [x] PR #103 merged to main; merge commit: `7f4165fbe348203d944a509df9ddcf70a98a4625`.
+- [x] Main CI run `42861623640` completed successfully on `4ee621d3a9291f10ebf8842ffb1178ff00293567`. The quality job passed, including build, migrations, test-role grants, lint, typecheck and tests.
+- [x] Connected to the AgentLogin Neon main branch using the table-granting migration role `agentlogin_migrator` (the default database connection could not revoke privileges because the existing grants were made by the migrator role).
+- [x] Revoked table-level SELECT on `public.credentials` from `agentlogin_worker`.
+- [x] Granted column-level SELECT on `credentials(id, tenant_id, account_id, credential_id, credential_type, ciphertext, iv, auth_tag, wrapped_dek, key_version, record_version, status, revoked_at)`.
+- [x] Granted column-level SELECT on `connected_accounts(id, tenant_id, status)`.
+- [x] Verified no table-level SELECT on either table, no access to `credentials.created_at`, and no SELECT on `grants` or `credential_leases`.
+- [x] Verified the actual worker-role join between credentials and connected_accounts executes successfully with `WHERE false`. This proves column privilege correctness without reading customer records.
+- [x] Verified RLS and FORCE RLS remain enabled on both tables.
+- [ ] Still required: synthetic tenant A/B row-isolation test with no customer data; worker runtime connection test against the production DATABASE_URL.
+
+### Updated Railway observation
+- The latest Railway inventory shows API, web and isolated worker still deploying; webhook worker and MCP are online. Do not mark the overall production rollout complete until the current deployments settle and their health is verified.
+- The isolated worker variable inventory now includes names `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, along with `AWS_REGION` and `AWS_KMS_KEY_ID`. Variable values are not visible in this OAuth-connected Railway session. **Presence of those variable names does not prove that the credentials belong to a dedicated least-privilege worker IAM identity.** Do not copy or print secret values. Confirm the worker AWS principal with an authorized AWS STS/KMS verification path.
+- The latest CI run passed, but the production worker still has not passed an end-to-end synthetic login run.
