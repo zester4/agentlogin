@@ -112,6 +112,6 @@ const deliveries = await developer.listWebhookDeliveries(process.env.AGENTLOGIN_
 });
 ```
 
-Available methods include `listWebhookEndpoints`, `createWebhookEndpoint`, `updateWebhookEndpoint`, `disableWebhookEndpoint`, `listWebhookDeliveries`, `listWebhookDeliveryAttempts`, and `replayWebhookDelivery`. Replay is limited to completed deliveries with an active endpoint. Test delivery and signing-secret rotation are not available yet.
+Available methods include `listWebhookEndpoints`, `createWebhookEndpoint`, `updateWebhookEndpoint`, `disableWebhookEndpoint`, `testWebhookEndpoint`, `listWebhookDeliveries`, `listWebhookDeliveryAttempts`, and `replayWebhookDelivery`. Test and replay operations only enqueue work; actual delivery is asynchronous and the worker remains separately disabled. Replay is limited to completed deliveries with an active endpoint. Signing-secret rotation is not available yet.
 
 Never send the OIDC access token or signing secret to browser JavaScript, telemetry, or logs. The signing secret is not returned by endpoint-list responses.
