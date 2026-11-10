@@ -26,7 +26,6 @@ function makeApp() {
 
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));
-  database.close.mockClear();
 });
 
 describe("isolated login worker boundary", () => {
