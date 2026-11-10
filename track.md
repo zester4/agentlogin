@@ -252,3 +252,14 @@ No production execution or credential enrollment is considered accepted until al
 4. Perform private API-to-worker health and invalid-ticket checks from inside the trusted runtime; then exercise a synthetic lease only in a controlled fixture environment.
 5. Provision a public-DNS HTTPS synthetic login fixture and run success/invalid-password/MFA-challenge plus negative security tests.
 6. Keep production login execution and credential enrollment disabled until every acceptance gate has evidence. MFA completion/resume remains unimplemented and must not be represented as supported.
+
+
+## 14. Production execution-route safety rollback — 2026-11-10
+
+- [x] Inspected `apps/api/src/server.ts`: the login execution route is enabled whenever both `AGENTLOGIN_WORKER_URL` and a valid `AGENTLOGIN_WORKER_TICKET_SIGNING_KEY` are configured.
+- [x] Read Railway variable inventories without displaying any secret values. Both variable names were present on the API, and the worker URL variable was therefore a live activation risk while acceptance gates remained incomplete.
+- [x] Set the API service's `AGENTLOGIN_WORKER_URL` to an empty string. The application trims this value, so it will not construct the isolated browser provider and will leave login execution routes disabled after the new deployment starts.
+- [ ] Rollback deployment is still BUILDING/QUEUED at the latest poll; do not call the route disabled in production until the deployment succeeds and the startup log explicitly reports routes disabled.
+- [ ] Verify API health HTTP 200 after rollback deployment and inspect the new deployment's startup logs for the disabled-route message.
+- [x] Confirmed `CREDENTIAL_ENROLLMENT_ENABLED` is absent from the API variable inventory; enrollment remains disabled.
+- [ ] Note: the Railway variable remains present with an empty value because the available Railway variable update action does not expose deletion. The runtime gate is the trimmed value, not variable-name presence.
