@@ -62,7 +62,8 @@ jobs:
           pnpm build
           pnpm lint
           pnpm typecheck
-          pnpm --filter @agentlogin/contracts test
+          # @agentlogin/contracts currently has no standalone test files;
+          # its TypeScript build, lint, and typecheck run above.
           pnpm --filter @agentlogin/sdk test
       - name: Inspect publish tarballs
         run: |
