@@ -13,6 +13,15 @@ export interface DatabaseHandle {
   close: () => Promise<void>;
 }
 
+/** A safe, bounded PostgreSQL application_name for per-service observability. */
+export function resolveDatabaseApplicationName(value = process.env.DATABASE_APPLICATION_NAME): string {
+  const name = value?.trim() || "agentlogin-api";
+  if (!/^[A-Za-z0-9_.-]{1,63}$/.test(name)) {
+    throw new TypeError("DATABASE_APPLICATION_NAME must be 1-63 safe ASCII characters.");
+  }
+  return name;
+}
+
 export function createDatabase(
   connectionString = process.env.DATABASE_URL,
 ): DatabaseHandle {
@@ -26,7 +35,7 @@ export function createDatabase(
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
     allowExitOnIdle: false,
-    application_name: "agentlogin-api",
+    application_name: resolveDatabaseApplicationName(),
   });
 
   return {
