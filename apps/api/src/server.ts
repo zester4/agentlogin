@@ -17,8 +17,17 @@ const database = createDatabase();
 const signingKey = decodeAgentSigningKey(process.env.AGENT_TOKEN_SIGNING_KEY);
 const workerTicketSigningKey = decodeWorkerTicketSigningKey(process.env.AGENTLOGIN_WORKER_TICKET_SIGNING_KEY);
 const workerUrl = process.env.AGENTLOGIN_WORKER_URL?.trim();
+const workerUrlValid = (() => {
+  if (!workerUrl) return false;
+  try {
+    const parsed = new URL(workerUrl);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+})();
 
-const isolatedBrowser = workerTicketSigningKey && workerUrl
+const isolatedBrowser = workerTicketSigningKey && workerUrlValid
   ? new HttpIsolatedBrowserProvider({
       workerUrl,
       signingKey: workerTicketSigningKey
