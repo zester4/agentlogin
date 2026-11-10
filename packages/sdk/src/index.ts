@@ -441,6 +441,18 @@ export class AgentLoginDeveloperClient {
     return deliveries as WebhookDelivery[];
   }
 
+  async testWebhookEndpoint(
+    developerId: string,
+    endpointId: string,
+    options: RequestOptions = {}
+  ): Promise<{ event_id: string; delivery_id: string; status: "pending"; message: string }> {
+    const path = this.path(developerId, "webhook-endpoints") + "/" +
+      encodeURIComponent(endpointId) + "/test";
+    return await this.request("POST", path, {}, options) as {
+      event_id: string; delivery_id: string; status: "pending"; message: string;
+    };
+  }
+
   async replayWebhookDelivery(
     developerId: string,
     deliveryId: string,
