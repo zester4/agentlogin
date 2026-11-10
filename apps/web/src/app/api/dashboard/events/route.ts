@@ -24,7 +24,7 @@ export async function GET(request: Request): Promise<Response> {
       Authorization: `Bearer ${accessToken.token}`,
       Accept: "text/event-stream",
     });
-    const lastEventId = request.headers.get("last-event-id");
+    const lastEventId = request.headers.get("last-event-id") ?? new URL(request.url).searchParams.get("cursor");
     if (lastEventId) headers.set("Last-Event-ID", lastEventId);
 
     const upstream = await fetch(new URL("/v1/activity/stream", apiBase), {
