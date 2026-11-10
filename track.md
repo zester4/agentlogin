@@ -263,3 +263,35 @@ No production execution or credential enrollment is considered accepted until al
 - [ ] Verify API health HTTP 200 after rollback deployment and inspect the new deployment's startup logs for the disabled-route message.
 - [x] Confirmed `CREDENTIAL_ENROLLMENT_ENABLED` is absent from the API variable inventory; enrollment remains disabled.
 - [ ] Note: the Railway variable remains present with an empty value because the available Railway variable update action does not expose deletion. The runtime gate is the trimmed value, not variable-name presence.
+
+
+## 15. Production hardening verification and plan update — 2026-11-10
+
+### Railway production state
+- [x] Rechecked the production environment: all five services reported ONLINE, one running replica each, zero active warning/critical alerts and zero recent failed deployments.
+- [x] API deployment `243a22e4-add2-41df-ba99-efd7a2ca5abf` reached SUCCESS on the merged `main` deployment (commit `5b582bd431721aef781231e70861e62b51176191`).
+- [x] API runtime startup log explicitly reports login execution routes disabled because the worker URL and valid ticket signing key are not both configured; API health check returned HTTP 200.
+- [x] Confirmed no Railway staged patch remains after the earlier unsuccessful empty-value staging attempt. Do not describe that attempt as a committed rollback.
+- [x] Overwrote API `AWS_KMS_TEST_CIPHERTEXT_B64` and `AWS_KMS_TEST_PLAINTEXT` with empty values to neutralize any leftover synthetic fixture material. Railway's available set-variable action leaves the variable names present; verify the API redeployment and do not claim key deletion.
+- [ ] Verify the API deployment triggered by the fixture-variable cleanup reaches SUCCESS and recheck its startup log still says login execution routes are disabled.
+
+### KMS identity and permissions
+- [x] User ran the live synthetic KMS permission probe successfully: allowed `website_login` decrypt passed; wrong-purpose decrypt denied; Encrypt, GenerateDataKey and GenerateDataKeyWithoutPlaintext denied.
+- [x] The probe reported AWS caller `arn:aws:iam::471742380391:user/agentlogin-vault-service` and zero failures.
+- [ ] The probe does not establish that the deployed login worker uses a distinct least-privilege AWS principal. Prior Railway configuration history indicates the worker AWS variables referenced the API service credentials; current variable names alone cannot prove effective identity.
+- [ ] Verify worker runtime caller identity in CloudTrail or an authenticated worker-side synthetic probe, then prove worker-only decrypt permission, purpose restriction, unrelated-key denial and administrative-action denial.
+
+### PostgreSQL worker boundary
+- [x] Connected to the Neon production branch as `agentlogin_worker` for read-only verification.
+- [x] Confirmed the role is not superuser, has no `BYPASSRLS`, cannot create roles/databases, and has only the intended column-level SELECT grants on `credentials` plus `connected_accounts(id, tenant_id, status)`.
+- [x] Confirmed both `credentials` and `connected_accounts` have RLS enabled and FORCE RLS enabled.
+- [x] Confirmed credential INSERT/UPDATE/DELETE are denied; grants and credential-leases SELECT are denied; with no tenant context the worker role sees zero credential and connected-account rows.
+- [x] PR #104 CI test remains evidence for synthetic tenant A/B isolation, missing-tenant fail-closed behavior and exact privilege checks.
+- [ ] The latest live `pg_stat_activity` query returned no current `agentlogin_worker` sessions. This is not a permissions failure, but the deployed worker's post-redeploy connection attribution still needs to be observed when it opens a DB connection.
+
+### Release posture
+- [x] Credential enrollment remains disabled/unconfigured; no real credentials were enrolled.
+- [x] Login execution is disabled by the current API runtime startup gate.
+- [ ] Do not activate execution or enrollment until dedicated worker AWS identity, current worker DB session attribution, private API/worker ticket checks, public HTTPS synthetic login, adversarial tests, rollback and independent security review are all evidenced.
+
+Implementation plan updated in `plans.md` section 8C. This section supersedes earlier conflicting operational notes; historical entries are retained for auditability.
