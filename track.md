@@ -84,3 +84,31 @@ These are documented expectations, **not currently verified live values**. Confi
 ## 7. Next actions
 
 Continue in this order: verify merged commit CI → verify deployments/logs → inspect Railway private domains and variable names (never print secret values) → inspect Neon roles/schema/RLS → provision only missing DB permissions through a safe, reviewed migration or DBA process → verify AWS identity/KMS policy → run synthetic tests → consider controlled activation. Do not skip ahead to production activation.
+
+
+## 8. Live audit update — 2026-11-10
+
+Additional read-only checks performed after the tracker was committed:
+
+### Railway configuration and deployment
+- [x] Confirmed API private endpoint label is `agentlogin-api`; isolated worker private endpoint label is `agentlogin-worker`. Their current private hostnames follow Railway's `.railway.internal` convention. API listens on 8080; worker listens on 4180 according to runtime logs.
+- [x] Confirmed the expected variable **names** exist: API has `AGENTLOGIN_WORKER_URL` and `AGENTLOGIN_WORKER_TICKET_SIGNING_KEY`; worker has `AGENTLOGIN_API_INTERNAL_URL` and `AGENTLOGIN_WORKER_TICKET_SIGNING_KEY`.
+- [ ] **Do not infer variable values or signing-key parity:** the connected Railway session redacts values. The API's latest startup did not emit the earlier “login execution routes are disabled” warning, so route activation state must be confirmed in a trusted environment. Treat this as an urgent verification gate; do not run a real credential.
+- [ ] Worker has no `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` variable names in its current Railway config. `AWS_REGION` and `AWS_KMS_KEY_ID` are present. No workload identity was verified. The API has AWS access-key variable names, but those must not be copied to the worker or reused.
+- [ ] Worker does not currently list `DATABASE_APPLICATION_NAME`; configure `agentlogin-login-worker` only after confirming the correct worker DB URL and least-privilege grants.
+- [ ] At the latest status poll, API, worker, web, MCP and webhook services had newer deployments queued/building/deploying. Older successful deployments were still present; wait for the new deployment set to settle and inspect each latest deployment.
+- [ ] GitHub Actions workflow runs for merge commit `28b68e801d57d55a65c89cfaa015a91a6503ccf1`: none returned. Railway commit statuses were pending for API/worker/web and success for MCP/webhook at the time of the check.
+
+### Neon/PostgreSQL read-only audit
+- [x] Confirmed Neon project `agentlogin`, default branch `main`, database schema includes `credentials`, `connected_accounts`, `grants`, and `credential_leases`.
+- [x] Confirmed role `agentlogin_worker` exists and can log in; it is not superuser, has `NOBYPASSRLS`, cannot create roles/databases, and has no inherited role memberships.
+- [x] Confirmed RLS and FORCE RLS are enabled on `credentials`, `connected_accounts`, `grants`, and `credential_leases`. Policies filter rows using transaction-local `app.tenant_id`.
+- [ ] **Worker grants are not yet correct for the documented least-privilege target:** direct role check shows table-level SELECT on all columns of `credentials`, no SELECT on `connected_accounts`, and no SELECT on `grants` or `credential_leases`. The worker can connect and use schema `public`. The table-wide credential SELECT must be replaced with the exact required column-level SELECT, and the worker needs only `connected_accounts(id, tenant_id, status)`. No database grants were changed during this audit.
+- [ ] Run a trusted connection test as `agentlogin_worker` after the grants are corrected: no tenant context returns zero rows; tenant A cannot read tenant B; writes and grant/lease reads fail; only the intended credential/account columns are readable.
+
+### Immediate next steps
+1. Resolve whether the API worker route is currently enabled, using a trusted config view that can verify variable presence/value without exposing secrets. If enabled before the remaining gates pass, pause execution using the approved operational rollback process.
+2. Wait for all current Railway deployments to settle; inspect failures and verify API/worker health.
+3. Have the database owner apply the narrow grant correction in a reviewed transaction, then rerun the worker-role privilege checks. Do not widen privileges to make a test pass.
+4. Establish a dedicated worker KMS identity; do not copy API AWS credentials.
+5. Run synthetic-only worker and end-to-end tests after all prior gates pass.
