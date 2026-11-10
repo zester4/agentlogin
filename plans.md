@@ -631,6 +631,6 @@ PR #110 is merged and deployed. The isolated login worker is online on commit `2
 
 The worker startup attestation is fail-closed: STS identity resolution happens before the worker listens. No AWS credential values are logged.
 
-The API deployment containing the same merge is still rolling out. Existing API runtime logs show the login execution gate remains disabled. The API configuration decoder requires a canonical 32-byte base64url key (43 characters); variable-name presence alone is insufficient. A follow-up change is being prepared to log only safe booleans for URL configured/valid and signing-key configured/valid, without exposing values.
+The API deployment containing the same merge subsequently completed its Railway build and health check and is ONLINE; its runtime still reports the login execution gate disabled. PR #111 adds safe configuration diagnostics. Its first CI run failed in `apps/api/src/server.ts` because TypeScript could not narrow `workerUrl` across the validation closure; the follow-up commit now returns a validated URL string and passes that narrowed value to the provider. Re-run CI before merge. The API configuration decoder requires a canonical 32-byte base64url key (43 characters); variable-name presence alone is insufficient.
 
 Continue to keep execution and enrollment disabled until API configuration is valid, private API-to-worker connectivity and ticket rejection are tested, and synthetic end-to-end/adversarial login acceptance is complete. The worker's matching IAM identity does not by itself satisfy those release gates.
