@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
-import { webhookEndpointRoutes, normalizeWebhookUrl } from "./webhooks.js";
+import { webhookEndpointRoutes, normalizeWebhookUrl, webhookSigningSecretContext } from "./webhooks.js";
 
 afterEach(() => {
   delete process.env.WEBHOOK_ENDPOINTS_ENABLED;
@@ -38,5 +38,17 @@ describe("webhook endpoint management gate", () => {
     ]) {
       expect(() => normalizeWebhookUrl(url)).toThrow();
     }
+  });
+});
+
+describe("webhook signing-secret encryption context", () => {
+  it("matches the endpoint-scoped KMS context used by the delivery worker", () => {
+    expect(webhookSigningSecretContext("tenant_test", "whend_test", 2)).toEqual({
+      tenantId: "tenant_test",
+      accountId: "whend_test",
+      credentialId: "whend_test",
+      recordVersion: 2,
+      purpose: "webhook_signing_secret",
+    });
   });
 });
