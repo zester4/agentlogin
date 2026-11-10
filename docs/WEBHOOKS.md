@@ -21,7 +21,7 @@ Merged and deployed foundations:
 
 Still incomplete:
 - Confirm every intended domain state transition writes its event in the same transaction.
-- Implement test delivery, replay, secret rotation/overlap, and complete the developer API/SDK lifecycle. Initial create/list/update/disable routes, read-only delivery/attempt history, and typed SDK helpers are implemented; endpoint mutations require `WEBHOOK_ENDPOINTS_ENABLED=true`, which is absent/disabled by default. No production variable was changed.
+- Implement test delivery, secret rotation/overlap, and complete the developer API/SDK lifecycle. Initial create/list/update/disable routes, read-only delivery/attempt history, replay, and typed SDK helpers are implemented; endpoint mutations and replay require `WEBHOOK_ENDPOINTS_ENABLED=true`, which is absent/disabled by default. No production variable was changed.
 - Implement dashboard SSE invalidation, cursor recovery, reconnect/backoff, and bounded polling fallback.
 - Complete production-like end-to-end delivery and adversarial tests before enabling the worker.
 
@@ -83,6 +83,7 @@ Authenticated developer-workspace administrator endpoints, tenant-scoped:
 - DELETE /v1/developers/:developerId/webhook-endpoints/:endpointId — disable endpoint (requires the feature gate).
 - GET /v1/developers/:developerId/webhook-deliveries — list tenant/developer-scoped delivery metadata.
 - GET /v1/developers/:developerId/webhook-deliveries/:deliveryId/attempts — list redacted attempt metadata.
+- POST /v1/developers/:developerId/webhook-deliveries/:deliveryId/replay — requeue a delivered/dead-lettered delivery with a bounded fresh attempt budget (requires the feature gate).
 - GET /v1/webhook-deliveries — list delivery status and attempts.
 - POST /v1/webhook-deliveries/:id/replay — enqueue a safe replay.
 - POST /v1/webhook-endpoints/:id/test — send a signed test event.
