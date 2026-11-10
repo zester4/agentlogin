@@ -623,3 +623,12 @@ This update supersedes earlier deployment and KMS notes where they conflict. It 
 7. Complete independent security review, rollback evidence, and operational recovery before any real credential enrollment.
 
 **Release rule:** keep login execution routes and credential enrollment disabled until every gate above has evidence. Never treat Railway health, deployment success, KMS success under a different principal, or role-level SQL checks in isolation as end-to-end acceptance.
+
+
+## 8D. Worker AWS runtime identity attestation — 10 November 2026
+
+A draft implementation is in PR #110 (`chore/worker-aws-identity-attestation`). It adds a vault helper that calls AWS STS GetCallerIdentity using the AWS SDK default credential provider chain, then makes the isolated login worker log the resolved ARN and account before listening. If STS identity resolution fails, worker startup fails closed. No AWS credentials or secret values are logged.
+
+This is an evidence-collection gate, not proof that identity separation is already achieved. After CI passes and the PR is merged/deployed, compare the worker's logged ARN against the intended dedicated worker principal and the API's effective principal. Do not accept a shared principal as isolated-worker separation. Then run the live KMS allowed-context and denial probe from the worker runtime (or equivalent trusted execution context) and confirm decrypt-only/context restrictions.
+
+Current PR validation is pending. Do not enable login execution or credential enrollment while the identity comparison and remaining acceptance tests are outstanding.
