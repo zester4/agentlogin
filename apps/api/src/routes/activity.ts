@@ -60,11 +60,10 @@ export async function activityRoutes(app: FastifyInstance, options: { database: 
       polling = true;
       try {
         const events = await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
-          // pg Date decoding truncates microseconds; truncate in SQL too so the
-          // (timestamp, id) cursor remains stable and cannot replay one row forever.
+          // Keep the exact PostgreSQL timestamp precision in the resume cursor.
           const cursorTimestamp = sql<string>`to_char(${auditEvents.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
-                    const afterCursor = sql<boolean>`(${auditEvents.createdAt} > ${cursor.at}::timestamptz OR
-                      (${auditEvents.createdAt} = ${cursor.at}::timestamptz AND ${auditEvents.id} > ${cursor.id}))`;
+          const afterCursor = sql<boolean>`(${auditEvents.createdAt} > ${cursor.at}::timestamptz OR
+            (${auditEvents.createdAt} = ${cursor.at}::timestamptz AND ${auditEvents.id} > ${cursor.id}))`;
           return tx.select({
             id: auditEvents.id,
             createdAt: cursorTimestamp,
