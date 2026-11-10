@@ -1,6 +1,6 @@
 # Webhooks and live synchronization
 
-Status: **transactional outbox and disabled worker implemented; first tenant-authenticated endpoint management routes are implemented behind a fail-closed feature gate. Delivery history/replay, SDK helpers, dashboard live sync, and end-to-end verification remain incomplete**. Do not advertise webhooks as available or enable production delivery until the remaining gates pass.
+Status: **transactional outbox and disabled worker implemented; endpoint management, test-event enqueue, delivery history/replay, SDK helpers, and initial authenticated dashboard SSE are implemented. Endpoint mutations/replay/test enqueue remain behind a default-off feature gate; full adversarial and end-to-end verification plus secret rotation remain incomplete**. Do not advertise webhooks as available or enable production delivery until the remaining gates pass.
 
 ## Decision
 
