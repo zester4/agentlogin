@@ -10,6 +10,9 @@ import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 const region = process.env.AWS_REGION;
 const keyId = process.env.AWS_KMS_KEY_ID;
 const expectedAccount = process.env.AWS_EXPECTED_ACCOUNT_ID;
+const fixtureBase64 = process.env.AWS_KMS_TEST_CIPHERTEXT_B64;
+const expectedFixturePlaintext =
+  process.env.AWS_KMS_TEST_PLAINTEXT ?? "agentlogin-kms-policy-probe-v1";
 
 if (!region || !keyId) {
   console.error("FAIL: AWS_REGION and AWS_KMS_KEY_ID must be set.");
@@ -27,15 +30,101 @@ function report(name, passed, detail) {
   if (!passed) failures += 1;
 }
 
+function skip(name, detail) {
+  console.log(`SKIP: ${name} — ${detail}`);
+  skipped += 1;
+}
+
+function isAccessDenied(error) {
+  return error?.name === "AccessDeniedException" || error?.name === "AccessDenied";
+}
+
 async function expectDenied(name, command) {
   try {
     await kms.send(command);
     report(name, false, "AWS allowed an operation that must be denied");
   } catch (error) {
-    if (error?.name === "AccessDeniedException" || error?.name === "AccessDenied") {
+    if (isAccessDenied(error)) {
       report(name, true, "AccessDenied returned as expected");
     } else {
       report(name, false, `Expected AccessDenied; received ${error?.name ?? "unknown error"}`);
+    }
+  }
+}
+
+async function checkDecryptPolicy() {
+  if (!fixtureBase64) {
+    skip(
+      "KMS decrypt authorization and encryption-context restriction",
+      "set AWS_KMS_TEST_CIPHERTEXT_B64 to a synthetic ciphertext encrypted with this key and purpose=website_login; malformed ciphertext cannot prove Decrypt authorization"
+    );
+    return;
+  }
+
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(fixtureBase64)) {
+    report("KMS decrypt test fixture", false, "AWS_KMS_TEST_CIPHERTEXT_B64 is not valid base64");
+    return;
+  }
+
+  const ciphertext = Buffer.from(fixtureBase64, "base64");
+  if (!ciphertext.length) {
+    report("KMS decrypt test fixture", false, "AWS_KMS_TEST_CIPHERTEXT_B64 decoded to an empty value");
+    return;
+  }
+
+  // This must be a harmless test marker encrypted by an administrator or
+  // another principal allowed to call kms:Encrypt. The worker itself is
+  // intentionally denied kms:Encrypt.
+  try {
+    const result = await kms.send(new DecryptCommand({
+      KeyId: keyId,
+      CiphertextBlob: ciphertext,
+      EncryptionContext: encryptionContext
+    }));
+    const plaintext = Buffer.from(result.Plaintext ?? []).toString("utf8");
+    report(
+      "kms:Decrypt authorization with allowed context",
+      plaintext === expectedFixturePlaintext,
+      plaintext === expectedFixturePlaintext
+        ? "Synthetic fixture decrypted and matched the expected marker"
+        : "Decrypt succeeded, but plaintext did not match AWS_KMS_TEST_PLAINTEXT"
+    );
+  } catch (error) {
+    report(
+      "kms:Decrypt authorization with allowed context",
+      false,
+      `Expected the valid fixture to decrypt; received ${error?.name ?? "unknown error"}`
+    );
+    // A bad fixture makes the wrong-context result uninterpretable.
+    return;
+  }
+
+  // Reuse the same valid ciphertext but deliberately change its context.
+  // AccessDenied proves the IAM explicit deny was applied. InvalidCiphertext
+  // means the request reached cryptographic validation, so the policy deny
+  // was not observed before that stage.
+  try {
+    await kms.send(new DecryptCommand({
+      KeyId: keyId,
+      CiphertextBlob: ciphertext,
+      EncryptionContext: { purpose: "wrong_context_probe" }
+    }));
+    report("KMS encryption-context restriction", false, "Wrong purpose was accepted");
+  } catch (error) {
+    if (isAccessDenied(error)) {
+      report("KMS encryption-context restriction", true, "Wrong purpose denied before ciphertext validation");
+    } else if (error?.name === "InvalidCiphertextException") {
+      report(
+        "KMS encryption-context restriction",
+        false,
+        "Wrong purpose reached cryptographic validation; the explicit deny was not observed"
+      );
+    } else {
+      report(
+        "KMS encryption-context restriction",
+        false,
+        `Expected AccessDenied; received ${error?.name ?? "unknown error"}`
+      );
     }
   }
 }
@@ -60,43 +149,7 @@ async function main() {
     console.log(`SKIP: AWS caller identity unavailable (${error?.name ?? "unknown error"}).`);
   }
 
-  // Invalid synthetic bytes let us test whether the request is authorized
-  // without storing or handling any real encrypted credential material.
-  try {
-    await kms.send(new DecryptCommand({
-      KeyId: keyId,
-      CiphertextBlob: Buffer.from("agentlogin-permission-probe-not-ciphertext"),
-      EncryptionContext: encryptionContext
-    }));
-    report("kms:Decrypt authorization", false, "Unexpectedly accepted invalid ciphertext");
-  } catch (error) {
-    if (error?.name === "InvalidCiphertextException") {
-      report("kms:Decrypt authorization", true, "KMS reached ciphertext validation; decrypt is authorized");
-    } else if (error?.name === "AccessDeniedException" || error?.name === "AccessDenied") {
-      report("kms:Decrypt authorization", false, "Worker is not authorized to decrypt");
-    } else {
-      report("kms:Decrypt authorization", false, `Unexpected AWS response: ${error?.name ?? "unknown"}`);
-    }
-  }
-
-  // The request-level encryption-context condition must reject a purpose
-  // other than website_login before KMS validates the synthetic ciphertext.
-  try {
-    await kms.send(new DecryptCommand({
-      KeyId: keyId,
-      CiphertextBlob: Buffer.from("agentlogin-permission-probe-not-ciphertext"),
-      EncryptionContext: { purpose: "wrong_context_probe" }
-    }));
-    report("KMS encryption-context restriction", false, "Wrong purpose was accepted");
-  } catch (error) {
-    if (error?.name === "AccessDeniedException" || error?.name === "AccessDenied") {
-      report("KMS encryption-context restriction", true, "Wrong purpose denied");
-    } else if (error?.name === "InvalidCiphertextException") {
-      report("KMS encryption-context restriction", false, "Wrong purpose reached ciphertext validation; context condition is not enforced");
-    } else {
-      report("KMS encryption-context restriction", false, `Unexpected AWS response: ${error?.name ?? "unknown"}`);
-    }
-  }
+  await checkDecryptPolicy();
 
   await expectDenied("kms:Encrypt is denied", new EncryptCommand({
     KeyId: keyId,
@@ -125,12 +178,12 @@ async function main() {
   if (failures > 0) {
     console.error("KMS permission gate NOT PASSED.");
     process.exitCode = 1;
+  } else if (skipped > 0) {
+    console.error("KMS permission gate INCOMPLETE — one or more checks were skipped.");
+    console.error("Supply the valid synthetic ciphertext fixture and rerun before treating the gate as passed.");
+    process.exitCode = 2;
   } else {
-    console.log("KMS permission-action checks passed.");
-    if (skipped) {
-      console.log("Note: AWS caller identity was unavailable.");
-    }
-    console.log("Note: Decrypt authorization is checked using invalid synthetic ciphertext; this does not prove a real ciphertext can be decrypted.");
+    console.log("KMS permission gate PASSED.");
   }
 }
 
