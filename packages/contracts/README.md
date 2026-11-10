@@ -1,14 +1,14 @@
-# @agentlogin/contracts
+# @agent-login/contracts
 
 Shared Zod runtime schemas and TypeScript types for AgentLogin API and SDK integrations.
 
 ## Install
 
 ```bash
-npm install @agentlogin/contracts
+npm install @agent-login/contracts
 ```
 
-Most SDK users should install `@agentlogin/sdk`, which depends on this package automatically.
+Most SDK users should install `@agent-login/sdk`, which depends on this package automatically.
 
 ## Exports
 
@@ -19,7 +19,7 @@ import {
   AgentIdentitySchema,
   GrantRequestSchema,
   type GrantRequest
-} from "@agentlogin/contracts";
+} from "@agent-login/contracts";
 ```
 
 ## Compatibility
