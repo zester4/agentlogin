@@ -20,3 +20,5 @@ export interface IsolatedBrowserProvider {
 // scrub outputs, deny unsafe network targets, and expose no CDP/profile/cookie/session data to agents.
 export * from "./coordinator.js";
 export * from "./worker-ticket.js";
+
+export * from "./http-worker-provider.js";
