@@ -1,4 +1,4 @@
-# @agentlogin/sdk
+# @agent-login/sdk
 
 Server-side TypeScript SDK for AgentLogin.
 
@@ -7,13 +7,13 @@ AgentLogin lets agents request narrowly scoped access to user-connected accounts
 ## Install
 
 ```bash
-npm install @agentlogin/sdk
+npm install @agent-login/sdk
 ```
 
 ## Quick start
 
 ```ts
-import { AgentLoginClient } from "@agentlogin/sdk";
+import { AgentLoginClient } from "@agent-login/sdk";
 
 const client = new AgentLoginClient({
   baseUrl: process.env.AGENTLOGIN_API_URL!,
@@ -66,7 +66,7 @@ See the [SDK/MCP guide](https://github.com/zester4/agentlogin/blob/main/docs/SDK
 For trusted backend integrations, create a developer application through the authenticated API and use its one-time client secret only on your server:
 
 ```ts
-import { AgentLoginApplicationClient, AgentLoginClient } from "@agentlogin/sdk";
+import { AgentLoginApplicationClient, AgentLoginClient } from "@agent-login/sdk";
 
 const application = new AgentLoginApplicationClient({
   baseUrl: process.env.AGENTLOGIN_API_URL!,
