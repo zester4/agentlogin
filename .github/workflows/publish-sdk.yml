@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: sdk-release-${{ github.ref }}
@@ -30,7 +31,7 @@ jobs:
           version: 10.20.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
       - name: Resolve and validate release version
         id: release
@@ -77,31 +78,29 @@ jobs:
             tar -tzf "$archive" | grep -q 'package/LICENSE'
             tar -tzf "$archive" | grep -q 'package/README.md'
           done
-      - name: Verify npm credentials
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify npm trusted-publishing runtime
         run: |
-          test -n "$NODE_AUTH_TOKEN" || (echo "NPM_TOKEN repository secret is required" && exit 1)
-          npm whoami
-      - name: Publish shared contracts
+          node --version
+          npm --version
+          node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 14)) throw new Error("Trusted publishing requires Node 22.14 or newer");'
+          node -e 'const [major, minor, patch] = require("child_process").execSync("npm --version", {encoding:"utf8"}).trim().split(".").map(Number); if (major < 11 || (major === 11 && minor < 5) || (major === 11 && minor === 5 && patch < 1)) throw new Error("Trusted publishing requires npm 11.5.1 or newer");'
+      - name: Publish shared contracts with npm OIDC
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           if npm view "@agentlogin/contracts@$VERSION" version >/dev/null 2>&1; then
             echo "@agentlogin/contracts@$VERSION already exists; leaving immutable version unchanged."
           else
-            pnpm --filter @agentlogin/contracts publish --access public --no-git-checks
+            npm publish "/tmp/agentlogin-packages/agentlogin-contracts-$VERSION.tgz" --access public
           fi
-      - name: Publish SDK
+      - name: Publish SDK with npm OIDC
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           if npm view "@agentlogin/sdk@$VERSION" version >/dev/null 2>&1; then
             echo "@agentlogin/sdk@$VERSION already exists; leaving immutable version unchanged."
           else
-            pnpm --filter @agentlogin/sdk publish --access public --no-git-checks
+            npm publish "/tmp/agentlogin-packages/agentlogin-sdk-$VERSION.tgz" --access public
           fi
       - name: Verify clean consumer installation
         env:
