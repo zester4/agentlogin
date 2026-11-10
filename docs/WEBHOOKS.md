@@ -21,7 +21,7 @@ Merged and deployed foundations:
 
 Still incomplete:
 - Confirm every intended domain state transition writes its event in the same transaction.
-- Implement tenant-authenticated endpoint CRUD, test delivery, history, and replay APIs/SDK helpers. Initial create/list/update/disable routes are implemented behind `WEBHOOK_ENDPOINTS_ENABLED=true`; the gate is absent/disabled by default and no production variable was changed.
+- Implement tenant-authenticated endpoint CRUD, test delivery, history, and replay APIs/SDK helpers. Initial create/list/update/disable routes and read-only delivery/attempt history are implemented; endpoint mutations require `WEBHOOK_ENDPOINTS_ENABLED=true`, which is absent/disabled by default. No production variable was changed.
 - Implement dashboard SSE invalidation, cursor recovery, reconnect/backoff, and bounded polling fallback.
 - Complete production-like end-to-end delivery and adversarial tests before enabling the worker.
 
@@ -81,6 +81,8 @@ Developer-authenticated endpoints, tenant-scoped:
 - GET /v1/developers/:developerId/webhook-endpoints — list endpoint metadata, never secret.
 - PATCH /v1/developers/:developerId/webhook-endpoints/:endpointId — update URL/event subscriptions/active state (requires the feature gate).
 - DELETE /v1/developers/:developerId/webhook-endpoints/:endpointId — disable endpoint (requires the feature gate).
+- GET /v1/developers/:developerId/webhook-deliveries — list tenant/developer-scoped delivery metadata.
+- GET /v1/developers/:developerId/webhook-deliveries/:deliveryId/attempts — list redacted attempt metadata.
 - GET /v1/webhook-deliveries — list delivery status and attempts.
 - POST /v1/webhook-deliveries/:id/replay — enqueue a safe replay.
 - POST /v1/webhook-endpoints/:id/test — send a signed test event.
@@ -92,7 +94,7 @@ The dashboard should expose endpoint setup, one-time secret reveal, event select
 1. Database schema/migrations and queue isolation — implemented and deployed.
 2. Transactional event emitter — repository primitive exists; verify integration into every intended domain transition.
 3. Delivery worker — implemented and deployed disabled; finish adversarial and end-to-end verification.
-4. Developer API and SDK types/helpers; initial tenant-authenticated endpoint create/list/update/disable routes are implemented behind a default-off feature gate; never expose endpoint secrets after creation.
+4. Developer API and SDK types/helpers; initial tenant-authenticated endpoint create/list/update/disable and read-only delivery/attempt history routes are implemented; endpoint mutations remain behind a default-off feature gate. Never expose endpoint secrets after creation.
 5. Dashboard endpoint management and safe SSE invalidation stream with cursor/reconnect/polling fallback.
 6. Integration tests for commit atomicity, tenant isolation, signature validation, stale timestamps, DNS rebinding/private IPs, duplicates, retries, ordering, replay, secret redaction, and SSE reconnect/fallback.
 
