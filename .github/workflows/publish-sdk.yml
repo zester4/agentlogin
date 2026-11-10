@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Expected package version (for example 0.2.0)"
+        description: "Package version to publish (must match both package manifests)"
         required: true
         default: "0.2.0"
   push:
@@ -12,46 +12,137 @@ on:
       - "sdk-v*"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: sdk-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10.20.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
           registry-url: https://registry.npmjs.org
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Verify workspace
+      - name: Resolve and validate release version
+        id: release
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          pnpm --filter @agentlogin/contracts build
-          pnpm --filter @agentlogin/sdk build
-          pnpm --filter @agentlogin/contracts test
-          pnpm --filter @agentlogin/sdk test
-      - name: Verify package contents
+          if [ "$EVENT_NAME" = "push" ]; then
+            VERSION="${REF_NAME#sdk-v}"
+          else
+            VERSION="$INPUT_VERSION"
+          fi
+          node - "$VERSION" <<'NODE'
+          const fs = require("node:fs");
+          const version = process.argv[2];
+          if (!/^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) throw new Error("Invalid release version");
+          for (const file of ["packages/contracts/package.json", "packages/sdk/package.json"]) {
+            const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+            if (manifest.version !== version) throw new Error(`${file} is ${manifest.version}, expected ${version}`);
+          }
+          NODE
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=sdk-v$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Build and test the complete workspace
+        run: |
+          pnpm build
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+      - name: Inspect publish tarballs
         run: |
           mkdir -p /tmp/agentlogin-packages
           pnpm --filter @agentlogin/contracts pack --pack-destination /tmp/agentlogin-packages
           pnpm --filter @agentlogin/sdk pack --pack-destination /tmp/agentlogin-packages
-          ls -lah /tmp/agentlogin-packages
-      - name: Check npm credentials
+          for archive in /tmp/agentlogin-packages/*.tgz; do
+            tar -tzf "$archive"
+            tar -tzf "$archive" | grep -q 'package/dist/index.js'
+            tar -tzf "$archive" | grep -q 'package/dist/index.d.ts'
+            tar -tzf "$archive" | grep -q 'package/LICENSE'
+            tar -tzf "$archive" | grep -q 'package/README.md'
+          done
+      - name: Verify npm credentials
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           test -n "$NODE_AUTH_TOKEN" || (echo "NPM_TOKEN repository secret is required" && exit 1)
           npm whoami
-      - name: Publish contracts first
+      - name: Publish shared contracts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter @agentlogin/contracts publish --access public --no-git-checks
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "@agentlogin/contracts@$VERSION" version >/dev/null 2>&1; then
+            echo "@agentlogin/contracts@$VERSION already exists; leaving immutable version unchanged."
+          else
+            pnpm --filter @agentlogin/contracts publish --access public --no-git-checks
+          fi
       - name: Publish SDK
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter @agentlogin/sdk publish --access public --no-git-checks
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "@agentlogin/sdk@$VERSION" version >/dev/null 2>&1; then
+            echo "@agentlogin/sdk@$VERSION already exists; leaving immutable version unchanged."
+          else
+            pnpm --filter @agentlogin/sdk publish --access public --no-git-checks
+          fi
+      - name: Verify clean consumer installation
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          mkdir -p /tmp/agentlogin-consumer
+          cd /tmp/agentlogin-consumer
+          npm init -y
+          npm install --no-audit --no-fund "@agentlogin/sdk@$VERSION"
+          node --input-type=module <<'NODE'
+          import { AgentLoginClient, AgentLoginApplicationClient } from "@agentlogin/sdk";
+          if (typeof AgentLoginClient !== "function" || typeof AgentLoginApplicationClient !== "function") {
+            throw new Error("Published SDK exports are incomplete");
+          }
+          console.log("Clean consumer ESM import passed.");
+          NODE
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          cat > /tmp/release-notes.md <<EOF
+          ## AgentLogin SDK v$VERSION
+
+          Early developer release of the server-side TypeScript SDK and shared contracts.
+
+          ### Included
+          - Authenticated agent identity lookup.
+          - User-approved, scoped access requests.
+          - Grant status lookup.
+          - Server-side developer application authentication and agent registration.
+          - Typed validation, bounded safe-read retries, and typed API errors.
+
+          ### Important boundaries
+          - This SDK does not retrieve passwords, cookies, tokens, or browser sessions.
+          - Login execution, MFA completion, and execution polling are not yet exposed by the SDK.
+          - MCP OAuth 2.1 discovery is not included.
+          - AgentLogin's full credential-execution service is still under development; do not treat this SDK release as proof that production website login is available.
+
+          Install: `npm install @agentlogin/sdk@$VERSION`
+
+          Documentation: https://github.com/zester4/agentlogin/blob/main/packages/sdk/README.md
+          SDK/MCP guide: https://github.com/zester4/agentlogin/blob/main/docs/SDK_MCP.md
+          ```
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "AgentLogin SDK v$VERSION" --notes-file /tmp/release-notes.md
