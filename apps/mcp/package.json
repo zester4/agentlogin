@@ -18,8 +18,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agentlogin/contracts": "workspace:*",
-    "@agentlogin/sdk": "workspace:*",
+    "@agent-login/contracts": "workspace:*",
+    "@agent-login/sdk": "workspace:*",
     "@modelcontextprotocol/fastify": "2.0.1",
     "@modelcontextprotocol/node": "2.1.2",
     "@modelcontextprotocol/server": "2.4.0",
