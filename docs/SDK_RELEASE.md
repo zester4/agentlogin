@@ -5,8 +5,8 @@ Status: **source packages prepared; npm publication not yet performed**.
 ## Packages
 
 Publish in this order:
-1. @agentlogin/contracts — shared Zod schemas and TypeScript types.
-2. @agentlogin/sdk — server-side TypeScript client; depends on the contracts package.
+1. @agent-login/contracts — shared Zod schemas and TypeScript types.
+2. @agent-login/sdk — server-side TypeScript client; depends on the contracts package.
 
 Both packages currently declare version 0.2.0, ESM exports, declaration output, explicit dist/README/LICENSE package contents, and public npm access. The SDK uses the workspace:^ dependency protocol; pnpm publish must rewrite this to a registry-compatible semver dependency in the packed manifest.
 
@@ -35,7 +35,7 @@ Suggested first tag after the release gate: sdk-v0.2.0.
 - getGrantStatus(grantId)
 - Static token or per-request token provider
 - Configurable timeouts, bounded retries for safe GET requests, typed HTTP errors
-- Shared runtime validation with @agentlogin/contracts
+- Shared runtime validation with @agent-login/contracts
 
 Grant mutations are not automatically retried. Do not add retry-on-POST until server-side idempotency keys are implemented. This SDK is for trusted server/agent runtimes, not browser bundles.
 
