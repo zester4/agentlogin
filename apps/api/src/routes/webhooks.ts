@@ -216,7 +216,7 @@ export async function webhookEndpointRoutes(
       if (!eligible || !["delivered", "dead_lettered"].includes(eligible.status)) return null;
       const [updated] = await tx.update(webhookDeliveries).set({
         status: "pending",
-        maxAttempts: sql<number>\`${webhookDeliveries.attemptCount} + 8\`,
+        maxAttempts: sql<number>`${webhookDeliveries.attemptCount} + 8`,
         nextAttemptAt: new Date(),
         deliveredAt: null,
         deadLetteredAt: null,
