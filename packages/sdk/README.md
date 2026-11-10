@@ -88,3 +88,30 @@ const identity = await agent.getAgentIdentity();
 ```
 
 The application client uses the OAuth 2.0 client-credentials grant and caches the short-lived application access token in memory. The client secret is sent only in HTTP Basic authentication to the token endpoint, never in the request body. Do not use this class in browser bundles or client-side applications. Agent credentials returned by registration must be stored securely by the integrating backend.
+
+## Developer webhook management (gated)
+
+The developer client uses a verified OIDC user access token and must run on a trusted server or dashboard backend. Endpoint mutations are locked unless the API operator explicitly enables `WEBHOOK_ENDPOINTS_ENABLED=true`; the default is disabled. The delivery worker is separately controlled and remains disabled until security verification is complete.
+
+```ts
+import { AgentLoginDeveloperClient } from "@agent-login/sdk";
+
+const developer = new AgentLoginDeveloperClient({
+  baseUrl: process.env.AGENTLOGIN_API_URL!,
+  accessTokenProvider: async () => getCurrentOidcAccessToken()
+});
+
+// The signing secret is returned only by this create call. Store it securely.
+const endpoint = await developer.createWebhookEndpoint(process.env.AGENTLOGIN_DEVELOPER_ID!, {
+  url: "https://hooks.example.com/agentlogin",
+  event_types: ["grant.approved", "grant.revoked"]
+});
+
+const deliveries = await developer.listWebhookDeliveries(process.env.AGENTLOGIN_DEVELOPER_ID!, {
+  limit: 50
+});
+```
+
+Available methods include `listWebhookEndpoints`, `createWebhookEndpoint`, `updateWebhookEndpoint`, `disableWebhookEndpoint`, `listWebhookDeliveries`, and `listWebhookDeliveryAttempts`. Test delivery, replay, and signing-secret rotation are not available yet.
+
+Never send the OIDC access token or signing secret to browser JavaScript, telemetry, or logs. The signing secret is not returned by endpoint-list responses.
