@@ -2,7 +2,7 @@ import { createAgentLoginMcpHandler } from "./index.js";
 import { createMcpFastifyApp } from "@modelcontextprotocol/fastify";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import type { AuthInfo } from "@modelcontextprotocol/server";
-import { AgentIdentitySchema } from "@agentlogin/contracts";
+import { AgentIdentitySchema } from "@agent-login/contracts";
 
 export type AgentLoginMcpAppOptions = {
   apiBaseUrl: string;
