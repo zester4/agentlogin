@@ -25,6 +25,23 @@ describe("webhook endpoint management gate", () => {
   });
 
 
+
+  it("keeps test-event enqueue locked while endpoint management is disabled", async () => {
+    delete process.env.WEBHOOK_ENDPOINTS_ENABLED;
+    const app = Fastify({ logger: false });
+    app.decorate("authenticateUser", async (request) => {
+      request.userPrincipal = { tenantId: "tenant_test", userId: "user_test" } as never;
+    });
+    await webhookEndpointRoutes(app, { database: {} as never });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/developers/dev_test/webhook-endpoints/whend_test/test",
+    });
+    expect(response.statusCode).toBe(423);
+    expect(response.json().error.code).toBe("webhook_endpoint_management_locked");
+    await app.close();
+  });
+
   it("keeps manual replay locked while endpoint management is disabled", async () => {
     delete process.env.WEBHOOK_ENDPOINTS_ENABLED;
     const app = Fastify({ logger: false });
