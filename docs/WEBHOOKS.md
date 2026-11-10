@@ -103,3 +103,11 @@ The dashboard should expose endpoint setup, one-time secret reveal, event select
 ## Important boundaries
 
 Webhooks do not authorize actions and must never carry credentials. A delivery failure must not roll back an already-committed grant or account change. Webhook delivery is asynchronous and cannot be the only way the UI learns current state. Until this system is implemented and tested, describe webhooks as planned, not supported.
+
+## Dashboard SSE implementation
+
+- API: `GET /v1/activity/stream` requires the same verified OIDC user authentication as `GET /v1/activity`. It emits only `dashboard.invalidate` notifications with an opaque event cursor and timestamp; it does not send audit payloads, grant details, endpoint URLs, or signing secrets.
+- Cursor: `Last-Event-ID` is a bounded base64url cursor containing the exact PostgreSQL timestamp (microsecond precision) and event ID. Invalid cursors are rejected. The stream polls tenant-scoped audit activity, emits in timestamp/ID order, sends keepalives, and closes after ten minutes so clients reconnect.
+- Dashboard BFF: `GET /api/dashboard/events` obtains the Auth0 access token server-side and proxies the stream. The token is never sent to browser JavaScript.
+- Browser: the dashboard opens a same-origin EventSource, refreshes authoritative server-rendered data on invalidation, resumes with its last cursor, reconnects with capped exponential backoff and jitter, and uses a 30-second polling fallback for at most five minutes during an outage.
+- Verification still required: live multi-tenant isolation, disconnect cleanup, cursor resume under concurrent writes, proxy streaming behavior on the production host, and bounded fallback behavior under extended outages.
