@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:aws-kms": "node src/aws-kms-permissions-check.mjs"
+    "test:aws-kms": "node --env-file=../../.env src/aws-kms-permissions-check.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.18.6"
