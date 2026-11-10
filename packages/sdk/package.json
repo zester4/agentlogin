@@ -1,5 +1,5 @@
 {
-  "name": "@agentlogin/sdk",
+  "name": "@agent-login/sdk",
   "private": false,
   "version": "0.2.0",
   "type": "module",
@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agentlogin/contracts": "workspace:^"
+    "@agent-login/contracts": "workspace:^"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
