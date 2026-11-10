@@ -1,5 +1,5 @@
-import { AgentGrantStatusSchema, AgentIdentitySchema, OriginSchema, type GrantRequest } from "@agentlogin/contracts";
-import { AgentLoginClient } from "@agentlogin/sdk";
+import { AgentGrantStatusSchema, AgentIdentitySchema, OriginSchema, type GrantRequest } from "@agent-login/contracts";
+import { AgentLoginClient } from "@agent-login/sdk";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
 
