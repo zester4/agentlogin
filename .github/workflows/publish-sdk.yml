@@ -73,14 +73,14 @@ jobs:
           pnpm build
           pnpm lint
           pnpm typecheck
-          # @agentlogin/contracts currently has no standalone test files;
+          # @agent-login/contracts currently has no standalone test files;
           # its TypeScript build, lint, and typecheck run above.
-          pnpm --filter @agentlogin/sdk test
+          pnpm --filter @agent-login/sdk test
       - name: Inspect publish tarballs
         run: |
           mkdir -p /tmp/agentlogin-packages
-          pnpm --filter @agentlogin/contracts pack --pack-destination /tmp/agentlogin-packages
-          pnpm --filter @agentlogin/sdk pack --pack-destination /tmp/agentlogin-packages
+          pnpm --filter @agent-login/contracts pack --pack-destination /tmp/agentlogin-packages
+          pnpm --filter @agent-login/sdk pack --pack-destination /tmp/agentlogin-packages
           for archive in /tmp/agentlogin-packages/*.tgz; do
             tar -tzf "$archive"
             tar -tzf "$archive" | grep -q 'package/dist/index.js'
@@ -98,19 +98,19 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          if npm view "@agentlogin/contracts@$VERSION" version >/dev/null 2>&1; then
-            echo "@agentlogin/contracts@$VERSION already exists; leaving immutable version unchanged."
+          if npm view "@agent-login/contracts@$VERSION" version >/dev/null 2>&1; then
+            echo "@agent-login/contracts@$VERSION already exists; leaving immutable version unchanged."
           else
-            npm publish "/tmp/agentlogin-packages/agentlogin-contracts-$VERSION.tgz" --access public
+            npm publish "/tmp/agentlogin-packages/agent-login-contracts-$VERSION.tgz" --access public
           fi
       - name: Publish SDK with npm OIDC
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          if npm view "@agentlogin/sdk@$VERSION" version >/dev/null 2>&1; then
-            echo "@agentlogin/sdk@$VERSION already exists; leaving immutable version unchanged."
+          if npm view "@agent-login/sdk@$VERSION" version >/dev/null 2>&1; then
+            echo "@agent-login/sdk@$VERSION already exists; leaving immutable version unchanged."
           else
-            npm publish "/tmp/agentlogin-packages/agentlogin-sdk-$VERSION.tgz" --access public
+            npm publish "/tmp/agentlogin-packages/agent-login-sdk-$VERSION.tgz" --access public
           fi
       - name: Verify clean consumer installation
         env:
@@ -119,9 +119,9 @@ jobs:
           mkdir -p /tmp/agentlogin-consumer
           cd /tmp/agentlogin-consumer
           npm init -y
-          npm install --no-audit --no-fund "@agentlogin/sdk@$VERSION"
+          npm install --no-audit --no-fund "@agent-login/sdk@$VERSION"
           node --input-type=module <<'NODE'
-          import { AgentLoginClient, AgentLoginApplicationClient } from "@agentlogin/sdk";
+          import { AgentLoginClient, AgentLoginApplicationClient } from "@agent-login/sdk";
           if (typeof AgentLoginClient !== "function" || typeof AgentLoginApplicationClient !== "function") {
             throw new Error("Published SDK exports are incomplete");
           }
@@ -151,7 +151,7 @@ jobs:
           - MCP OAuth 2.1 discovery is not included.
           - AgentLogin's full credential-execution service is still under development; this release does not establish that production website login is available.
 
-          Install: npm install @agentlogin/sdk@$VERSION
+          Install: npm install @agent-login/sdk@$VERSION
 
           Documentation: https://github.com/zester4/agentlogin/blob/main/packages/sdk/README.md
           SDK/MCP guide: https://github.com/zester4/agentlogin/blob/main/docs/SDK_MCP.md
