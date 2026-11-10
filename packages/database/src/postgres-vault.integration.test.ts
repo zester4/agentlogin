@@ -10,10 +10,6 @@ import {
   connectedAccounts,
   credentials,
   auditEvents,
-  webhookDeliveryAttempts,
-  webhookDeliveryQueue,
-  webhookDeliveries,
-  webhookEndpoints,
   webhookEvents
 } from "./index.js";
 import {
@@ -93,10 +89,6 @@ describe.skipIf(!connectionString)("PostgreSQL credential vault lifecycle (isola
       await databaseHandle.db.transaction(async (tx) => {
         await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
         if (accountId) {
-          await tx.delete(webhookDeliveryAttempts).where(eq(webhookDeliveryAttempts.tenantId, tenantId));
-          await tx.delete(webhookDeliveryQueue).where(eq(webhookDeliveryQueue.tenantId, tenantId));
-          await tx.delete(webhookDeliveries).where(eq(webhookDeliveries.tenantId, tenantId));
-          await tx.delete(webhookEndpoints).where(eq(webhookEndpoints.tenantId, tenantId));
           await tx.delete(webhookEvents).where(eq(webhookEvents.tenantId, tenantId));
           await tx.delete(credentials).where(eq(credentials.tenantId, tenantId));
           await tx.delete(connectedAccounts).where(eq(connectedAccounts.id, accountId));
