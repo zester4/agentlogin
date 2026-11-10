@@ -1,4 +1,5 @@
 import { DecryptCommand, EncryptCommand, KMSClient } from "@aws-sdk/client-kms";
+import { GetCallerIdentityCommand, STSClient } from "@aws-sdk/client-sts";
 import type { CredentialContext, KeyManagementProvider, WrappedDataKey } from "./index.js";
 
 function encryptionContext(context: CredentialContext): Record<string, string> {
@@ -67,5 +68,19 @@ export class AwsKmsProvider implements KeyManagementProvider {
     const plaintext = new Uint8Array(result.Plaintext);
     result.Plaintext.fill(0);
     return plaintext;
+  }
+}
+
+
+/** Resolve the effective AWS principal using the same default credential provider chain as KMS. */
+export async function getAwsCallerIdentity(region: string): Promise<{ arn: string; account: string }> {
+  if (!region.trim()) throw new TypeError("AWS region is required.");
+  const client = new STSClient({ region });
+  try {
+    const identity = await client.send(new GetCallerIdentityCommand({}));
+    if (!identity.Arn || !identity.Account) throw new Error("AWS caller identity response was incomplete.");
+    return { arn: identity.Arn, account: identity.Account };
+  } finally {
+    client.destroy();
   }
 }
