@@ -76,7 +76,7 @@ The browser must never receive webhook signing secrets or accept inbound webhook
 
 ## API surface to implement
 
-Developer-authenticated endpoints, tenant-scoped:
+Authenticated developer-workspace administrator endpoints, tenant-scoped:
 - POST /v1/developers/:developerId/webhook-endpoints — create endpoint and return signing secret once (requires `WEBHOOK_ENDPOINTS_ENABLED=true`).
 - GET /v1/developers/:developerId/webhook-endpoints — list endpoint metadata, never secret.
 - PATCH /v1/developers/:developerId/webhook-endpoints/:endpointId — update URL/event subscriptions/active state (requires the feature gate).
