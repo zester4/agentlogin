@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { PostgresDelegationRepository } from "@agentlogin/database";
-import { GrantScopeSchema } from "@agentlogin/contracts";
+import { GrantScopeSchema } from "@agent-login/contracts";
 
 const DelegationBody = z.object({
   agent_id: z.string().min(1).max(200),
