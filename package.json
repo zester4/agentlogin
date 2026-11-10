@@ -15,7 +15,7 @@
     "start": "node scripts/start-api.mjs",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm --filter @agentlogin/api --filter @agentlogin/policy --filter @agentlogin/vault --filter @agentlogin/identity --filter @agentlogin/database --filter @agentlogin/execution --filter @agentlogin/sdk --filter @agentlogin/mcp --filter @agentlogin/webhooks --filter @agentlogin/test-site test",
+    "test": "pnpm --filter @agentlogin/api --filter @agentlogin/policy --filter @agentlogin/vault --filter @agentlogin/identity --filter @agentlogin/database --filter @agentlogin/execution --filter @agentlogin/sdk --filter @agentlogin/mcp --filter @agentlogin/webhooks --filter @agentlogin/test-site --filter @agentlogin/login-worker test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d postgres",
