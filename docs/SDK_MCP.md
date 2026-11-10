@@ -7,13 +7,13 @@ This guide describes the first usable developer integration layer. It intentiona
 The SDK is split from the API and can be published independently. The shared contracts package is a runtime dependency.
 
 \`\`\`bash
-pnpm add @agentlogin/sdk
+pnpm add @agent-login/sdk
 \`\`\`
 
 Create a client with an agent credential. Prefer a token provider when the calling application rotates or retrieves credentials dynamically:
 
 \`\`\`ts
-import { AgentLoginClient } from "@agentlogin/sdk";
+import { AgentLoginClient } from "@agent-login/sdk";
 
 const client = new AgentLoginClient({
   baseUrl: process.env.AGENTLOGIN_API_URL!,
@@ -107,7 +107,7 @@ This fixture verifies the website's own success, invalid-password, MFA, and logo
 
 ## Package release
 
-\`@agentlogin/sdk\` and \`@agentlogin/contracts\` have public-package metadata and distribution exports prepared. They have not been published to npm. Before publishing, run the workspace CI, verify the packed tarballs and declaration files, confirm npm scope ownership, and publish the contracts package before the SDK.
+\`@agent-login/sdk\` and \`@agent-login/contracts\` have public-package metadata and distribution exports prepared. They have not been published to npm. Before publishing, run the workspace CI, verify the packed tarballs and declaration files, confirm npm scope ownership, and publish the contracts package before the SDK.
 
 ## Verification checklist
 
@@ -151,7 +151,7 @@ grant_type=client_credentials
 Access tokens are opaque, tenant-bound, database-backed bearer tokens with a 15-minute lifetime. They are currently issued with the `agents:manage` scope. The application token can register an agent; the newly issued agent credential is then used for agent identity and scoped grant requests.
 
 ```ts
-import { AgentLoginApplicationClient, AgentLoginClient } from "@agentlogin/sdk";
+import { AgentLoginApplicationClient, AgentLoginClient } from "@agent-login/sdk";
 
 const application = new AgentLoginApplicationClient({
   baseUrl: process.env.AGENTLOGIN_API_URL!,
