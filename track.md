@@ -218,3 +218,37 @@ No production execution or credential enrollment is considered accepted until al
 - [ ] Dedicated AWS principal identity and effective KMS decrypt-only permission remain unverified. Railway shows AWS key variable names, but values are withheld and no AWS IAM/KMS management connector is available. Do not assume that presence means the identity is correct.
 - [ ] Run synthetic end-to-end login against a public HTTPS fixture once KMS identity/policy is verified.
 - [ ] Confirm production execution route activation state and keep it paused until all gates pass; API startup has not emitted the earlier disabled-route warning after the relevant variable names appeared, so the route may be enabled.
+
+
+## 13. Latest production deployment and runtime review — 2026-11-10
+
+### Deployment evidence
+- [x] Rechecked Railway production deployments after the latest configuration changes.
+- [x] API service and isolated login worker both have latest deployment status SUCCESS on commit `c5b9796b234ace0f06ea4ad1e81bad0bbd7000a0`.
+- [x] The other three production services also report SUCCESS on the same commit.
+- [x] API runtime completed migrations successfully, started listening on port 8080, and passed its Railway `/health` check with HTTP 200.
+- [x] Worker runtime started listening on port 4180 and passed its Railway `/health` check with HTTP 200.
+- [x] Railway network-flow telemetry includes private service traffic to the worker port 4180. This is evidence of private-network reachability, but the captured flow does not identify a successful authenticated login execution request.
+- [ ] Do not mark API-to-worker execution accepted: no valid synthetic ticket/lease request and response has been captured.
+- [ ] A SIGTERM appears in the prior deployment's shutdown logs during replacement. The latest deployment itself is SUCCESS; continue monitoring for unexpected restarts rather than treating normal replacement shutdown as a crash.
+
+### KMS and AWS identity correction
+- [x] Worker AWS credential variables are configured as Railway references to the API service's AWS access-key variables. This avoids copying plaintext secrets into Git or chat.
+- [ ] This means the worker is currently using the API's AWS principal, not a verified distinct least-privilege worker identity. This does not meet the dedicated-worker-identity requirement in the acceptance runbook.
+- [ ] Do not claim KMS runtime verification: no live KMS encrypt/decrypt operation has been run by the worker process. Unit tests use a mocked KMS client and do not establish production IAM permissions.
+- [ ] Obtain a distinct worker IAM principal with only `kms:Decrypt` on the AgentLogin vault key, constrained by `kms:EncryptionContext:purpose=website_login`; verify the key policy and deny cases before using it.
+- [ ] No temporary diagnostic endpoint or public KMS test route was added. Do not introduce an unauthenticated diagnostic surface.
+
+### Database and enrollment
+- [x] Production database permissions remain corrected to exact column-level SELECT grants; actual worker DB connection was previously observed as `agentlogin_worker` in `pg_stat_activity`.
+- [x] Worker `DATABASE_APPLICATION_NAME=agentlogin-login-worker` was configured; this latest successful worker deployment includes that configuration.
+- [ ] Recheck the current live DB session attribution after the latest worker deployment.
+- [x] Credential enrollment remains disabled; do not enable it as part of worker acceptance.
+
+### Next safe sequence
+1. Verify live worker DB session attribution and confirm no unexpected restarts.
+2. Replace the shared API AWS credential reference with a dedicated worker IAM identity only after the IAM principal and KMS key policy are provisioned and reviewed.
+3. Add/run a worker-side KMS acceptance test using synthetic envelope material, without exposing secrets or adding a public diagnostic route.
+4. Perform private API-to-worker health and invalid-ticket checks from inside the trusted runtime; then exercise a synthetic lease only in a controlled fixture environment.
+5. Provision a public-DNS HTTPS synthetic login fixture and run success/invalid-password/MFA-challenge plus negative security tests.
+6. Keep production login execution and credential enrollment disabled until every acceptance gate has evidence. MFA completion/resume remains unimplemented and must not be represented as supported.
