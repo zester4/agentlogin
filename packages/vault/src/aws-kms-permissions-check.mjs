@@ -178,11 +178,12 @@ async function main() {
   if (failures > 0) {
     console.error("KMS permission gate NOT PASSED.");
     process.exitCode = 1;
+  } else if (skipped > 0) {
+    console.error("KMS permission gate INCOMPLETE — one or more checks were skipped.");
+    console.error("Supply the valid synthetic ciphertext fixture and rerun before treating the gate as passed.");
+    process.exitCode = 2;
   } else {
-    console.log("KMS permission-action checks passed.");
-    if (skipped) {
-      console.log("Note: Decrypt authorization and context enforcement remain unverified until a valid synthetic ciphertext fixture is supplied.");
-    }
+    console.log("KMS permission gate PASSED.");
   }
 }
 
