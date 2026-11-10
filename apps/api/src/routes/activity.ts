@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, asc, desc, eq, gt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { auditEvents, grants, withTenantTransaction, type Database } from "@agentlogin/database";
 
 
@@ -62,7 +62,9 @@ export async function activityRoutes(app: FastifyInstance, options: { database: 
         const events = await withTenantTransaction(options.database, principal.tenantId, async (tx) => {
           // pg Date decoding truncates microseconds; truncate in SQL too so the
           // (timestamp, id) cursor remains stable and cannot replay one row forever.
-          const cursorTimestamp = sql<Date>`date_trunc('milliseconds', ${auditEvents.createdAt})`;
+          const cursorTimestamp = sql<string>`to_char(${auditEvents.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+                    const afterCursor = sql<boolean>`(${auditEvents.createdAt} > ${cursor.at}::timestamptz OR
+                      (${auditEvents.createdAt} = ${cursor.at}::timestamptz AND ${auditEvents.id} > ${cursor.id}))`;
           return tx.select({
             id: auditEvents.id,
             createdAt: cursorTimestamp,
@@ -77,19 +79,16 @@ export async function activityRoutes(app: FastifyInstance, options: { database: 
                 eq(auditEvents.actorId, principal.userId),
                 eq(grants.userId, principal.userId)
               ),
-              or(
-                gt(cursorTimestamp, cursor.at),
-                and(eq(cursorTimestamp, cursor.at), gt(auditEvents.id, cursor.id))
-              )
+              afterCursor
             ))
-            .orderBy(asc(cursorTimestamp), asc(auditEvents.id))
+            .orderBy(asc(auditEvents.createdAt), asc(auditEvents.id))
             .limit(100);
         });
         for (const event of events) {
           if (stopped || reply.raw.destroyed) break;
           const nextCursor = encodeActivityCursor(event.createdAt, event.id);
           reply.raw.write(
-            `id: ${nextCursor}\nevent: dashboard.invalidate\ndata: ${JSON.stringify({ event_id: event.id, occurred_at: event.createdAt.toISOString() })}\n\n`
+            `id: ${nextCursor}\nevent: dashboard.invalidate\ndata: ${JSON.stringify({ event_id: event.id, occurred_at: event.createdAt })}\n\n`
           );
           cursor = { at: event.createdAt, id: event.id };
         }
