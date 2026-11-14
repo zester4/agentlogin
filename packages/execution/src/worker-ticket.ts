@@ -74,6 +74,11 @@ export function verifyWorkerTicket(
   }
   const signingInput = encodedHeader + "." + encodedPayload;
   const supplied = Buffer.from(encodedSignature, "base64url");
+  // Node's base64url decoder accepts non-canonical trailing pad bits. Require
+  // round-trip equality so alternate strings cannot alias a valid signature.
+  if (supplied.toString("base64url") !== encodedSignature) {
+    throw new TypeError("Invalid worker ticket.");
+  }
   const expected = signature(signingInput, key);
   if (supplied.byteLength !== expected.byteLength || !timingSafeEqual(supplied, expected)) {
     throw new TypeError("Invalid worker ticket.");
