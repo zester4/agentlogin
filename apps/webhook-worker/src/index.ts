@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
+import { normalizePostgresSslMode } from "@agentlogin/database";
 import { AwsKmsProvider, decryptCredential, type CiphertextEnvelope, type CredentialContext } from "@agentlogin/vault";
 import { postWebhookSafely } from "@agentlogin/webhooks";
 
@@ -30,7 +31,7 @@ if (!databaseUrl || !kmsKeyId || !awsRegion) {
 }
 
 const pool = new Pool({
-  connectionString: databaseUrl,
+  connectionString: normalizePostgresSslMode(databaseUrl),
   max: Number(process.env.WEBHOOK_WORKER_POOL_MAX ?? 4),
   connectionTimeoutMillis: 5_000,
   idleTimeoutMillis: 30_000,
