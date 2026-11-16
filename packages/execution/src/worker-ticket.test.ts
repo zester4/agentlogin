@@ -35,6 +35,25 @@ describe("short-lived worker tickets", () => {
     expect(() => createWorkerTicket(binding, Buffer.alloc(16), { now })).toThrow();
   });
 
+  it("rejects non-canonical base64url signature aliases", () => {
+    const token = createWorkerTicket(binding, key, { now });
+    const parts = token.split(".");
+    const header = parts[0];
+    const payload = parts[1];
+    const encodedSignature = parts[2];
+    if (!header || !payload || !encodedSignature) throw new Error("Expected a three-part signed ticket.");
+
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const finalIndex = alphabet.indexOf(encodedSignature.at(-1)!);
+    const alias = alphabet[finalIndex ^ 1];
+    if (!alias) throw new Error("Expected a base64url signature character.");
+    const aliasedSignature = encodedSignature.slice(0, -1) + alias;
+
+    // The altered final character decodes to the same bytes but is not canonical.
+    expect(Buffer.from(aliasedSignature, "base64url")).toEqual(Buffer.from(encodedSignature, "base64url"));
+    expect(() => verifyWorkerTicket(header + "." + payload + "." + aliasedSignature, key, { now })).toThrow();
+  });
+
   it("rejects malformed or incomplete identities", () => {
     expect(() => createWorkerTicket({ ...binding, tenantId: "" }, key, { now })).toThrow();
     expect(() => verifyWorkerTicket("not-a-jwt", key, { now })).toThrow();
